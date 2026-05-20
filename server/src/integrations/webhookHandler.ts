@@ -1,5 +1,5 @@
 import type { Request, Response } from "express";
-import type { Prisma } from "@prisma/client";
+import type { Prisma } from "../db/prisma";
 import { ticketRepo } from "../db/repositories/ticketRepo";
 import { jobQueue, JOB_NAMES } from "../queue/jobQueue";
 import { logger } from "../utils/logger";

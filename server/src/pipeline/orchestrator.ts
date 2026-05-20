@@ -1,4 +1,4 @@
-import type { Prisma, PipelineStage } from "@prisma/client";
+import type { Prisma, PipelineStage } from "../db/prisma";
 import { ProductAgent } from "../agents/productAgent";
 import { EngineeringAgent } from "../agents/engineeringAgent";
 import { QAAgent } from "../agents/qaAgent";

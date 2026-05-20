@@ -1,4 +1,4 @@
-import type { Prisma, TicketStatus, Ticket } from "@prisma/client";
+import type { Prisma, Ticket, TicketStatus } from "../prisma";
 import { prisma } from "../client";
 
 export const ticketRepo = {

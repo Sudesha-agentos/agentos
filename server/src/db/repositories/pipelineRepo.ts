@@ -5,7 +5,7 @@ import type {
   PipelineStatus,
   Prisma,
   StageStatus,
-} from "@prisma/client";
+} from "../prisma";
 import { prisma } from "../client";
 
 export const pipelineRepo = {

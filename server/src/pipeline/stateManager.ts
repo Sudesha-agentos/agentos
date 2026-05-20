@@ -1,4 +1,4 @@
-import type { PipelineStage } from "@prisma/client";
+import type { PipelineStage } from "../db/prisma";
 import { prisma } from "../db/client";
 import { auditRepo } from "../db/repositories/auditRepo";
 import { pipelineRepo } from "../db/repositories/pipelineRepo";

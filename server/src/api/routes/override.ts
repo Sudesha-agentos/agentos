@@ -6,7 +6,7 @@ import { jobQueue, JOB_NAMES } from "../../queue/jobQueue";
 import { stateManager } from "../../pipeline/stateManager";
 import { prisma } from "../../db/client";
 import { NotFoundError, ValidationError } from "../../utils/errors";
-import type { Prisma } from "@prisma/client";
+import type { Prisma } from "../../db/prisma";
 
 const router = Router();
 
