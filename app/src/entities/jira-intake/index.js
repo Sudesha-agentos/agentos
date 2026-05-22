@@ -51,6 +51,13 @@ export async function getIntegrationSetup() {
   return fetchJson(intake("/integration/setup"));
 }
 
+export async function connectJiraIntegration(body) {
+  return fetchJson(intake("/integration/connect"), {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
 export async function getBoardColumns() {
   return fetchJson(intake("/boards/columns"));
 }

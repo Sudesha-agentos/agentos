@@ -18,6 +18,16 @@ CREATE TABLE IF NOT EXISTS ai_worker_issues (
 
 CREATE INDEX IF NOT EXISTS idx_ai_worker_active ON ai_worker_issues(active);
 
+CREATE TABLE IF NOT EXISTS jira_credentials (
+  singleton_id      INTEGER PRIMARY KEY CHECK (singleton_id = 1),
+  base_url          TEXT,
+  email             TEXT,
+  api_token         TEXT,
+  board_id          TEXT,
+  webhook_secret    TEXT,
+  updated_at        TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS jira_integration_config (
   singleton_id            INTEGER PRIMARY KEY CHECK (singleton_id = 1),
   working_column_name     TEXT,

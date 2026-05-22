@@ -8,6 +8,8 @@ import {
   syncWorkingColumnFromBoard,
 } from "../../jira-intake/boardColumnsService";
 import { handleAiWorkerWebhook } from "../../jira-intake/aiWorkerWebhookHandler";
+import { connectJira } from "../../jira-intake/connectJira";
+import { getPublicJiraCredentials } from "../../jira-intake/jiraCredentialsStore";
 import { getIntegrationMapping } from "../../jira-intake/integrationConfigStore";
 import {
   getQueueStats,
@@ -36,6 +38,7 @@ function publicApiBase(req: Request): string {
 router.get("/integration/setup", (req, res) => {
   const base = publicApiBase(req);
   const mapping = getIntegrationMapping();
+  const jira = getPublicJiraCredentials();
   let jiraReady = false;
   try {
     validateJiraConfig();
@@ -48,12 +51,59 @@ router.get("/integration/setup", (req, res) => {
     webhookUrl: `${base}/webhooks/jira`,
     webhookEvents: ["jira:issue_updated", "jira:issue_created"],
     webhookHint:
-      "In Jira → Settings → Webhooks, paste the URL above. Enable Issue updated so moves between columns sync the AI Worker queue.",
+      "Paste the webhook URL in Jira. Enable Issue updated. Optional: set custom header x-agentos-secret to the value below for pipeline events.",
     mapping,
     trackedStatuses: mapping.workingStatuses,
+    jira,
+    connected: jiraReady,
     jiraConfigured: jiraReady,
-    boardId: intakeConfig.jira.boardId || null,
+    boardId: jira.boardId || null,
   });
+});
+
+router.post("/integration/connect", async (req, res) => {
+  const baseUrl = String(req.body?.baseUrl ?? "").trim();
+  const email = String(req.body?.email ?? "").trim();
+  const boardId = String(req.body?.boardId ?? "").trim();
+  const apiToken = req.body?.apiToken ? String(req.body.apiToken).trim() : undefined;
+  const webhookSecret = req.body?.webhookSecret
+    ? String(req.body.webhookSecret).trim()
+    : undefined;
+
+  if (!baseUrl || !email || !boardId) {
+    res.status(400).json({
+      error: "baseUrl, email, and boardId are required",
+    });
+    return;
+  }
+
+  const publicBefore = getPublicJiraCredentials();
+  if (!apiToken && !publicBefore.hasApiToken) {
+    res.status(400).json({
+      error: "apiToken is required on first connect",
+    });
+    return;
+  }
+
+  try {
+    const result = await connectJira({
+      baseUrl,
+      email,
+      boardId,
+      apiToken,
+      webhookSecret,
+    });
+    const apiBase = publicApiBase(req);
+    res.json({
+      ...result,
+      publicApiBase: apiBase,
+      webhookUrl: `${apiBase}/webhooks/jira`,
+      webhookEvents: ["jira:issue_updated", "jira:issue_created"],
+    });
+  } catch (err) {
+    const e = err as Error & { status?: number };
+    res.status(e.status && e.status >= 400 ? e.status : 502).json({ error: e.message });
+  }
 });
 
 router.get("/boards/columns", async (_req, res) => {

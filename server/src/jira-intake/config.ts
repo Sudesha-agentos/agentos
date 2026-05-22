@@ -7,7 +7,7 @@ function resolveSqlitePath(envPath: string | undefined): string {
   return path.isAbsolute(p) ? p : path.join(serverRoot, p);
 }
 
-function normalizeJiraBaseUrl(url: string): string {
+export function normalizeJiraBaseUrl(url: string): string {
   const trimmed = String(url || "").trim();
   if (!trimmed) return "";
   try {

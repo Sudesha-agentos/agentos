@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { handleAiWorkerWebhook } from "../../jira-intake/aiWorkerWebhookHandler";
 import { intakeConfig } from "../../jira-intake/config";
+import { getWebhookSecret } from "../../jira-intake/jiraCredentialsStore";
 import { handleJiraWebhook } from "../../integrations/webhookHandler";
 import { logger } from "../../utils/logger";
 
@@ -28,7 +29,7 @@ router.get("/jira", (_req, res) => {
 
 router.post("/jira", (req, res, next) => {
   if (isPipelineCreateEvent(req.body)) {
-    const expected = process.env.JIRA_WEBHOOK_SECRET;
+    const expected = getWebhookSecret();
     if (expected) {
       const provided = req.header("x-agentos-secret");
       if (provided !== expected) {
