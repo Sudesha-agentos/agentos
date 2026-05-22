@@ -22,7 +22,6 @@ export default defineConfig(({ mode }) => {
         "/jira-intake": {
           target: apiUrl,
           changeOrigin: true,
-          rewrite: (path) => path.replace(/^\/jira-intake/, ""),
         },
       },
     },

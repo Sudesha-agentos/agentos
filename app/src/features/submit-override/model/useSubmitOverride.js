@@ -3,15 +3,14 @@ import {
   SubmitOverrideRequestSchema,
   SubmitOverrideResponseSchema,
 } from "../../../contracts";
+import { apiPath } from "../../../shared/config/apiBase";
 import { DATA_MODE } from "../../../shared/config/app";
 import { fetchJson } from "../../../shared/lib/fetchJson";
 import { mockApi } from "../../../app/api/mock";
 
-const BASE = "/api";
-
 async function submitWithRest(pipelineId, payload) {
   return SubmitOverrideResponseSchema.parse(
-    await fetchJson(`${BASE}/pipelines/${pipelineId}/override`, {
+    await fetchJson(apiPath("/api", `/pipelines/${pipelineId}/override`), {
       method: "POST",
       body: JSON.stringify(SubmitOverrideRequestSchema.parse(payload)),
     })

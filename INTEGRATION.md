@@ -1,92 +1,33 @@
-# Jira intake (built into agentos)
+# Jira intake (built into server)
 
-AI Worker queue and board keyword search run **inside the agentos server** on port **4000**. You do not need the separate `d:\Jira Webhook` service for the product UI.
+AI Worker queue and board search run on the **server** (`server/`). The **app** (`app/`) calls them via `VITE_API_URL` in production or Vite proxy in dev.
 
-| Page | Route | Backend (via `/jira-intake` proxy) |
-|------|-------|-------------------------------------|
-| AI Worker queue | `/app/ai-worker` | `GET /ai-worker/issues` |
-| Board search | `/app/jira-search` | `GET /boards/search` |
+| Page | App route | API |
+|------|-----------|-----|
+| AI Worker queue | `/app/ai-worker` | `GET /jira-intake/ai-worker/issues` |
+| Board search | `/app/jira-search` | `GET /jira-intake/boards/search` |
 
-The standalone project at `d:\Jira Webhook` is unchanged and can still be used on its own.
+## Local dev
 
-## Run agentos (one command)
-
-```bash
-cd d:\agentos
-npm install
-cd server && npm install && cd ..
+```powershell
 npm run dev
 ```
 
-This starts:
+- App: http://localhost:5173/app/ai-worker  
+- API: http://localhost:4000  
 
-- **Vite** on http://localhost:5173 (UI)
-- **API** on http://localhost:4000 (pipelines + Jira intake)
+## Production
 
-Open:
+| Deploy | Root directory | Env |
+|--------|----------------|-----|
+| **Vercel** | `app` | `VITE_API_URL=https://<render-host>`, `VITE_API_MODE=rest` |
+| **Render** | `server` | `server/.env` + `CORS_ORIGIN=https://<vercel-host>` |
 
-- http://localhost:5173/app/ai-worker
-- http://localhost:5173/app/jira-search
+Pipelines need Postgres, Redis, and model keys on Render. Jira intake pages only need Jira vars + SQLite path (`SQLITE_PATH`).
 
-### First-time server setup
+## Webhook URL
 
-Copy Jira credentials into `server/.env` (from your standalone `Jira Webhook/.env` or `server/.env.example`):
+`https://<render-host>/webhooks/jira`
 
-- `JIRA_BASE_URL`, `JIRA_EMAIL`, `JIRA_API_TOKEN`, `JIRA_BOARD_ID`
-- `AI_WORKER_STATUSES` (e.g. `AI Worker`)
-
-Pipelines also need `DATABASE_URL`, `REDIS_URL`, and model keys. Intake pages work without Postgres.
-
-To reuse an existing AI Worker SQLite database, copy `Jira Webhook/data/jira.db` to `server/data/jira-intake.db`.
-
-### Optional: pipeline worker
-
-```bash
-npm run dev:worker
-```
-
-Requires Postgres, Redis, and model keys in `server/.env`.
-
-## Configure `server/.env`
-
-Copy from `server/.env.example`. For intake pages you need at least:
-
-```env
-JIRA_BASE_URL=https://your-domain.atlassian.net
-JIRA_EMAIL=you@example.com
-JIRA_API_TOKEN=...
-JIRA_BOARD_ID=1
-AI_WORKER_STATUSES=AI Worker
-```
-
-Board search uses the Jira REST API. The AI Worker queue uses SQLite at `server/data/jira-intake.db` by default.
-
-## Jira webhooks (one URL on port 4000)
-
-Use the **same path as before**: `POST /webhooks/jira`
-
-| Event | Handler |
-|-------|---------|
-| `jira:issue_created` | Agent pipeline (optional `x-agentos-secret`) |
-| `jira:issue_updated` (column moves) | AI Worker SQLite queue |
-
-**ngrok must target port 4000**, not 3000:
-
-```bash
-cd d:\agentos
-npm run tunnel
-# Jira webhook URL: https://<ngrok-host>/webhooks/jira
-```
-
-Stop the standalone `d:\Jira Webhook` service on :3000 if you use agentos, or webhooks will update the wrong database.
-
-## Code layout
-
-```
-server/src/jira-intake/     SQLite store, Jira API, board search
-server/src/api/routes/jiraIntake.ts
-src/entities/jira-intake/   Frontend API client
-src/app/pages/AiWorker.jsx
-src/app/pages/JiraSearch.jsx
-vite.config.js              /jira-intake → :4000
-```
+- `issue_created` → agent pipeline (needs worker + Redis)  
+- other events (e.g. `issue_updated`) → AI Worker SQLite queue  

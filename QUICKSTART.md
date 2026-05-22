@@ -1,34 +1,20 @@
-# Agentos quick start (AI Worker + board search)
-
-## Run (one terminal)
+# Quick start
 
 ```powershell
-cd d:\agentos
+cd agentos
+npm run install:all
 npm run dev
 ```
 
-Open:
+- http://localhost:5173/app/ai-worker  
+- http://localhost:5173/app/jira-search  
 
-- http://localhost:5173/app/ai-worker
-- http://localhost:5173/app/jira-search
-
-## Expose to Jira (second terminal)
+Jira webhooks (second terminal):
 
 ```powershell
-cd d:\agentos
 npm run tunnel
 ```
 
-Set Jira webhook URL to: `https://<ngrok-host>/webhooks/jira`  
-Events: **Issue updated** (and **Issue created** if needed).
+→ `https://<ngrok-host>/webhooks/jira`
 
-## Do not run at the same time
-
-- `d:\Jira Webhook` on port **3000** (old standalone app)
-- Only use **agentos** on port **4000**
-
-The start script stops port 3000 automatically.
-
-## Config
-
-Jira credentials live in `server/.env` (copied from `Jira Webhook/.env` on first run if missing).
+Config: `server/.env` (Jira, DB, Redis). Optional `app/.env` for `VITE_API_URL` when testing against Render.

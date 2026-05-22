@@ -17,6 +17,30 @@ export function createApp(): express.Express {
   const app = express();
 
   app.use(helmet());
+  app.use((req, res, next) => {
+    const allowed =
+      process.env.CORS_ORIGIN?.split(",").map((o) => o.trim()) ?? ["*"];
+    const origin = req.header("origin");
+    if (origin && (allowed.includes("*") || allowed.includes(origin))) {
+      res.setHeader("Access-Control-Allow-Origin", origin);
+      res.setHeader("Vary", "Origin");
+    } else if (allowed.includes("*")) {
+      res.setHeader("Access-Control-Allow-Origin", "*");
+    }
+    res.setHeader(
+      "Access-Control-Allow-Methods",
+      "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+    );
+    res.setHeader(
+      "Access-Control-Allow-Headers",
+      "Content-Type, x-agentos-secret"
+    );
+    if (req.method === "OPTIONS") {
+      res.sendStatus(204);
+      return;
+    }
+    next();
+  });
   app.use(express.json({ limit: "2mb" }));
   app.use((req, _res, next) => {
     logger.debug(
@@ -27,7 +51,7 @@ export function createApp(): express.Express {
   });
 
   app.use("/", healthRouter);
-  app.use("/", jiraIntakeRouter);
+  app.use("/jira-intake", jiraIntakeRouter);
   app.use("/webhooks", webhooksRouter);
   app.use("/pipelines", pipelineRouter);
   app.use("/pipelines", overrideRouter);

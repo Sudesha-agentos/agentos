@@ -1,14 +1,15 @@
 import { ReadinessResponseSchema } from "../../contracts";
+import { apiPath } from "../../shared/config/apiBase";
 import { DATA_MODE } from "../../shared/config/app";
 import { fetchJson } from "../../shared/lib/fetchJson";
 import { useResource } from "../../shared/lib/useResource";
 import { mockApi } from "../../app/api/mock";
 
-const BASE = "/api";
-
 const restSystemAdapter = {
   async readiness() {
-    return ReadinessResponseSchema.parse(await fetchJson(`${BASE}/readyz`));
+    return ReadinessResponseSchema.parse(
+      await fetchJson(apiPath("/api", "/readyz"))
+    );
   },
 };
 

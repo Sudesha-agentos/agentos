@@ -1,0 +1,26 @@
+# Render Blueprint — deploy from repo with rootDir = server (or link this file).
+# https://render.com/docs/blueprint-spec
+
+services:
+  - type: web
+    name: agentos-api
+    runtime: node
+    rootDir: server
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /healthz
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "10000"
+
+  - type: worker
+    name: agentos-worker
+    runtime: node
+    rootDir: server
+    buildCommand: npm install && npm run build
+    startCommand: npm run worker
+    envVars:
+      - key: NODE_ENV
+        value: production

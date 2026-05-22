@@ -1,19 +1,19 @@
+import { apiPath } from "../../shared/config/apiBase";
 import { fetchJson } from "../../shared/lib/fetchJson";
 import { useResource } from "../../shared/lib/useResource";
 
-/** Proxied to agentos server (:4000) via vite.config.js /jira-intake */
-const BASE = "/jira-intake";
+const intake = (path) => apiPath("/jira-intake", path);
 
 export async function listAiWorkerIssues(active = "1") {
-  return fetchJson(`${BASE}/ai-worker/issues?active=${active}`);
+  return fetchJson(intake(`/ai-worker/issues?active=${active}`));
 }
 
 export async function getAiWorkerDebug() {
-  return fetchJson(`${BASE}/ai-worker/debug/last-webhook`);
+  return fetchJson(intake("/ai-worker/debug/last-webhook"));
 }
 
 export async function getAiWorkerConfig() {
-  return fetchJson(`${BASE}/ai-worker/config`);
+  return fetchJson(intake("/ai-worker/config"));
 }
 
 export async function searchBoard(keyword, searchIn = "both") {
@@ -21,11 +21,11 @@ export async function searchBoard(keyword, searchIn = "both") {
     keyword,
     searchIn,
   });
-  return fetchJson(`${BASE}/boards/search?${params}`);
+  return fetchJson(intake(`/boards/search?${params}`));
 }
 
 export async function getIntakeHealth() {
-  return fetchJson(`${BASE}/health`);
+  return fetchJson(intake("/health"));
 }
 
 /** Dashboard + status line: active count, last webhook, intake health. */

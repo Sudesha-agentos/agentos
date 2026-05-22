@@ -1,4 +1,4 @@
-# One command to run agentos UI + API (Jira intake included).
+# One command: agentos app (:5173) + API (:4000)
 $ErrorActionPreference = "Stop"
 . "$PSScriptRoot\lib.ps1"
 
@@ -7,7 +7,7 @@ Set-Location $Root
 
 Write-Host ""
 Write-Host "=== Agentos dev ===" -ForegroundColor Cyan
-Write-Host "Freeing ports 3000 (legacy), 4000 (API), 5173 (UI)..."
+Write-Host "Freeing ports 3000 (legacy), 4000 (API), 5173 (app)..."
 Stop-ListenPort 3000
 Stop-ListenPort 4000
 Stop-ListenPort 5173
@@ -16,9 +16,9 @@ Start-Sleep -Seconds 1
 Ensure-ServerEnv -Root $Root
 Sync-IntakeDatabase -Root $Root
 
-if (-not (Test-Path "node_modules")) {
-    Write-Host "Installing frontend dependencies..."
-    npm install
+if (-not (Test-Path "app\node_modules")) {
+    Write-Host "Installing app dependencies..."
+    npm install --prefix app
 }
 if (-not (Test-Path "server\node_modules")) {
     Write-Host "Installing server dependencies..."
@@ -26,11 +26,11 @@ if (-not (Test-Path "server\node_modules")) {
 }
 
 Write-Host ""
-Write-Host "Starting API (:4000) then UI (:5173)..." -ForegroundColor Green
+Write-Host "Starting API (:4000) then app (:5173)..." -ForegroundColor Green
 Write-Host "  App:     http://localhost:5173/app/ai-worker" -ForegroundColor DarkGray
-Write-Host "  Webhook: http://localhost:4000/webhooks/jira (use npm run tunnel for Jira)" -ForegroundColor DarkGray
+Write-Host "  Webhook: http://localhost:4000/webhooks/jira (npm run tunnel)" -ForegroundColor DarkGray
 Write-Host ""
 
-npx concurrently -n api,web -c magenta,blue `
+npx concurrently -n api,app -c magenta,blue `
     "npm run dev --prefix server" `
-    "npx wait-on http://127.0.0.1:4000/health -t 90000 && npm run dev:web"
+    "npx wait-on http://127.0.0.1:4000/healthz -t 90000 && npm run dev --prefix app"

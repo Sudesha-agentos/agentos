@@ -1,47 +1,18 @@
 {
   "name": "agentos",
   "private": true,
-  "version": "0.0.0",
-  "type": "module",
+  "description": "Agentos monorepo — app (Vercel) + server (Render)",
   "scripts": {
     "dev": "powershell -ExecutionPolicy Bypass -File scripts/start.ps1",
-    "dev:web": "vite --port 5173",
+    "dev:app": "npm run dev --prefix app",
     "dev:api": "npm run dev --prefix server",
     "dev:worker": "npm run worker --prefix server",
     "tunnel": "powershell -ExecutionPolicy Bypass -File scripts/tunnel.ps1",
-    "build": "vite build",
-    "lint": "eslint .",
-    "preview": "vite preview",
-    "test": "vitest run",
-    "test:watch": "vitest"
-  },
-  "dependencies": {
-    "clsx": "^2.1.1",
-    "framer-motion": "^12.38.0",
-    "lenis": "^1.3.23",
-    "react": "^19.2.6",
-    "react-dom": "^19.2.6",
-    "react-router-dom": "^7.15.0",
-    "zod": "^4.4.3"
-  },
-  "devDependencies": {
-    "@eslint/js": "^10.0.1",
-    "@testing-library/jest-dom": "^6.9.1",
-    "@testing-library/react": "^16.3.2",
-    "@types/react": "^19.2.14",
-    "@types/react-dom": "^19.2.3",
-    "@vitejs/plugin-react": "^6.0.1",
-    "autoprefixer": "^10.5.0",
-    "concurrently": "^9.2.0",
-    "eslint": "^10.3.0",
-    "eslint-plugin-react-hooks": "^7.1.1",
-    "eslint-plugin-react-refresh": "^0.5.2",
-    "globals": "^17.6.0",
-    "jsdom": "^29.1.1",
-    "postcss": "^8.5.14",
-    "tailwindcss": "^3.4.19",
-    "vite": "^8.0.12",
-    "vitest": "^4.1.6",
-    "wait-on": "^8.0.5"
+    "build": "npm run build --prefix app",
+    "build:app": "npm run build --prefix app",
+    "build:server": "npm run build --prefix server",
+    "lint": "npm run lint --prefix app",
+    "test": "npm run test --prefix app",
+    "install:all": "npm install --prefix app && npm install --prefix server"
   }
 }

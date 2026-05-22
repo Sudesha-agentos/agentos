@@ -3,28 +3,31 @@ import {
   PipelineListResponseSchema,
   RunPipelineResponseSchema,
 } from "../../contracts";
+import { apiPath } from "../../shared/config/apiBase";
 import { DATA_MODE } from "../../shared/config/app";
 import { fetchJson } from "../../shared/lib/fetchJson";
 import { useResource } from "../../shared/lib/useResource";
 import { mockApi } from "../../app/api/mock";
 
-const BASE = "/api";
+const pipelines = (path) => apiPath("/api", path);
 
 const restPipelineAdapter = {
   async list(status) {
-    const path = `${BASE}/pipelines${
-      status ? `?status=${encodeURIComponent(status)}` : ""
-    }`;
+    const path = pipelines(
+      `/pipelines${status ? `?status=${encodeURIComponent(status)}` : ""}`
+    );
     return PipelineListResponseSchema.parse(await fetchJson(path));
   },
   async detail(id) {
     return PipelineDetailSchema.parse(
-      await fetchJson(`${BASE}/pipelines/${id}`)
+      await fetchJson(pipelines(`/pipelines/${id}`))
     );
   },
   async run(ticketId) {
     return RunPipelineResponseSchema.parse(
-      await fetchJson(`${BASE}/pipelines/${ticketId}/run`, { method: "POST" })
+      await fetchJson(pipelines(`/pipelines/${ticketId}/run`), {
+        method: "POST",
+      })
     );
   },
 };

@@ -1,16 +1,15 @@
 import { AuditListResponseSchema } from "../../contracts";
+import { apiPath } from "../../shared/config/apiBase";
 import { DATA_MODE } from "../../shared/config/app";
 import { formatAuditInline } from "../../shared/lib/format";
 import { fetchJson } from "../../shared/lib/fetchJson";
 import { useResource } from "../../shared/lib/useResource";
 import { mockApi } from "../../app/api/mock";
 
-const BASE = "/api";
-
 const restAuditAdapter = {
   async list(pipelineId) {
     return AuditListResponseSchema.parse(
-      await fetchJson(`${BASE}/pipelines/${pipelineId}/audit`)
+      await fetchJson(apiPath("/api", `/pipelines/${pipelineId}/audit`))
     );
   },
 };

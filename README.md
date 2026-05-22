@@ -1,68 +1,83 @@
 # Agentos — Workflow Intelligence Layer
 
-A multi-AI agent SaaS for software teams. Listens to Jira ticket creation,
-runs the ticket through three agents (Product → Engineering → QA) with a
-validation gate between each handoff, writes the output back to Jira, and
-keeps a human in control at every step.
+Multi-AI agent SaaS: Jira → Product → Engineering → QA, with human gates and Jira intake (AI Worker queue + board search).
 
-This repository contains both halves of the product:
+## Repository layout
 
-- **Marketing site** (`/`) — Awwwards-style React landing page
-- **Product app** (`/app/*`) — dashboard, pipelines, **AI Worker queue**, **board search**, settings
-- **Backend** (`server/`) — Express + BullMQ orchestrator that runs the agents
+```
+agentos/
+  app/          # React + Vite → deploy to Vercel (root directory: app)
+  server/       # Express + Prisma + BullMQ + Jira intake → deploy to Render
+  scripts/      # Local dev helpers (start.ps1, tunnel.ps1)
+```
 
-## Stack
+| Folder | Host | Purpose |
+|--------|------|---------|
+| **app** | [Vercel](https://vercel.com) | Marketing site + product UI (`/app/*`) |
+| **server** | [Render](https://render.com) | API, webhooks, Jira intake, pipeline worker |
 
-- React + Vite + Tailwind CSS + Framer Motion + Lenis (frontend)
-- React Router (marketing + product app share the same Vite project)
-- Node.js + TypeScript + Express + Prisma + Postgres (pgvector) + Redis + BullMQ (backend)
-- Anthropic Claude Sonnet 4 + OpenAI embeddings (model layer)
+## Local development
 
-## Run locally
+```powershell
+# Install both packages
+npm run install:all
 
-```bash
-# UI + API (includes AI Worker queue + board search)
-npm install
-cd server && npm install && cp .env.example .env && cd ..
+# API + app (from repo root)
 npm run dev
-# → http://localhost:5173/app/ai-worker
-# → http://localhost:5173/app/jira-search
 
-# Pipelines only (optional — needs Postgres, Redis, model keys in server/.env)
-cd server
-npm run prisma:generate
-npm run prisma:migrate     # then run the pgvector ALTER from server/README.md
-npm run worker             # BullMQ pipeline worker (separate terminal)
+# Optional: BullMQ worker (second terminal)
+npm run dev:worker
+
+# Optional: ngrok for Jira webhooks
+npm run tunnel
 ```
 
-The Vite dev server proxies `/api/*` to `http://localhost:4000`, so the
-product UI just calls `/api/pipelines`, etc. If the backend isn't running,
-the product UI falls back to an in-memory mock and shows a "Mock backend"
-indicator in the top bar.
+- App: http://localhost:5173  
+- API: http://localhost:4000  
+- Copy `server/.env.example` → `server/.env` and `app/.env.example` → `app/.env`
 
-**Jira intake pages** (`/app/ai-worker`, `/app/jira-search`) are built into the
-agentos server (SQLite queue + Jira board search). Run `npm run dev` at the repo
-root to start UI + API together. See [INTEGRATION.md](./INTEGRATION.md).
+In **app/.env** for local dev you can omit `VITE_API_URL` (Vite proxies `/api` and `/jira-intake` to :4000).
 
-## Layout
+## Production deployment
 
-```
-src/
-  pages/Marketing.jsx        # marketing landing page (the original /)
-  app/                       # product app at /app/*
-    layout/AppShell, Sidebar, TopBar
-    pages/Dashboard, Pipelines, PipelineDetail, Override, Settings
-    components/StatusPill, StageTimeline, ValidationCard, AuditTimeline, JsonViewer, ...
-    hooks/useApi              # polling-aware data fetching
-    api/client, mock          # API client + offline mock
-  sections/                  # marketing sections (Hero, Pipeline, Validation, ...)
-  components/                # marketing components (HeroPipeline, Navigation, ...)
-server/                      # backend (see server/README.md)
-```
+### 1. Render (server)
+
+1. New **Web Service** → connect repo → **Root Directory**: `server`
+2. Build: `npm install && npm run build`  
+   Start: `npm start`  
+   Health check path: `/healthz`
+3. Add env from `server/.env.example` (Jira, Supabase, Redis, models, etc.)
+4. Set **`CORS_ORIGIN`** to your Vercel URL, e.g. `https://agentos-orcin.vercel.app`
+5. Optional: add **Background Worker** with root `server`, start `npm run worker`
+
+Copy your Render URL, e.g. `https://agentos-api.onrender.com`.
+
+### 2. Vercel (app)
+
+1. New project → repo → **Root Directory**: `app`
+2. Framework: Vite  
+   Build: `npm run build`  
+   Output: `dist`
+3. Environment variables:
+
+| Name | Value |
+|------|--------|
+| `VITE_API_URL` | `https://agentos-api.onrender.com` (your Render URL) |
+| `VITE_API_MODE` | `rest` |
+
+4. Redeploy after changing env vars.
+
+### 3. Jira webhook
+
+Point to: `https://<render-host>/webhooks/jira`
+
+See [INTEGRATION.md](./INTEGRATION.md) and [server/README.md](./server/README.md).
 
 ## Verify
 
-```bash
-npm run lint
-npm run build
+```powershell
+npm run lint --prefix app
+npm run test --prefix app
+npm run build --prefix app
+npm run typecheck --prefix server
 ```
