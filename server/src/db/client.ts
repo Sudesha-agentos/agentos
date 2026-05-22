@@ -1,6 +1,7 @@
 import { PrismaPg } from "@prisma/adapter-pg";
 import { Pool } from "pg";
 import { PrismaClient } from "../generated/prisma/client";
+import { pgPoolConfig } from "./pgPool";
 
 declare global {
   // Reuse Prisma client across hot reloads in dev to avoid connection storms.
@@ -14,10 +15,7 @@ function createPrismaClient(): PrismaClient {
     throw new Error("DATABASE_URL is required for pipeline features");
   }
 
-  const pool = new Pool({
-    connectionString,
-    ssl: { rejectUnauthorized: false },
-  });
+  const pool = new Pool(pgPoolConfig(connectionString));
   const adapter = new PrismaPg(pool);
 
   return new PrismaClient({
