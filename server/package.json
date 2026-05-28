@@ -11,6 +11,7 @@
     "start": "node dist/server.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "worker": "tsx src/queue/workers/pipelineWorker.ts",
+    "worker:codebase": "tsx src/queue/workers/codebaseWorker.ts",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:deploy": "prisma migrate deploy",
