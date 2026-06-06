@@ -51,3 +51,9 @@ export interface JiraMirrorBackfillJob {
   projectKeys?: string[];
   maxIssues?: number;
 }
+
+export interface CodebaseFullIndexJob {
+  branchName: string;
+  runId: string;
+  triggerType: "webhook" | "manual";
+}

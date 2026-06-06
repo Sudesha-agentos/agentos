@@ -1,5 +1,12 @@
+import { prisma } from "../db/client";
+import { getInstallationAccessToken } from "../integrations/git/githubApp";
 import { getDb } from "../jira-intake/sqliteStore";
+import { logger } from "../utils/logger";
 import type { GitProviderId, GitRepoContext } from "../integrations/git/types";
+
+const prismaAny = prisma as any;
+
+export type GitAuthMethod = "pat" | "github_app";
 
 export interface StoredGitCredentials {
   provider: GitProviderId;
@@ -9,6 +16,8 @@ export interface StoredGitCredentials {
   token: string;
   webhookSecret: string;
   defaultBranch: string;
+  installationId: string | null;
+  authMethod: GitAuthMethod;
   source: "database" | "environment" | "none";
 }
 
@@ -22,6 +31,8 @@ export interface PublicGitCredentials {
   webhookSecret: string;
   defaultBranch: string;
   configured: boolean;
+  authMethod: GitAuthMethod | null;
+  installationId: string | null;
   source: StoredGitCredentials["source"];
 }
 
@@ -45,8 +56,13 @@ function credentialsFromEnv(): StoredGitCredentials | null {
       repoSlug: githubRepo,
       username: null,
       token: githubToken,
-      webhookSecret: process.env.GITHUB_WEBHOOK_SECRET?.trim() ?? "",
+      webhookSecret:
+        process.env.GITHUB_APP_WEBHOOK_SECRET?.trim() ??
+        process.env.GITHUB_WEBHOOK_SECRET?.trim() ??
+        "",
       defaultBranch: process.env.GIT_DEFAULT_BRANCH?.trim() || "main",
+      installationId: process.env.GITHUB_APP_INSTALLATION_ID?.trim() || null,
+      authMethod: process.env.GITHUB_APP_INSTALLATION_ID ? "github_app" : "pat",
       source: "environment",
     };
   }
@@ -64,6 +80,8 @@ function credentialsFromEnv(): StoredGitCredentials | null {
       token: bbToken,
       webhookSecret: process.env.BITBUCKET_WEBHOOK_SECRET?.trim() ?? "",
       defaultBranch: process.env.GIT_DEFAULT_BRANCH?.trim() || "main",
+      installationId: null,
+      authMethod: "pat",
       source: "environment",
     };
   }
@@ -79,6 +97,8 @@ function rowToCredentials(row: {
   token: string | null;
   webhook_secret: string | null;
   default_branch: string | null;
+  installation_id?: string | null;
+  auth_method?: string | null;
 }): StoredGitCredentials {
   return {
     provider: row.provider as GitProviderId,
@@ -88,6 +108,8 @@ function rowToCredentials(row: {
     token: row.token ?? "",
     webhookSecret: row.webhook_secret ?? "",
     defaultBranch: row.default_branch ?? "main",
+    installationId: row.installation_id ?? null,
+    authMethod: (row.auth_method as GitAuthMethod) ?? "pat",
     source: "database",
   };
 }
@@ -95,7 +117,8 @@ function rowToCredentials(row: {
 export function loadGitCredentialsFromStore(): StoredGitCredentials | null {
   const row = getDb()
     .prepare(
-      `SELECT provider, workspace, repo_slug, username, token, webhook_secret, default_branch
+      `SELECT provider, workspace, repo_slug, username, token, webhook_secret,
+              default_branch, installation_id, auth_method
        FROM git_credentials WHERE singleton_id = 1`
     )
     .get() as
@@ -107,15 +130,21 @@ export function loadGitCredentialsFromStore(): StoredGitCredentials | null {
         token: string | null;
         webhook_secret: string | null;
         default_branch: string | null;
+        installation_id: string | null;
+        auth_method: string | null;
       }
     | undefined;
 
-  if (row?.token && row.workspace && row.repo_slug) {
-    const creds = rowToCredentials(row);
+  const hasGithubAppInstall = Boolean(row?.installation_id && row.auth_method === "github_app");
+  const hasPat = Boolean(row?.token && row.workspace && row.repo_slug);
+
+  if (hasGithubAppInstall || hasPat) {
+    const creds = rowToCredentials(row!);
     runtimeCreds = creds;
     applyGitCredentialsToProcessEnv(creds);
     return creds;
   }
+
   const env = credentialsFromEnv();
   if (env) {
     runtimeCreds = env;
@@ -129,12 +158,30 @@ export function loadGitCredentialsFromStore(): StoredGitCredentials | null {
 let runtimeCreds: StoredGitCredentials | null = null;
 
 export function getGitCredentials(): StoredGitCredentials {
-  if (!runtimeCreds?.token) {
+  if (!runtimeCreds) {
     throw new Error(
-      "Git provider not configured. Connect GitHub or Bitbucket under Admin → Git integration, or set GITHUB_* / BITBUCKET_* env vars."
+      "Git provider not configured. Connect GitHub or Bitbucket under Admin → Git integration."
     );
   }
+  if (runtimeCreds.authMethod === "github_app" && runtimeCreds.installationId) {
+    return runtimeCreds;
+  }
+  if (!runtimeCreds.token) {
+    throw new Error("Git provider not configured.");
+  }
   return runtimeCreds;
+}
+
+export async function resolveGithubAccessToken(
+  creds: StoredGitCredentials = getGitCredentials()
+): Promise<string> {
+  if (creds.authMethod === "github_app" && creds.installationId) {
+    return getInstallationAccessToken(creds.installationId);
+  }
+  if (!creds.token) {
+    throw new Error("GitHub token is not configured");
+  }
+  return creds.token;
 }
 
 export function getRepoContext(): GitRepoContext {
@@ -149,7 +196,7 @@ export function getRepoContext(): GitRepoContext {
 
 export function getPublicGitCredentials(): PublicGitCredentials {
   const creds = runtimeCreds ?? loadGitCredentialsFromStore();
-  if (!creds?.token) {
+  if (!creds || (!creds.token && !creds.installationId)) {
     return {
       provider: null,
       workspace: "",
@@ -160,19 +207,28 @@ export function getPublicGitCredentials(): PublicGitCredentials {
       webhookSecret: "",
       defaultBranch: "main",
       configured: false,
+      authMethod: null,
+      installationId: null,
       source: "none",
     };
   }
+  const connected =
+    creds.authMethod === "github_app"
+      ? Boolean(creds.installationId && creds.workspace && creds.repoSlug)
+      : Boolean(creds.token && creds.workspace && creds.repoSlug);
+
   return {
     provider: creds.provider,
     workspace: creds.workspace,
     repoSlug: creds.repoSlug,
     username: creds.username,
     hasToken: Boolean(creds.token),
-    tokenHint: tokenHint(creds.token),
+    tokenHint: creds.token ? tokenHint(creds.token) : null,
     webhookSecret: creds.webhookSecret,
     defaultBranch: creds.defaultBranch,
-    configured: true,
+    configured: connected,
+    authMethod: creds.authMethod,
+    installationId: creds.installationId,
     source: creds.source,
   };
 }
@@ -180,8 +236,53 @@ export function getPublicGitCredentials(): PublicGitCredentials {
 export function getGitWebhookSecret(provider: GitProviderId): string {
   const creds = runtimeCreds ?? loadGitCredentialsFromStore();
   if (creds?.webhookSecret) return creds.webhookSecret;
-  if (provider === "github") return process.env.GITHUB_WEBHOOK_SECRET?.trim() ?? "";
+  if (provider === "github") {
+    return (
+      process.env.GITHUB_APP_WEBHOOK_SECRET?.trim() ??
+      process.env.GITHUB_WEBHOOK_SECRET?.trim() ??
+      ""
+    );
+  }
   return process.env.BITBUCKET_WEBHOOK_SECRET?.trim() ?? "";
+}
+
+export function saveGithubAppInstallation(installationId: string): void {
+  const prior = runtimeCreds ?? loadGitCredentialsFromStore();
+  getDb()
+    .prepare(
+      `INSERT INTO git_credentials (
+        singleton_id, provider, workspace, repo_slug, username, token,
+        webhook_secret, default_branch, installation_id, auth_method, updated_at
+      ) VALUES (1, 'github', @workspace, @repoSlug, NULL, @token,
+        @webhookSecret, @defaultBranch, @installationId, 'github_app', @updatedAt)
+      ON CONFLICT(singleton_id) DO UPDATE SET
+        provider = 'github',
+        installation_id = excluded.installation_id,
+        auth_method = 'github_app',
+        updated_at = excluded.updated_at`
+    )
+    .run({
+      workspace: prior?.workspace ?? "",
+      repoSlug: prior?.repoSlug ?? "",
+      token: prior?.token ?? "",
+      webhookSecret: prior?.webhookSecret ?? "",
+      defaultBranch: prior?.defaultBranch ?? "main",
+      installationId,
+      updatedAt: nowIso(),
+    });
+
+  runtimeCreds = {
+    provider: "github",
+    workspace: prior?.workspace ?? "",
+    repoSlug: prior?.repoSlug ?? "",
+    username: null,
+    token: prior?.token ?? "",
+    webhookSecret: prior?.webhookSecret ?? "",
+    defaultBranch: prior?.defaultBranch ?? "main",
+    installationId,
+    authMethod: "github_app",
+    source: "database",
+  };
 }
 
 export function saveGitCredentials(input: {
@@ -192,10 +293,23 @@ export function saveGitCredentials(input: {
   token?: string;
   webhookSecret?: string;
   defaultBranch?: string;
+  installationId?: string | null;
+  authMethod?: GitAuthMethod;
 }): void {
   const prior = runtimeCreds ?? loadGitCredentialsFromStore();
   const token = input.token?.trim() || prior?.token || "";
-  if (!token) throw new Error("token is required on first connect");
+  const authMethod = input.authMethod ?? prior?.authMethod ?? "pat";
+  const installationId =
+    input.installationId !== undefined
+      ? input.installationId
+      : prior?.installationId ?? null;
+
+  if (authMethod === "pat" && !token) {
+    throw new Error("token is required on first connect");
+  }
+  if (authMethod === "github_app" && !installationId) {
+    throw new Error("installationId is required for GitHub App auth");
+  }
 
   const creds: StoredGitCredentials = {
     provider: input.provider,
@@ -203,9 +317,10 @@ export function saveGitCredentials(input: {
     repoSlug: input.repoSlug.trim(),
     username: input.username?.trim() || prior?.username || null,
     token,
-    webhookSecret:
-      input.webhookSecret?.trim() ?? prior?.webhookSecret ?? "",
+    webhookSecret: input.webhookSecret?.trim() ?? prior?.webhookSecret ?? "",
     defaultBranch: input.defaultBranch?.trim() || prior?.defaultBranch || "main",
+    installationId,
+    authMethod,
     source: "database",
   };
 
@@ -213,9 +328,9 @@ export function saveGitCredentials(input: {
     .prepare(
       `INSERT INTO git_credentials (
         singleton_id, provider, workspace, repo_slug, username, token,
-        webhook_secret, default_branch, updated_at
+        webhook_secret, default_branch, installation_id, auth_method, updated_at
       ) VALUES (1, @provider, @workspace, @repoSlug, @username, @token,
-        @webhookSecret, @defaultBranch, @updatedAt)
+        @webhookSecret, @defaultBranch, @installationId, @authMethod, @updatedAt)
       ON CONFLICT(singleton_id) DO UPDATE SET
         provider = excluded.provider,
         workspace = excluded.workspace,
@@ -224,6 +339,8 @@ export function saveGitCredentials(input: {
         token = excluded.token,
         webhook_secret = excluded.webhook_secret,
         default_branch = excluded.default_branch,
+        installation_id = excluded.installation_id,
+        auth_method = excluded.auth_method,
         updated_at = excluded.updated_at`
     )
     .run({
@@ -234,6 +351,8 @@ export function saveGitCredentials(input: {
       token: creds.token,
       webhookSecret: creds.webhookSecret,
       defaultBranch: creds.defaultBranch,
+      installationId: creds.installationId,
+      authMethod: creds.authMethod,
       updatedAt: nowIso(),
     });
 
@@ -243,9 +362,12 @@ export function saveGitCredentials(input: {
 
 export function applyGitCredentialsToProcessEnv(creds: StoredGitCredentials): void {
   if (creds.provider === "github") {
-    process.env.GITHUB_TOKEN = creds.token;
+    if (creds.token) process.env.GITHUB_TOKEN = creds.token;
     process.env.GITHUB_REPO_OWNER = creds.workspace;
     process.env.GITHUB_REPO_NAME = creds.repoSlug;
+    if (creds.installationId) {
+      process.env.GITHUB_APP_INSTALLATION_ID = creds.installationId;
+    }
     if (creds.webhookSecret) process.env.GITHUB_WEBHOOK_SECRET = creds.webhookSecret;
   } else {
     process.env.BITBUCKET_APP_PASSWORD = creds.token;
@@ -257,5 +379,71 @@ export function applyGitCredentialsToProcessEnv(creds: StoredGitCredentials): vo
 }
 
 export function validateGitConfig(): void {
-  getGitCredentials();
+  const creds = getGitCredentials();
+  if (creds.authMethod === "github_app") {
+    if (!creds.installationId || !creds.workspace || !creds.repoSlug) {
+      throw new Error("GitHub App installation incomplete — select a repository");
+    }
+    return;
+  }
+  if (!creds.token || !creds.workspace || !creds.repoSlug) {
+    throw new Error("Git credentials incomplete");
+  }
+}
+
+/** Re-hydrate SQLite/runtime creds from Postgres after Render restarts or partial installs. */
+export async function restoreGitCredentialsFromPostgres(): Promise<boolean> {
+  try {
+    const install = (await prismaAny.githubInstallation.findFirst({
+      orderBy: { updatedAt: "desc" },
+    })) as {
+      installationId: string;
+      selectedRepoOwner: string | null;
+      selectedRepoName: string | null;
+    } | null;
+
+    if (!install?.installationId) return false;
+
+    const current = runtimeCreds ?? loadGitCredentialsFromStore();
+
+    if (install.selectedRepoOwner && install.selectedRepoName) {
+      if (
+        current?.workspace === install.selectedRepoOwner &&
+        current?.repoSlug === install.selectedRepoName &&
+        current?.installationId === install.installationId
+      ) {
+        return true;
+      }
+
+      const repo = (await prismaAny.githubRepository.findFirst({
+        where: {
+          installationId: install.installationId,
+          owner: install.selectedRepoOwner,
+          name: install.selectedRepoName,
+        },
+      })) as { defaultBranch: string } | null;
+
+      const token = await getInstallationAccessToken(install.installationId);
+      saveGitCredentials({
+        provider: "github",
+        workspace: install.selectedRepoOwner,
+        repoSlug: install.selectedRepoName,
+        token,
+        authMethod: "github_app",
+        installationId: install.installationId,
+        defaultBranch: repo?.defaultBranch ?? "main",
+      });
+      return true;
+    }
+
+    if (!current?.installationId) {
+      saveGithubAppInstallation(install.installationId);
+      return true;
+    }
+
+    return false;
+  } catch (err) {
+    logger.warn({ err }, "restore git credentials from postgres failed");
+    return false;
+  }
 }

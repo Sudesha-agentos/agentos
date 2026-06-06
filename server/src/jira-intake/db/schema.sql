@@ -45,6 +45,8 @@ CREATE TABLE IF NOT EXISTS git_credentials (
   token             TEXT,
   webhook_secret    TEXT,
   default_branch    TEXT NOT NULL DEFAULT 'main',
+  installation_id   TEXT,
+  auth_method       TEXT NOT NULL DEFAULT 'pat',
   updated_at        TEXT NOT NULL
 );
 

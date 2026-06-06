@@ -1,11 +1,17 @@
 import { Queue } from "bullmq";
 import IORedis from "ioredis";
-import type { CodebaseIndexJob, JiraMirrorBackfillJob, PipelineRunJob } from "../types/pipeline";
+import type {
+  CodebaseFullIndexJob,
+  CodebaseIndexJob,
+  JiraMirrorBackfillJob,
+  PipelineRunJob,
+} from "../types/pipeline";
 
 export const JOB_NAMES = {
   RUN_PIPELINE: "run-pipeline",
   RUN_CODEBASE_INCREMENTAL: "run-codebase-incremental",
   RUN_JIRA_MIRROR_BACKFILL: "run-jira-mirror-backfill",
+  RUN_CODEBASE_FULL: "run-codebase-full",
 } as const;
 
 const connection = new IORedis(process.env.REDIS_URL ?? "redis://localhost:6379", {
@@ -22,7 +28,7 @@ export const jobQueue = new Queue<PipelineRunJob | JiraMirrorBackfillJob>("agent
   },
 });
 
-export const codebaseQueue = new Queue<CodebaseIndexJob>("agentos-codebase", {
+export const codebaseQueue = new Queue<CodebaseIndexJob | CodebaseFullIndexJob>("agentos-codebase", {
   connection,
   defaultJobOptions: {
     removeOnComplete: 250,
