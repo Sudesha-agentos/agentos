@@ -59,14 +59,17 @@ export async function selectGithubRepository(body) {
 export async function fetchGitIntegrationSummary() {
   const setup = await getGitIntegrationSetup();
   const git = setup?.git;
+  const needsRepoSelection = Boolean(setup?.needsRepoSelection);
   const repoLabel =
     setup?.connected && git?.workspace && git?.repoSlug
       ? `${git.workspace}/${git.repoSlug}`
       : null;
   return {
     connected: Boolean(setup?.connected),
+    needsRepoSelection,
     repoLabel,
     authMethod: git?.authMethod ?? null,
+    installationId: git?.installationId ?? null,
     githubAppConfigured: Boolean(setup?.githubApp?.configured),
   };
 }

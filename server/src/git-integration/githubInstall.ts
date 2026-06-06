@@ -1,8 +1,10 @@
+import { runFullIndex } from "../codebaseIntelligence/indexer";
 import {
   getInstallationAccessToken,
   listInstallationRepositories,
   type InstallationRepo,
 } from "../integrations/git/githubApp";
+import { logger } from "../utils/logger";
 import {
   getPublicGitCredentials,
   saveGitCredentials,
@@ -55,6 +57,9 @@ export async function selectGithubRepository(input: {
     default_branch?: string;
   };
 
+  const defaultBranch =
+    input.defaultBranch?.trim() || meta.default_branch || "main";
+
   saveGitCredentials({
     provider: "github",
     workspace: owner,
@@ -62,15 +67,19 @@ export async function selectGithubRepository(input: {
     token,
     authMethod: "github_app",
     installationId,
-    defaultBranch:
-      input.defaultBranch?.trim() || meta.default_branch || "main",
+    defaultBranch,
+  });
+
+  void runFullIndex(defaultBranch).catch((err) => {
+    logger.warn({ err, owner, repo, defaultBranch }, "initial codebase index failed");
   });
 
   return {
     connected: true,
     fullName: meta.full_name,
-    defaultBranch: input.defaultBranch?.trim() || meta.default_branch || "main",
+    defaultBranch,
     git: getPublicGitCredentials(),
+    indexQueued: true,
   };
 }
 
