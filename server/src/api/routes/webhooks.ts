@@ -1,4 +1,6 @@
 import { Router } from "express";
+import { handleBitbucketWebhook } from "../../codebaseIntelligence/bitbucketWebhookHandler";
+import { handleGithubWebhook } from "../../codebaseIntelligence/githubWebhookHandler";
 import { handleAiWorkerWebhook } from "../../jira-intake/aiWorkerWebhookHandler";
 import { intakeConfig } from "../../jira-intake/config";
 import { getWebhookSecret } from "../../jira-intake/jiraCredentialsStore";
@@ -47,6 +49,14 @@ router.post("/jira", (req, res, next) => {
 
 router.post("/jira/ai-worker", (req, res) => {
   handleAiWorkerWebhook(req, res);
+});
+
+router.post("/github", (req, res, next) => {
+  void handleGithubWebhook(req, res).catch(next);
+});
+
+router.post("/bitbucket", (req, res, next) => {
+  void handleBitbucketWebhook(req, res).catch(next);
 });
 
 export default router;

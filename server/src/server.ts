@@ -1,12 +1,19 @@
 import "dotenv/config";
 import * as Sentry from "@sentry/node";
 import { createApp } from "./app";
+import { loadGitCredentialsFromStore } from "./git-integration/gitCredentialsStore";
 import { loadJiraCredentialsFromStore } from "./jira-intake/jiraCredentialsStore";
 import { initIntakeDb } from "./jira-intake/sqliteStore";
+import { initCodebaseVizWebSocket } from "./codebaseIntelligence/codebaseVizHub";
 import { logger } from "./utils/logger";
 
 initIntakeDb();
 loadJiraCredentialsFromStore();
+try {
+  loadGitCredentialsFromStore();
+} catch {
+  /* optional until Git integration is configured */
+}
 
 if (process.env.SENTRY_DSN) {
   Sentry.init({ dsn: process.env.SENTRY_DSN });
@@ -18,6 +25,8 @@ const app = createApp();
 const server = app.listen(port, () => {
   logger.info({ port }, "agentos-server listening");
 });
+
+initCodebaseVizWebSocket(server);
 
 function shutdown(signal: string): void {
   logger.info({ signal }, "shutting down");

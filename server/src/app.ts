@@ -6,6 +6,8 @@ import express, {
 } from "express";
 import helmet from "helmet";
 import authRouter from "./api/routes/auth";
+import codebaseRouter from "./api/routes/codebase";
+import gitIntegrationRouter from "./api/routes/gitIntegration";
 import healthRouter from "./api/routes/health";
 import jiraIntakeRouter from "./api/routes/jiraIntake";
 import overrideRouter from "./api/routes/override";
@@ -35,7 +37,7 @@ export function createApp(): express.Express {
     );
     res.setHeader(
       "Access-Control-Allow-Headers",
-      "Content-Type, Authorization, x-agentos-secret"
+      "Content-Type, Authorization, x-agentos-secret, x-hub-signature-256, x-github-event, x-event-key, x-hub-signature"
     );
     if (req.method === "OPTIONS") {
       res.sendStatus(204);
@@ -43,7 +45,14 @@ export function createApp(): express.Express {
     }
     next();
   });
-  app.use(express.json({ limit: "2mb" }));
+  app.use(
+    express.json({
+      limit: "2mb",
+      verify: (req, _res, buf) => {
+        (req as Request & { rawBody?: string }).rawBody = buf.toString("utf8");
+      },
+    })
+  );
   app.use((req, _res, next) => {
     logger.debug(
       { method: req.method, path: req.path, ip: req.ip },
@@ -54,7 +63,10 @@ export function createApp(): express.Express {
 
   app.use("/", healthRouter);
   app.use("/api/auth", authRouter);
+  app.use("/api/codebase", codebaseRouter);
+  app.use("/codebase", codebaseRouter);
   app.use("/jira-intake", jiraIntakeRouter);
+  app.use("/git-integration", gitIntegrationRouter);
   app.use("/webhooks", webhooksRouter);
   app.use("/pipelines", pipelineRouter);
   app.use("/pipelines", overrideRouter);
