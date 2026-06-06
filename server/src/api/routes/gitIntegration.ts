@@ -43,16 +43,24 @@ router.get("/integration/setup", (req, res) => {
     connected = false;
   }
 
+  const needsRepoSelection =
+    git.authMethod === "github_app" &&
+    Boolean(git.installationId) &&
+    (!git.workspace || !git.repoSlug);
+
   const githubApp = githubAppPublicConfig();
   const installUrl = githubAppInstallUrl();
+  const callbackUrl = `${base}/git-integration/oauth/github/callback`;
 
   res.json({
     publicApiBase: base,
     git,
     connected,
+    needsRepoSelection,
     githubApp: {
       ...githubApp,
       installUrl,
+      callbackUrl,
       setupUrl: frontendGitUrl() || undefined,
       webhookUrl: `${base}/webhooks/github`,
     },

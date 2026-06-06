@@ -63,18 +63,21 @@ function GitIntegrationContent({ setup, refetch }) {
   const githubAppEnabled = Boolean(githubApp?.configured && githubApp?.installUrl);
   const git = setup?.git;
   const connected = Boolean(setup?.connected);
+  const activeInstallationId = pendingInstallationId || git?.installationId || "";
   const isGithubApp =
-    git?.authMethod === "github_app" || Boolean(pendingInstallationId && tab === "github");
+    git?.authMethod === "github_app" || Boolean(activeInstallationId && tab === "github");
   const needsRepoPick =
-    isGithubApp &&
-    pendingInstallationId &&
-    (!git?.workspace || !git?.repoSlug) &&
-    repos.length > 0;
+    Boolean(setup?.needsRepoSelection) ||
+    (isGithubApp &&
+      Boolean(activeInstallationId) &&
+      (!git?.workspace || !git?.repoSlug));
 
   useEffect(() => {
     const installationId = searchParams.get("installation_id");
     const provider = searchParams.get("provider");
-    if (!installationId || provider !== "github") return;
+    if (!installationId) return;
+    // GitHub App redirects only include installation_id; provider is optional (server callback adds it).
+    if (provider && provider !== "github") return;
 
     let cancelled = false;
     (async () => {
@@ -102,6 +105,47 @@ function GitIntegrationContent({ setup, refetch }) {
     };
   }, [searchParams, setSearchParams, refetch]);
 
+  useEffect(() => {
+    if (searchParams.get("installation_id")) return;
+    if (!activeInstallationId || (git?.workspace && git?.repoSlug)) return;
+    if (repos.length > 0 || installPending) return;
+
+    let cancelled = false;
+    (async () => {
+      setInstallPending(true);
+      setErr("");
+      try {
+        const result = await completeGithubInstall(activeInstallationId);
+        if (cancelled) return;
+        setRepos(result.repositories ?? []);
+        if ((result.repositories ?? []).length === 0) {
+          setStatus(
+            "GitHub App is installed but no repositories were returned. Grant repo access in GitHub and click Reconfigure installation."
+          );
+        } else {
+          setStatus("Select a repository to finish connecting.");
+        }
+      } catch (e) {
+        if (!cancelled) {
+          setErr(e instanceof Error ? e.message : "Could not load repositories");
+        }
+      } finally {
+        if (!cancelled) setInstallPending(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    activeInstallationId,
+    git?.workspace,
+    git?.repoSlug,
+    repos.length,
+    installPending,
+    searchParams,
+  ]);
+
   const connectedLabel = useMemo(() => {
     if (!connected || !git?.workspace || !git?.repoSlug) return null;
     return `${git.workspace}/${git.repoSlug}`;
@@ -114,11 +158,13 @@ function GitIntegrationContent({ setup, refetch }) {
     setErr("");
     try {
       const result = await selectGithubRepository({
-        installationId: pendingInstallationId,
+        installationId: activeInstallationId,
         owner,
         repo,
       });
-      setStatus(`Connected to ${result.fullName}`);
+      setStatus(
+        `Connected to ${result.fullName}. Initial codebase index started in the background.`
+      );
       await refetch();
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Could not select repository");
@@ -131,15 +177,25 @@ function GitIntegrationContent({ setup, refetch }) {
     <div className="mx-auto w-full max-w-[82rem] space-y-6 pb-16">
       <PageIntro
         kicker="GitHub integration"
-        title={connected ? "GitHub connected" : "Connect GitHub"}
+        title={
+          connected
+            ? "GitHub connected"
+            : needsRepoPick
+              ? "Finish GitHub setup"
+              : "Connect GitHub"
+        }
         body={
           connected
             ? "Repository access for codebase indexing, visualization, branch push, pull requests, and QA sandbox clones."
-            : "Install the Agentos GitHub App for one-click access — read, write, push, and open PRs without copying tokens."
+            : needsRepoPick
+              ? "The GitHub App is installed — pick which repository Agentos should index and push to."
+              : "Install the Agentos GitHub App for one-click access — read, write, push, and open PRs without copying tokens."
         }
         right={
           connected ? (
             <LabelPill label={connectedLabel ?? "Connected"} tone="success" />
+          ) : needsRepoPick ? (
+            <LabelPill label="Select repository" tone="warning" />
           ) : null
         }
       />
@@ -216,7 +272,7 @@ function GitIntegrationContent({ setup, refetch }) {
             </div>
           </Panel>
 
-          {needsRepoPick || (repos.length > 0 && !connected) ? (
+          {needsRepoPick ? (
             <Panel>
               <PanelHeader
                 kicker="Step 2"
@@ -224,30 +280,45 @@ function GitIntegrationContent({ setup, refetch }) {
                 body="Choose which installed repository Agentos should index and push to."
               />
               <div className="space-y-4 p-5 sm:p-6">
-                <label className="block text-sm">
-                  <span className="text-muted">Repository</span>
-                  <select
-                    className="mt-1 w-full rounded border border-border bg-surface px-3 py-2 font-mono text-sm"
-                    value={selectedRepo}
-                    onChange={(e) => setSelectedRepo(e.target.value)}
-                  >
-                    <option value="">Select a repository…</option>
-                    {repos.map((repo) => (
-                      <option key={repo.id} value={repo.fullName}>
-                        {repo.fullName}
-                        {repo.private ? " (private)" : ""}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <button
-                  type="button"
-                  disabled={!selectedRepo || selectPending}
-                  onClick={() => void onSelectRepo()}
-                  className="rounded-full bg-indigo px-6 py-2.5 font-mono text-[11px] uppercase tracking-[0.16em] text-white disabled:opacity-50"
-                >
-                  {selectPending ? "Saving…" : "Use this repository"}
-                </button>
+                {installPending && repos.length === 0 ? (
+                  <div className="flex items-center gap-3 text-sm text-muted">
+                    <Spinner />
+                    Loading repositories from GitHub…
+                  </div>
+                ) : repos.length === 0 ? (
+                  <p className="text-sm text-muted">
+                    No repositories available for this installation. In GitHub, open the app
+                    settings and grant access to at least one repository, then click
+                    Reconfigure installation above.
+                  </p>
+                ) : (
+                  <>
+                    <label className="block text-sm">
+                      <span className="text-muted">Repository</span>
+                      <select
+                        className="mt-1 w-full rounded border border-border bg-surface px-3 py-2 font-mono text-sm"
+                        value={selectedRepo}
+                        onChange={(e) => setSelectedRepo(e.target.value)}
+                      >
+                        <option value="">Select a repository…</option>
+                        {repos.map((repo) => (
+                          <option key={repo.id} value={repo.fullName}>
+                            {repo.fullName}
+                            {repo.private ? " (private)" : ""}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <button
+                      type="button"
+                      disabled={!selectedRepo || selectPending}
+                      onClick={() => void onSelectRepo()}
+                      className="rounded-full bg-indigo px-6 py-2.5 font-mono text-[11px] uppercase tracking-[0.16em] text-white disabled:opacity-50"
+                    >
+                      {selectPending ? "Saving…" : "Use this repository"}
+                    </button>
+                  </>
+                )}
               </div>
             </Panel>
           ) : null}

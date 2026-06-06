@@ -8,6 +8,7 @@ export default function GitHubIntegrationOverviewWidget({ embedded = false }) {
   const { data, error, loading } = useGitIntegrationSummary({ pollMs: 12000 });
 
   const connected = Boolean(data?.connected);
+  const needsRepoSelection = Boolean(data?.needsRepoSelection);
   const repoLabel = data?.repoLabel;
 
   const body = (
@@ -29,9 +30,11 @@ export default function GitHubIntegrationOverviewWidget({ embedded = false }) {
             <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-ink-dim">
               {repoLabel
                 ? `Repository · ${repoLabel}`
-                : data?.githubAppConfigured
-                  ? "GitHub App ready — install to pick a repository"
-                  : "Not connected · install GitHub App or use PAT"}
+                : needsRepoSelection
+                  ? "GitHub App installed — select a repository on the Git page"
+                  : data?.githubAppConfigured
+                    ? "GitHub App ready — install to pick a repository"
+                    : "Not connected · install GitHub App or use PAT"}
             </p>
             {data?.authMethod ? (
               <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-ink-mute">
@@ -65,8 +68,10 @@ export default function GitHubIntegrationOverviewWidget({ embedded = false }) {
             GitHub
           </p>
           <LabelPill
-            label={connected ? "Connected" : "Not connected"}
-            tone={connected ? "success" : "muted"}
+            label={
+              connected ? "Connected" : needsRepoSelection ? "Select repo" : "Not connected"
+            }
+            tone={connected ? "success" : needsRepoSelection ? "warning" : "muted"}
           />
         </div>
         {body}
@@ -82,8 +87,10 @@ export default function GitHubIntegrationOverviewWidget({ embedded = false }) {
         body="Codebase indexing, branch push, pull requests, and QA sandbox clones."
         right={
           <LabelPill
-            label={connected ? "Connected" : "Not connected"}
-            tone={connected ? "success" : "muted"}
+            label={
+              connected ? "Connected" : needsRepoSelection ? "Select repo" : "Not connected"
+            }
+            tone={connected ? "success" : needsRepoSelection ? "warning" : "muted"}
           />
         }
       />

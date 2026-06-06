@@ -89,9 +89,21 @@ export default function GitHubSetupGuideWidget({
 
           <GuideSection number="2" title="Callback & webhook URLs">
             <p className="text-[14px] leading-relaxed text-ink-dim">
-              Paste these into your GitHub App settings (Setup URL / Callback URL and Webhook
-              URL).
+              Paste these into your GitHub App settings. Use the <strong className="text-ink">Setup URL</strong>{" "}
+              (post-install redirect) and Webhook URL below. Either the server callback or your
+              Vercel app URL works for Setup URL — the server callback requires{" "}
+              <code className="font-mono text-[12px]">FRONTEND_URL</code> on Render.
             </p>
+            {githubApp?.callbackUrl ? (
+              <p className="mt-2 rounded-[0.85rem] border border-hairline bg-canvas/40 px-3 py-2 font-mono text-[11px] text-indigo break-all">
+                Setup URL (server callback): {githubApp.callbackUrl}
+              </p>
+            ) : null}
+            {githubApp?.setupUrl ? (
+              <p className="mt-2 rounded-[0.85rem] border border-hairline bg-canvas/40 px-3 py-2 font-mono text-[11px] text-indigo break-all">
+                Setup URL (app direct): {githubApp.setupUrl}
+              </p>
+            ) : null}
             {githubApp?.installUrl ? (
               <p className="mt-2 rounded-[0.85rem] border border-hairline bg-canvas/40 px-3 py-2 font-mono text-[11px] text-indigo break-all">
                 Install URL: {githubApp.installUrl}
