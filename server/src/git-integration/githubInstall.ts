@@ -26,10 +26,12 @@ export async function completeGithubInstallation(installationId: string) {
     listInstallationRepositories(id),
   ]);
 
-  saveGithubAppInstallation(id);
+  const canonicalId = String(meta.id ?? id);
+
+  saveGithubAppInstallation(canonicalId);
 
   await persistInstallationFlow({
-    installationId: id,
+    installationId: canonicalId,
     accountLogin: meta.account.login,
     accountType: meta.account.type,
     targetType: meta.targetType ?? null,
@@ -41,7 +43,7 @@ export async function completeGithubInstallation(installationId: string) {
 
   let storedRepos = repositories;
   try {
-    const fromDb = await listStoredRepositories(id);
+    const fromDb = await listStoredRepositories(canonicalId);
     if (fromDb.length) storedRepos = fromDb;
   } catch {
     // Postgres optional during transition
@@ -53,18 +55,21 @@ export async function completeGithubInstallation(installationId: string) {
     const only = storedRepos[0]!;
     try {
       autoSelected = await selectGithubRepository({
-        installationId: id,
+        installationId: canonicalId,
         owner: only.owner,
         repo: only.name,
         defaultBranch: only.defaultBranch,
       });
     } catch (err) {
-      logger.warn({ err, installationId: id, repo: only.fullName }, "auto-select single repo failed");
+      logger.warn(
+        { err, installationId: canonicalId, repo: only.fullName },
+        "auto-select single repo failed"
+      );
     }
   }
 
   return {
-    installationId: id,
+    installationId: canonicalId,
     accountLogin: meta.account.login,
     accountType: meta.account.type,
     repositories: storedRepos,

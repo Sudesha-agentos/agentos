@@ -9,6 +9,7 @@ export default function GitHubIntegrationOverviewWidget({ embedded = false }) {
 
   const connected = Boolean(data?.connected);
   const needsRepoSelection = Boolean(data?.needsRepoSelection);
+  const installationDetected = Boolean(data?.installationDetected);
   const repoLabel = data?.repoLabel;
 
   const body = (
@@ -30,7 +31,7 @@ export default function GitHubIntegrationOverviewWidget({ embedded = false }) {
             <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-ink-dim">
               {repoLabel
                 ? `Repository · ${repoLabel}`
-                : needsRepoSelection
+                : needsRepoSelection || installationDetected
                   ? "GitHub App installed — select a repository on the Git page"
                   : data?.githubAppConfigured
                     ? "GitHub App ready — install to pick a repository"
@@ -69,9 +70,15 @@ export default function GitHubIntegrationOverviewWidget({ embedded = false }) {
           </p>
           <LabelPill
             label={
-              connected ? "Connected" : needsRepoSelection ? "Select repo" : "Not connected"
+              connected
+                ? "Connected"
+                : needsRepoSelection || installationDetected
+                  ? "Select repo"
+                  : "Not connected"
             }
-            tone={connected ? "success" : needsRepoSelection ? "warning" : "muted"}
+            tone={
+              connected ? "success" : needsRepoSelection || installationDetected ? "warning" : "muted"
+            }
           />
         </div>
         {body}
@@ -88,9 +95,15 @@ export default function GitHubIntegrationOverviewWidget({ embedded = false }) {
         right={
           <LabelPill
             label={
-              connected ? "Connected" : needsRepoSelection ? "Select repo" : "Not connected"
+              connected
+                ? "Connected"
+                : needsRepoSelection || installationDetected
+                  ? "Select repo"
+                  : "Not connected"
             }
-            tone={connected ? "success" : needsRepoSelection ? "warning" : "muted"}
+            tone={
+              connected ? "success" : needsRepoSelection || installationDetected ? "warning" : "muted"
+            }
           />
         }
       />

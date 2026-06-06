@@ -9,19 +9,16 @@ import {
   getLatestIndexRun,
   indexRunProgress,
 } from "../../codebaseIntelligence/indexQueue";
-import {
-  getPublicGitCredentials,
-  validateGitConfig,
-} from "../../git-integration/gitCredentialsStore";
+import { getPublicGitCredentials } from "../../git-integration/gitCredentialsStore";
 import {
   githubAppInstallUrl,
   githubAppPublicConfig,
   isGithubAppConfigured,
 } from "../../integrations/git/githubApp";
-import { listStoredRepositories } from "../../git-integration/githubInstallationStore";
 import { restoreGitCredentialsFromPostgres } from "../../git-integration/gitCredentialsStore";
+import { resolveGitIntegrationSetupState } from "../../git-integration/gitSetupState";
+import { getLatestGithubInstallState } from "../../git-integration/githubInstallationStore";
 import { validateOAuthState } from "../../git-integration/oauthState";
-import { listInstallationRepositories } from "../../integrations/git/githubApp";
 import { logger } from "../../utils/logger";
 import type { GitProviderId } from "../../integrations/git/types";
 
@@ -54,41 +51,20 @@ router.get("/integration/setup", async (req, res, next) => {
   await restoreGitCredentialsFromPostgres().catch(() => {});
 
   const base = publicApiBase(req);
-  const git = getPublicGitCredentials();
-  let connected = false;
-  try {
-    validateGitConfig();
-    connected = true;
-  } catch {
-    connected = false;
-  }
-
-  const needsRepoSelection =
-    git.authMethod === "github_app" &&
-    Boolean(git.installationId) &&
-    (!git.workspace || !git.repoSlug);
+  const setupState = await resolveGitIntegrationSetupState(getPublicGitCredentials());
+  const { git, connected, needsRepoSelection, availableRepositories } = setupState;
 
   const githubApp = githubAppPublicConfig();
   const installUrl = githubAppInstallUrl();
   const callbackUrl = `${base}/git-integration/oauth/github/callback`;
-
-  let availableRepositories: Awaited<ReturnType<typeof listStoredRepositories>> = [];
-  if (needsRepoSelection && git.installationId) {
-    try {
-      availableRepositories = await listStoredRepositories(git.installationId);
-      if (!availableRepositories.length) {
-        availableRepositories = await listInstallationRepositories(git.installationId);
-      }
-    } catch (err) {
-      logger.warn({ err, installationId: git.installationId }, "list repos for setup failed");
-    }
-  }
 
   res.json({
     publicApiBase: base,
     git,
     connected,
     needsRepoSelection,
+    installationDetected: setupState.installationDetected,
+    databaseConfigured: Boolean(process.env.DATABASE_URL?.trim()),
     availableRepositories,
     githubApp: {
       ...githubApp,
@@ -136,6 +112,51 @@ router.get("/integration/setup", async (req, res, next) => {
   }
 });
 
+router.get("/integration/diagnostics", async (_req, res, next) => {
+  try {
+    let databaseOk = false;
+    let databaseError: string | null = null;
+    if (process.env.DATABASE_URL?.trim()) {
+      try {
+        const row = await getLatestGithubInstallState();
+        databaseOk = true;
+        res.json({
+          githubAppConfigured: isGithubAppConfigured(),
+          databaseConfigured: true,
+          databaseReachable: true,
+          frontendUrlConfigured: Boolean(process.env.FRONTEND_URL?.trim()),
+          frontendGitUrl: frontendGitUrl() || null,
+          corsOrigin: process.env.CORS_ORIGIN ?? "*",
+          latestInstallation: row
+            ? {
+                installationId: row.installationId,
+                accountLogin: row.accountLogin,
+                selectedRepoOwner: row.selectedRepoOwner,
+                selectedRepoName: row.selectedRepoName,
+              }
+            : null,
+        });
+        return;
+      } catch (err) {
+        databaseError = err instanceof Error ? err.message : "database_error";
+      }
+    }
+
+    res.json({
+      githubAppConfigured: isGithubAppConfigured(),
+      databaseConfigured: Boolean(process.env.DATABASE_URL?.trim()),
+      databaseReachable: databaseOk,
+      databaseError,
+      frontendUrlConfigured: Boolean(process.env.FRONTEND_URL?.trim()),
+      frontendGitUrl: frontendGitUrl() || null,
+      corsOrigin: process.env.CORS_ORIGIN ?? "*",
+      latestInstallation: null,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.get("/oauth/github/install", (_req, res) => {
   const url = githubAppInstallUrl();
   if (!url) {
@@ -154,19 +175,29 @@ router.get("/oauth/github/callback", async (req, res) => {
   const state = String(req.query.state ?? "");
   const frontend = frontendGitUrl();
 
-  if (state && !validateOAuthState(state)) {
-    if (frontend) {
-      res.redirect(`${frontend}?github_error=invalid_state`);
+  const stateInvalid = Boolean(state && !validateOAuthState(state));
+  if (stateInvalid) {
+    logger.warn(
+      { installationId: installationId || null },
+      "github oauth callback state invalid — continuing when installation_id present"
+    );
+    if (!installationId) {
+      if (frontend) {
+        res.redirect(`${frontend}?github_error=invalid_state`);
+        return;
+      }
+      res.status(400).json({ error: "invalid_oauth_state" });
       return;
     }
-    res.status(400).json({ error: "invalid_oauth_state" });
-    return;
   }
 
+  let installError: string | null = null;
   if (installationId) {
     try {
       await completeGithubInstallation(installationId);
     } catch (err) {
+      installError =
+        err instanceof Error ? err.message : "GitHub install could not be saved";
       logger.warn({ err, installationId }, "github oauth callback complete-install failed");
     }
   }
@@ -176,6 +207,7 @@ router.get("/oauth/github/callback", async (req, res) => {
     if (installationId) params.set("installation_id", installationId);
     if (setupAction) params.set("setup_action", setupAction);
     params.set("provider", "github");
+    if (installError) params.set("github_error", "install_failed");
     res.redirect(`${frontend}?${params.toString()}`);
     return;
   }
