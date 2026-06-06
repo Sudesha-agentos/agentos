@@ -1,22 +1,16 @@
 import { createHash } from "node:crypto";
 import { prisma } from "../db/client";
-import { getClaudeClient, getClaudeModel } from "../llm/claudeClient";
-import { getOpenAIClient, isOpenAIConfigured } from "../llm/openaiClient";
+import {
+  getOpenAIClient,
+  getOpenAISummaryModel,
+  isOpenAIConfigured,
+} from "../llm/openaiClient";
 import { gitClient } from "../integrations/gitProvider";
 import { getRepoContext } from "../git-integration/gitCredentialsStore";
 import { logger } from "../utils/logger";
 import { withRetry } from "../utils/retry";
 import { codebaseVectorStore } from "./vectorStore";
 import { visualizationCache } from "./visualizationCache";
-
-function claudeAvailable(): boolean {
-  try {
-    getClaudeClient();
-    return true;
-  } catch {
-    return false;
-  }
-}
 
 function repoIds() {
   const ctx = getRepoContext();
@@ -359,23 +353,26 @@ async function extractFileIntelligence(
   imports: Array<{ from: string; items: string[] }>;
   patterns: string[];
 }> {
-  if (content.length < 200 || !claudeAvailable()) {
+  if (content.length < 200 || !isOpenAIConfigured()) {
     return regexIntelligence(content, filePath, language);
   }
 
-  const claude = getClaudeClient();
   const analysisContent =
     content.length > 8_000 ? `${content.slice(0, 8_000)}\n\n[TRUNCATED]` : content;
 
   try {
     const response = await withRetry(
       () =>
-        claude.messages.create({
-          model: getClaudeModel(),
+        getOpenAIClient().chat.completions.create({
+          model: getOpenAISummaryModel(),
           max_tokens: 900,
-          system:
-            "Extract structured code intelligence. Return JSON only, no markdown.",
+          response_format: { type: "json_object" },
           messages: [
+            {
+              role: "system",
+              content:
+                "Extract structured code intelligence. Return JSON only with keys summary, exports, imports, patterns.",
+            },
             {
               role: "user",
               content: `File: ${filePath}\nLanguage: ${language}\n\n${analysisContent}\n\nReturn JSON: {"summary":string,"exports":[{"name":string,"type":string}],"imports":[{"from":string,"items":[string]}],"patterns":[string]}`,
@@ -385,9 +382,9 @@ async function extractFileIntelligence(
       { maxAttempts: 2, baseDelayMs: 500, maxDelayMs: 3000 }
     );
 
-    const text = response.content.find((item) => item.type === "text");
+    const text = response.choices[0]?.message?.content ?? "";
     const parsed = JSON.parse(
-      (text?.text ?? "").replace(/```json/gi, "").replace(/```/g, "").trim()
+      text.replace(/```json/gi, "").replace(/```/g, "").trim()
     ) as {
       summary?: string;
       exports?: Array<{ name: string; type: string }>;

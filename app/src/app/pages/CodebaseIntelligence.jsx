@@ -1,3 +1,4 @@
+import { useState } from "react";
 import CodebaseVisualization from "../../features/codebase-viz/CodebaseVisualization";
 import IndexProgressBar from "../../widgets/index-progress/IndexProgressBar";
 import CodebaseIntelligenceStatusWidget from "../../widgets/codebase-intelligence-status/CodebaseIntelligenceStatusWidget";
@@ -9,6 +10,7 @@ export default function CodebaseIntelligence() {
   const git = setup?.git;
   const branch = git?.defaultBranch ?? "main";
   const connected = Boolean(setup?.connected);
+  const [indexRunId, setIndexRunId] = useState(null);
 
   return (
     <div className="mx-auto w-full max-w-[96rem] space-y-6">
@@ -17,9 +19,17 @@ export default function CodebaseIntelligence() {
         title="A living map of understanding"
         body="Five toggleable layers — structure, relationships, activity, quality, and AI-generated meaning. Built for seniors scanning heat and interns taking the guided tour."
       />
-      <CodebaseIntelligenceStatusWidget branch={branch} />
+      <CodebaseIntelligenceStatusWidget
+        branch={branch}
+        onIndexStarted={({ runId }) => setIndexRunId(runId)}
+      />
       {connected ? (
-        <IndexProgressBar branch={branch} enabled title="Building codebase map" />
+        <IndexProgressBar
+          runId={indexRunId ?? undefined}
+          branch={branch}
+          enabled
+          title="Building codebase map"
+        />
       ) : null}
       {connected ? <CodebaseVisualization /> : null}
     </div>

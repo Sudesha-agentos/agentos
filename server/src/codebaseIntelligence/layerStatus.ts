@@ -52,9 +52,7 @@ function llmProviderLabel(): string {
 }
 
 function fileIntelligenceAvailable(): boolean {
-  const provider = llmProviderLabel();
-  if (provider === "bedrock") return true;
-  return Boolean(process.env.ANTHROPIC_API_KEY?.trim());
+  return isOpenAIConfigured();
 }
 
 async function countEmbeddings(
@@ -158,13 +156,7 @@ export async function getCodebaseLayerStatus(
 
   if (!openaiConfigured) {
     blockers.push(
-      "OPENAI_API_KEY is not set — semantic search and embeddings will be unavailable."
-    );
-  }
-
-  if (!fileIntelligenceAvailable()) {
-    blockers.push(
-      "No LLM configured for file intelligence — indexing will use regex summaries only."
+      "OPENAI_API_KEY is not set — per-file summaries, embeddings, and semantic search will be unavailable."
     );
   }
 
@@ -222,7 +214,9 @@ export async function getCodebaseLayerStatus(
     blockers.push(`Last index failed: ${progress.error}`);
   }
   if (fileStats.count === 0 && indexStatus !== "running" && indexStatus !== "queued") {
-    blockers.push("No indexed files yet — run a full index.");
+    blockers.push(
+      "No indexed files yet — connect GitHub and select a repo, or use Fetch & index on Codebase Intelligence."
+    );
   }
   if (openaiConfigured && embeddingCount === 0 && fileStats.count > 0) {
     blockers.push("Files indexed but no embeddings — check OPENAI_API_KEY and re-index.");
