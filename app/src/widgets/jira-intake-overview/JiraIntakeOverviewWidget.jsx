@@ -1,71 +1,77 @@
 import { Link } from "react-router-dom";
-import { useJiraIntakeSummary } from "../../entities/jira-intake";
+import {
+  usePipelineIntakeTickets,
+  usePipelineJiraSetup,
+} from "../../entities/pipeline-jira";
 import LabelPill from "../../app/components/LabelPill";
 import Spinner from "../../app/components/Spinner";
+import { PipelineQueueSummary } from "../pipeline-queue/PipelineQueuePanel";
 import { Panel, PanelHeader } from "../../shared/ui/Panel";
 
 export default function JiraIntakeOverviewWidget({ embedded = false }) {
-  const { data, error, loading } = useJiraIntakeSummary({ pollMs: 12000 });
+  const { data: setup, error, loading } = usePipelineJiraSetup({ pollMs: 5000 });
+  const intakeReady = Boolean(setup?.connected && setup?.intake?.aiWorkerColumnName);
+  const { data: intake } = usePipelineIntakeTickets(intakeReady, { pollMs: 12000 });
 
-  const active = data?.stats?.active ?? 0;
-  const inactive = data?.stats?.inactive ?? 0;
-  const lastKey = data?.last?.issueKey;
+  const count = intake?.items?.length ?? 0;
+  const column = setup?.intake?.aiWorkerColumnName;
+  const queue = setup?.queue;
+  const running = queue?.activeJiraKey;
 
   const body = (
-      <div className={embedded ? "space-y-4" : "space-y-4 px-5 py-4 sm:px-6"}>
-        {loading && !data ? (
-          <div className="flex justify-center py-6">
-            <Spinner />
-          </div>
-        ) : error ? (
-          <p className="text-[13px] leading-relaxed text-ink-dim">
-            Intake API unreachable. Start the server with{" "}
-            <code className="font-mono text-[12px] text-ink">npm run dev</code> in{" "}
-            <code className="font-mono text-[12px] text-ink">server/</code> and set{" "}
-            <code className="font-mono text-[12px] text-ink">JIRA_*</code> in{" "}
-            <code className="font-mono text-[12px] text-ink">.env</code>.
+    <div className={embedded ? "space-y-4" : "space-y-4 px-5 py-4 sm:px-6"}>
+      {loading && !setup ? (
+        <div className="flex justify-center py-6">
+          <Spinner />
+        </div>
+      ) : error ? (
+        <p className="text-[13px] leading-relaxed text-ink-dim">
+          Jira API unreachable. Connect pipeline Jira in Settings and set{" "}
+          <code className="font-mono text-[12px] text-ink">PIPELINE_JIRA_*</code> on the server.
+        </p>
+      ) : (
+        <>
+          <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-ink-dim">
+            {intakeReady
+              ? `${count} in Jira column "${column}"`
+              : setup?.connected
+                ? "Pick the AI Worker intake column on the Jira page"
+                : "Connect Jira to enable AI Worker intake"}
           </p>
-        ) : (
-          <>
-            <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-ink-dim">
-              {lastKey
-                ? `Last webhook · ${lastKey}`
-                : active > 0
-                  ? "Queue loaded from intake database"
-                  : "Waiting for Jira webhooks → /webhooks/jira/ai-worker"}
-            </p>
-            <div className="flex flex-wrap gap-4 text-[13px]">
-              <Link
-                to="/app/jira"
-                className="text-ink-dim transition-colors hover:text-indigo"
-              >
-                Open AI Worker queue →
-              </Link>
-              <Link
-                to="/app/jira-search"
-                className="text-ink-dim transition-colors hover:text-indigo"
-              >
-                Search board →
-              </Link>
-            </div>
-          </>
-        )}
-      </div>
+          <PipelineQueueSummary setup={setup} />
+          <div className="flex flex-wrap gap-4 text-[13px]">
+            <Link to="/app/jira" className="text-ink-dim transition-colors hover:text-indigo">
+              Jira pipeline setup →
+            </Link>
+            <Link
+              to="/app/jira-search"
+              className="text-ink-dim transition-colors hover:text-indigo"
+            >
+              Search board →
+            </Link>
+          </div>
+        </>
+      )}
+    </div>
   );
+
+  const queueBadge = running
+    ? `Running ${running}`
+    : (queue?.queueLength ?? 0) > 0
+      ? `${queue.queueLength} queued`
+      : `${count} in AI Worker`;
 
   if (embedded) {
     return (
       <div className="rounded-[1rem] border border-hairline bg-surface/30 p-4">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-ink-mute">
-            Jira intake
+            Jira pipeline
           </p>
-          <div className="flex flex-wrap gap-2">
-            <LabelPill label={`${active} active`} tone={active > 0 ? "success" : "muted"} />
-            {inactive > 0 ? (
-              <LabelPill label={`${inactive} inactive`} tone="muted" />
-            ) : null}
-          </div>
+          <LabelPill
+            label={queueBadge}
+            tone={running ? "indigo" : (queue?.queueLength ?? 0) > 0 ? "warning" : count > 0 ? "success" : "muted"}
+          />
         </div>
         {body}
       </div>
@@ -75,16 +81,14 @@ export default function JiraIntakeOverviewWidget({ embedded = false }) {
   return (
     <Panel>
       <PanelHeader
-        kicker="Jira intake"
-        title="AI Worker queue"
-        body="Live tickets from your Jira board column, separate from the agent pipeline ledger."
+        kicker="Jira pipeline"
+        title="AI Worker intake"
+        body="Column/status triggers decomposition; subtasks run one at a time in the FIFO queue."
         right={
-          <div className="flex flex-wrap gap-2">
-            <LabelPill label={`${active} active`} tone={active > 0 ? "success" : "muted"} />
-            {inactive > 0 ? (
-              <LabelPill label={`${inactive} inactive`} tone="muted" />
-            ) : null}
-          </div>
+          <LabelPill
+            label={queueBadge}
+            tone={running ? "indigo" : (queue?.queueLength ?? 0) > 0 ? "warning" : count > 0 ? "success" : "muted"}
+          />
         }
       />
       {body}

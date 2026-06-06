@@ -70,6 +70,8 @@ Point to: `https://<render-host>/webhooks/jira`
 
 See [INTEGRATION.md](./INTEGRATION.md) and [server/README.md](./server/README.md).
 
+**Pipeline demo:** [docs/DEMO_PIPELINE.md](./docs/DEMO_PIPELINE.md) — Horizon Commerce Jira CSV + demo codebase walkthrough.
+
 ## Verify
 
 ```powershell

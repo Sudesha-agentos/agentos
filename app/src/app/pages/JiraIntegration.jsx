@@ -1,23 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
-  advanceIssue,
-  connectJiraIntegration,
-  getBoardColumns,
-  getJiraWebhookStatus,
-  listAiWorkerIssues,
-  registerJiraWebhook,
-  saveIntegrationMapping,
-  syncWorkingColumn,
-  useIntegrationSetup,
-} from "../../entities/jira-intake";
-import { settingsAdapter } from "../../entities/settings";
-import { useResource } from "../../shared/lib/useResource";
+  connectPipelineJira,
+  getPipelineJiraBoardColumns,
+  registerPipelineJiraWebhook,
+  savePipelineIntakeColumn,
+  usePipelineIntakeTickets,
+  usePipelineJiraSetup,
+} from "../../entities/pipeline-jira";
 import EmptyState from "../components/EmptyState";
 import LabelPill from "../components/LabelPill";
 import Spinner from "../components/Spinner";
+import PipelineQueuePanel from "../../widgets/pipeline-queue/PipelineQueuePanel";
 import { PageIntro, Panel, PanelHeader } from "../../shared/ui/Panel";
-import JiraSetupGuideWidget from "../../widgets/jira-setup-guide/JiraSetupGuideWidget";
 
 export default function JiraIntegration() {
   const {
@@ -25,7 +20,7 @@ export default function JiraIntegration() {
     error: setupError,
     loading: setupLoading,
     refetch: refetchSetup,
-  } = useIntegrationSetup();
+  } = usePipelineJiraSetup({ pollMs: 5000 });
 
   if (setupLoading && !setup) {
     return (
@@ -48,49 +43,39 @@ export default function JiraIntegration() {
 }
 
 function JiraIntegrationContent({ setup, refetchSetup }) {
+  const connected = Boolean(setup?.connected);
+  const intakeConfigured = Boolean(setup?.intake?.aiWorkerColumnName);
+
   const {
-    data: issuesData,
-    error: issuesError,
-    loading: issuesLoading,
-    refetch: refetchIssues,
-  } = useResource(() => listAiWorkerIssues("1"), [], {
-    pollMs: 10000,
-    enabled: Boolean(setup?.connected),
-  });
+    data: intakeData,
+    loading: intakeLoading,
+    refetch: refetchIntake,
+  } = usePipelineIntakeTickets(connected && intakeConfigured, { pollMs: 10000 });
 
   const [baseUrl, setBaseUrl] = useState(() => setup?.jira?.baseUrl || "");
   const [email, setEmail] = useState(() => setup?.jira?.email || "");
   const [apiToken, setApiToken] = useState("");
-  const [boardId, setBoardId] = useState(() => setup?.jira?.boardId || "");
+  const [boardId, setBoardId] = useState(() => setup?.intake?.boardId || "");
+  const [projectKeys, setProjectKeys] = useState(
+    () => setup?.jira?.projectKeys?.join(", ") || ""
+  );
   const [webhookSecret, setWebhookSecret] = useState(
     () => setup?.jira?.webhookSecret || ""
   );
   const [columns, setColumns] = useState([]);
-  const [workingColumn, setWorkingColumn] = useState(
-    () => setup?.mapping?.workingColumnName || ""
-  );
-  const [nextColumn, setNextColumn] = useState(
-    () => setup?.mapping?.nextColumnName || ""
+  const [intakeColumn, setIntakeColumn] = useState(
+    () => setup?.intake?.aiWorkerColumnName || ""
   );
   const [connectPending, setConnectPending] = useState(false);
-  const [connectError, setConnectError] = useState("");
   const [mappingPending, setMappingPending] = useState(false);
+  const [webhookPending, setWebhookPending] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
-  const [syncPending, setSyncPending] = useState(false);
-  const [advancePendingKey, setAdvancePendingKey] = useState(null);
-  const [copiedUrl, setCopiedUrl] = useState(false);
-  const [copiedSecret, setCopiedSecret] = useState(false);
-  const [webhookRegistered, setWebhookRegistered] = useState(false);
-  const [webhookRegisterPending, setWebhookRegisterPending] = useState(false);
+  const [connectError, setConnectError] = useState("");
 
-  const connected = Boolean(setup?.connected);
-  const items = issuesData?.items ?? [];
-  const jiraAdminWebhooksUrl = baseUrl
-    ? `${baseUrl.replace(/\/$/, "")}/plugins/servlet/webhooks`
-    : null;
   const canConnect =
     baseUrl &&
     boardId &&
+    projectKeys.trim() &&
     (apiToken.trim() || setup?.jira?.hasApiToken);
 
   useEffect(() => {
@@ -98,18 +83,10 @@ function JiraIntegrationContent({ setup, refetchSetup }) {
     let cancelled = false;
     (async () => {
       try {
-        const [{ columns: cols }, webhookStatus] = await Promise.all([
-          getBoardColumns(),
-          getJiraWebhookStatus().catch(() => ({ registered: false })),
-        ]);
-        if (!cancelled && cols?.length) {
-          setColumns(cols);
-        }
-        if (!cancelled) {
-          setWebhookRegistered(Boolean(webhookStatus.registered));
-        }
+        const { columns: cols } = await getPipelineJiraBoardColumns();
+        if (!cancelled && cols?.length) setColumns(cols);
       } catch {
-        /* columns load optional until mapping step */
+        /* optional until board mapped */
       }
     })();
     return () => {
@@ -122,473 +99,244 @@ function JiraIntegrationContent({ setup, refetchSetup }) {
     [columns]
   );
 
-  async function handleConnect() {
+  const intakeStatuses = setup?.intake?.aiWorkerStatuses ?? [];
+  const intakeItems = intakeData?.items ?? [];
+
+  async function handleConnect(e) {
+    e.preventDefault();
     setConnectPending(true);
     setConnectError("");
     setStatusMessage("");
     try {
-      const result = await connectJiraIntegration({
-        baseUrl,
-        email,
-        boardId,
+      await connectPipelineJira({
+        baseUrl: baseUrl.trim(),
+        email: email.trim() || undefined,
         apiToken: apiToken.trim() || undefined,
         webhookSecret: webhookSecret.trim() || undefined,
+        boardId: boardId.trim(),
+        projectKeys: projectKeys
+          .split(",")
+          .map((k) => k.trim())
+          .filter(Boolean),
       });
-
-      setColumns(result.columns ?? []);
-      if (result.mapping?.workingColumnName) {
-        setWorkingColumn(result.mapping.workingColumnName);
-      } else if (result.columns?.length >= 2 && !workingColumn) {
-        setWorkingColumn(result.columns[0].name);
-      }
-      if (result.mapping?.nextColumnName) {
-        setNextColumn(result.mapping.nextColumnName);
-      } else if (result.columns?.length >= 2 && !nextColumn) {
-        setNextColumn(result.columns[1].name);
-      }
-      if (result.jira?.webhookSecret) {
-        setWebhookSecret(result.jira.webhookSecret);
-      }
-
-      await settingsAdapter.save({
-        ...(await settingsAdapter.get()),
-        jiraBaseUrl: baseUrl,
-        jiraEmail: email,
-        jiraApiToken: apiToken.trim() ? apiToken : "stored-on-server",
-        webhookSecret: result.jira?.webhookSecret || webhookSecret,
-      });
-
-      setStatusMessage(
-        result.board?.name
-          ? `Connected to Jira board “${result.board.name}”.`
-          : "Connected to Jira."
-      );
-      if (result.webhookRegistration?.registered) {
-        setWebhookRegistered(true);
-      } else if (result.webhookRegistration?.error) {
-        setWebhookRegistered(false);
-        setStatusMessage(result.webhookRegistration.error);
-      }
-
+      setApiToken("");
+      setStatusMessage("Jira connected.");
       await refetchSetup();
-      try {
-        const status = await getJiraWebhookStatus();
-        setWebhookRegistered(Boolean(status.registered));
-      } catch {
-        /* optional */
-      }
     } catch (err) {
-      setConnectError(err instanceof Error ? err.message : "Connection failed");
+      setConnectError(err.message || "Connect failed");
     } finally {
       setConnectPending(false);
     }
   }
 
-  async function handleRegisterWebhook() {
-    setWebhookRegisterPending(true);
-    setStatusMessage("");
-    try {
-      const result = await registerJiraWebhook();
-      setWebhookRegistered(Boolean(result.registered));
-      setStatusMessage(
-        result.created
-          ? "Webhook created in Jira automatically."
-          : "Webhook already registered in Jira."
-      );
-    } catch (err) {
-      setStatusMessage(err instanceof Error ? err.message : "Webhook registration failed");
-    } finally {
-      setWebhookRegisterPending(false);
-    }
-  }
-
-  async function handleSaveMapping(e) {
+  async function handleSaveIntakeColumn(e) {
     e.preventDefault();
-    if (!connected) return;
+    if (!intakeColumn) return;
     setMappingPending(true);
     setStatusMessage("");
     try {
-      await saveIntegrationMapping({
-        workingColumnName: workingColumn,
-        nextColumnName: nextColumn,
+      await savePipelineIntakeColumn({
+        columnName: intakeColumn,
+        boardId: boardId.trim() || undefined,
       });
-      setStatusMessage("Column mapping saved. Webhook will track the working column.");
+      setStatusMessage(`AI Worker intake column set to "${intakeColumn}".`);
       await refetchSetup();
-      await refetchIssues();
+      await refetchIntake();
     } catch (err) {
-      setStatusMessage(err instanceof Error ? err.message : "Save failed");
+      setConnectError(err.message || "Could not save intake column");
     } finally {
       setMappingPending(false);
     }
   }
 
-  async function handleSync() {
-    setSyncPending(true);
+  async function handleRegisterWebhook() {
+    setWebhookPending(true);
+    setStatusMessage("");
     try {
-      const result = await syncWorkingColumn();
-      setStatusMessage(`Synced ${result.synced} ticket(s) from Jira.`);
-      await refetchIssues();
+      await registerPipelineJiraWebhook();
+      setStatusMessage("Webhook registered with Jira.");
     } catch (err) {
-      setStatusMessage(err instanceof Error ? err.message : "Sync failed");
+      setConnectError(err.message || "Webhook registration failed");
     } finally {
-      setSyncPending(false);
+      setWebhookPending(false);
     }
-  }
-
-  async function handleAdvance(issueKey) {
-    setAdvancePendingKey(issueKey);
-    try {
-      const result = await advanceIssue(issueKey);
-      setStatusMessage(
-        `${result.issueKey} → ${result.column} (${result.toStatus})`
-      );
-      await refetchIssues();
-    } catch (err) {
-      setStatusMessage(err instanceof Error ? err.message : "Advance failed");
-    } finally {
-      setAdvancePendingKey(null);
-    }
-  }
-
-  async function copyText(text, setter) {
-    await navigator.clipboard.writeText(text);
-    setter(true);
-    setTimeout(() => setter(false), 2000);
   }
 
   return (
-    <div className="mx-auto w-full max-w-[82rem] space-y-6">
+    <div className="space-y-6">
       <PageIntro
-        kicker="Jira intake"
-        title={connected ? "Jira connected" : "Connect Jira"}
-        body={
-          connected
-            ? "Webhook URL and secrets are ready. Map columns, sync your working queue, and advance tickets in one click."
-            : "Paste your site URL and API token — we fetch your email, verify the board, and try to register the webhook in Jira for you."
-        }
-        right={
-          connected ? (
-            <LabelPill label="Integrated" tone="success" />
-          ) : (
-            <Link
-              to="/app/jira-search"
-              className="rounded-full border border-hairline px-4 py-2 font-mono text-[10.5px] uppercase tracking-[0.16em] text-ink-dim"
-            >
-              Board search
-            </Link>
-          )
-        }
+        title="Jira pipeline"
+        body="Connect Jira once, pick the AI Worker board column, then move tickets there to start the agent pipeline end to end."
       />
 
-      <JiraSetupGuideWidget
-        connected={connected}
-        webhookUrl={setup?.webhookUrl}
-        baseUrl={baseUrl}
-        defaultOpen={!connected}
-      />
+      {statusMessage ? (
+        <p className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100">
+          {statusMessage}
+        </p>
+      ) : null}
+      {connectError ? (
+        <p className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-100">
+          {connectError}
+        </p>
+      ) : null}
 
       <Panel>
-        <PanelHeader
-          kicker={connected ? "Connected" : "Step 1"}
-          title="Jira account"
-          body="Use the setup guide above for where to find each value. Saved credentials load from the server on refresh."
-        />
-        <div className="space-y-4 p-5 sm:p-6">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field
-              label="Base URL"
+        <PanelHeader title="Connect Jira" />
+        <form className="grid gap-4 md:grid-cols-2" onSubmit={handleConnect}>
+          <label className="block text-sm">
+            <span className="text-white/70">Base URL</span>
+            <input
+              className="mt-1 w-full rounded-lg border border-white/10 bg-black/20 px-3 py-2"
               value={baseUrl}
-              onChange={setBaseUrl}
+              onChange={(e) => setBaseUrl(e.target.value)}
               placeholder="https://your-domain.atlassian.net"
-              hint="Jira site URL — see guide §1"
             />
-            <Field
-              label="Service email (optional)"
+          </label>
+          <label className="block text-sm">
+            <span className="text-white/70">Email</span>
+            <input
+              className="mt-1 w-full rounded-lg border border-white/10 bg-black/20 px-3 py-2"
               value={email}
-              onChange={setEmail}
-              placeholder="Filled from Jira when you connect with API token"
+              onChange={(e) => setEmail(e.target.value)}
             />
-            <Field
-              label="API token"
-              value={apiToken}
-              onChange={setApiToken}
-              placeholder={
-                setup?.jira?.hasApiToken
-                  ? `Saved (${setup.jira.tokenHint}) — leave blank to keep`
-                  : "Atlassian API token"
-              }
+          </label>
+          <label className="block text-sm">
+            <span className="text-white/70">API token</span>
+            <input
               type="password"
-              hint="Create at id.atlassian.com — see guide §2"
+              className="mt-1 w-full rounded-lg border border-white/10 bg-black/20 px-3 py-2"
+              value={apiToken}
+              onChange={(e) => setApiToken(e.target.value)}
+              placeholder={setup?.jira?.hasApiToken ? "Saved — leave blank to keep" : "Required"}
             />
-            <Field
-              label="Board ID"
+          </label>
+          <label className="block text-sm">
+            <span className="text-white/70">Board ID</span>
+            <input
+              className="mt-1 w-full rounded-lg border border-white/10 bg-black/20 px-3 py-2"
               value={boardId}
-              onChange={setBoardId}
-              placeholder="e.g. 123"
-              hint="Board search or Jira URL — see guide §4"
+              onChange={(e) => setBoardId(e.target.value)}
             />
-          </div>
-
-          <div className="flex flex-wrap gap-3">
-            <ExternalLink
-              href="https://id.atlassian.com/manage-profile/security/api-tokens"
-              label="Create API token at Atlassian"
+          </label>
+          <label className="block text-sm md:col-span-2">
+            <span className="text-white/70">Project keys (comma-separated)</span>
+            <input
+              className="mt-1 w-full rounded-lg border border-white/10 bg-black/20 px-3 py-2"
+              value={projectKeys}
+              onChange={(e) => setProjectKeys(e.target.value)}
+              placeholder="SCRUM"
             />
-            {jiraAdminWebhooksUrl ? (
-              <ExternalLink href={jiraAdminWebhooksUrl} label="Open Jira webhooks (manual)" />
-            ) : null}
-          </div>
-
-          {connectError ? (
-            <p className="font-mono text-[11px] text-danger">{connectError}</p>
-          ) : null}
-
-          {!connected ? (
+          </label>
+          <label className="block text-sm md:col-span-2">
+            <span className="text-white/70">Webhook secret (optional)</span>
+            <input
+              className="mt-1 w-full rounded-lg border border-white/10 bg-black/20 px-3 py-2"
+              value={webhookSecret}
+              onChange={(e) => setWebhookSecret(e.target.value)}
+            />
+          </label>
+          <div className="md:col-span-2 flex flex-wrap gap-3">
             <button
-              type="button"
-              disabled={connectPending || !canConnect}
-              onClick={() => void handleConnect()}
-              className="w-full rounded-full bg-indigo py-3 font-mono text-[11px] uppercase tracking-[0.18em] text-white disabled:opacity-50 sm:w-auto sm:px-8"
+              type="submit"
+              disabled={!canConnect || connectPending}
+              className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium disabled:opacity-50"
             >
-              {connectPending ? "Connecting…" : "Connect Jira"}
+              {connectPending ? "Connecting…" : connected ? "Update connection" : "Connect"}
             </button>
-          ) : (
-            <div className="flex flex-wrap gap-2">
+            {connected ? (
               <button
                 type="button"
-                disabled={connectPending}
-                onClick={() => void handleConnect()}
-                className="rounded-full border border-hairline px-4 py-2 font-mono text-[10.5px] uppercase tracking-[0.16em] text-ink-dim"
+                disabled={webhookPending}
+                onClick={handleRegisterWebhook}
+                className="rounded-lg border border-white/15 px-4 py-2 text-sm"
               >
-                {connectPending ? "Refreshing…" : "Re-test connection"}
+                {webhookPending ? "Registering…" : "Register webhook"}
               </button>
-              {setup?.jira?.source === "environment" ? (
-                <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-ink-mute">
-                  Credentials from server environment
-                </span>
-              ) : (
-                <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-ink-mute">
-                  Credentials saved on server
-                </span>
-              )}
-            </div>
-          )}
-        </div>
+            ) : null}
+          </div>
+        </form>
+        {connected ? (
+          <p className="mt-4 text-xs text-white/50">
+            Webhook URL: <code>{setup.webhookUrl}</code> — events: issue_updated
+          </p>
+        ) : null}
       </Panel>
 
       {connected ? (
-        <>
-          <Panel>
-            <PanelHeader
-              kicker="Step 2"
-              title="Webhook"
-              body="We generate the URL and secret. With Jira admin access, Connect can register the webhook via API — otherwise use the manual link."
-              right={
-                webhookRegistered ? (
-                  <LabelPill label="Registered in Jira" tone="success" />
-                ) : (
-                  <LabelPill label="Not in Jira yet" tone="warning" />
-                )
-              }
-            />
-            <div className="space-y-4 p-5 sm:p-6">
-              {!webhookRegistered ? (
-                <button
-                  type="button"
-                  disabled={webhookRegisterPending}
-                  onClick={() => void handleRegisterWebhook()}
-                  className="rounded-full bg-indigo px-5 py-2.5 font-mono text-[10.5px] uppercase tracking-[0.16em] text-white disabled:opacity-50"
-                >
-                  {webhookRegisterPending
-                    ? "Registering in Jira…"
-                    : "Register webhook in Jira"}
-                </button>
-              ) : null}
-              <CopyRow
-                label="Webhook URL"
-                value={setup?.webhookUrl}
-                copied={copiedUrl}
-                onCopy={() => void copyText(setup?.webhookUrl, setCopiedUrl)}
-              />
-              <CopyRow
-                label="Optional header x-agentos-secret"
-                value={setup?.jira?.webhookSecret || webhookSecret}
-                copied={copiedSecret}
-                onCopy={() =>
-                  void copyText(
-                    setup?.jira?.webhookSecret || webhookSecret,
-                    setCopiedSecret
-                  )
-                }
-              />
-              <p className="text-[13px] text-ink-dim">{setup?.webhookHint}</p>
-            </div>
-          </Panel>
-
-          <Panel>
-            <PanelHeader
-              kicker="Step 3"
-              title="Board columns"
-              body="Pick working vs next column. Statuses under the working column are tracked automatically."
-            />
-            <form onSubmit={handleSaveMapping} className="space-y-4 p-5 sm:p-6">
-              <div className="grid gap-4 sm:grid-cols-2">
-                <SelectField
-                  label="Working column"
-                  value={workingColumn}
-                  onChange={setWorkingColumn}
-                  options={columnOptions}
-                />
-                <SelectField
-                  label="Next column (Advance)"
-                  value={nextColumn}
-                  onChange={setNextColumn}
-                  options={columnOptions}
-                />
-              </div>
-              <button
-                type="submit"
-                disabled={mappingPending || !workingColumn || !nextColumn}
-                className="rounded-full bg-indigo px-5 py-2.5 font-mono text-[10.5px] uppercase tracking-[0.16em] text-white disabled:opacity-50"
+        <Panel>
+          <PanelHeader
+            title="AI Worker intake column"
+            subtitle="Tickets in this column are picked up automatically when moved in Jira."
+          />
+          <form className="flex flex-wrap items-end gap-3" onSubmit={handleSaveIntakeColumn}>
+            <label className="block min-w-[240px] flex-1 text-sm">
+              <span className="text-white/70">Board column</span>
+              <select
+                className="mt-1 w-full rounded-lg border border-white/10 bg-black/20 px-3 py-2"
+                value={intakeColumn}
+                onChange={(e) => setIntakeColumn(e.target.value)}
               >
-                {mappingPending ? "Saving…" : "Save column mapping"}
-              </button>
-            </form>
-          </Panel>
+                <option value="">Select column…</option>
+                {columnOptions.map((name) => (
+                  <option key={name} value={name}>
+                    {name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button
+              type="submit"
+              disabled={!intakeColumn || mappingPending}
+              className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium disabled:opacity-50"
+            >
+              {mappingPending ? "Saving…" : "Save intake column"}
+            </button>
+          </form>
+          {intakeConfigured && intakeStatuses.length ? (
+            <p className="mt-4 text-sm text-white/60">
+              Trigger statuses:{" "}
+              {intakeStatuses.map((status) => (
+                <LabelPill key={status} label={status} tone="indigo" className="ml-1" />
+              ))}
+            </p>
+          ) : null}
+        </Panel>
+      ) : null}
 
-          <Panel>
-            <PanelHeader
-              kicker="Step 4"
-              title="Working queue"
-              right={
-                <button
-                  type="button"
-                  onClick={() => void handleSync()}
-                  disabled={syncPending}
-                  className="rounded-full border border-hairline px-4 py-2 font-mono text-[10.5px] uppercase tracking-[0.16em] text-ink-dim"
-                >
-                  {syncPending ? "Syncing…" : "Sync from Jira"}
-                </button>
-              }
+      {connected ? <PipelineQueuePanel setup={setup} /> : null}
+
+      {connected && intakeConfigured ? (
+        <Panel>
+          <PanelHeader
+            title="Tickets in AI Worker"
+            subtitle="Move a Story here in Jira to start discovery → PRD → engineering → QA."
+          />
+          {intakeLoading && !intakeItems.length ? <Spinner /> : null}
+          {!intakeLoading && !intakeItems.length ? (
+            <EmptyState
+              title="No tickets in AI Worker"
+              body="Drag a Story into the AI Worker column on your Jira board."
             />
-            <div className="p-5 sm:p-6">
-              {statusMessage ? (
-                <p className="mb-4 font-mono text-[11px] text-ink-dim">{statusMessage}</p>
-              ) : null}
-              {issuesLoading && !items.length ? (
-                <div className="flex justify-center py-8">
-                  <Spinner />
-                </div>
-              ) : issuesError ? (
-                <EmptyState title="Queue error" body={issuesError.message} />
-              ) : !items.length ? (
-                <EmptyState
-                  title="No tickets yet"
-                  body="Move a card into the working column or click Sync from Jira."
-                />
-              ) : (
-                <ul className="space-y-3">
-                  {items.map((issue) => (
-                    <li
-                      key={issue.issueKey}
-                      className="flex flex-wrap items-center justify-between gap-3 rounded-[1rem] border border-hairline bg-canvas/40 px-4 py-4"
-                    >
-                      <div>
-                        <p className="font-mono text-[12px] text-indigo">{issue.issueKey}</p>
-                        <p className="text-[15px] text-ink">{issue.summary}</p>
-                      </div>
-                      <button
-                        type="button"
-                        disabled={advancePendingKey === issue.issueKey}
-                        onClick={() => void handleAdvance(issue.issueKey)}
-                        className="rounded-full border border-indigo/40 bg-indigo/10 px-4 py-2 font-mono text-[10.5px] uppercase tracking-[0.16em] text-indigo"
-                      >
-                        {advancePendingKey === issue.issueKey
-                          ? "Moving…"
-                          : `Advance → ${nextColumn || "next"}`}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          </Panel>
-        </>
+          ) : (
+            <ul className="divide-y divide-white/10">
+              {intakeItems.map((item) => (
+                <li key={item.key} className="flex flex-wrap items-center gap-3 py-3">
+                  <span className="font-mono text-sm text-violet-300">{item.key}</span>
+                  <span className="flex-1 text-sm">{item.summary}</span>
+                  <LabelPill label={item.issueType} tone="muted" />
+                  <LabelPill label={item.status} tone="indigo" />
+                </li>
+              ))}
+            </ul>
+          )}
+          <p className="mt-4 text-xs text-white/45">
+            Active pipelines:{" "}
+            <Link to="/app/pipelines" className="text-violet-300 underline">
+              View pipelines →
+            </Link>
+          </p>
+        </Panel>
       ) : null}
-    </div>
-  );
-}
-
-function Field({ label, value, onChange, placeholder, type = "text", hint }) {
-  return (
-    <label className="block">
-      <span className="editorial-kicker text-ink-mute">{label}</span>
-      <input
-        type={type}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        className="mt-2 w-full rounded-[0.85rem] border border-hairline bg-canvas/50 px-4 py-2.5 text-[14px] text-ink outline-none focus:border-indigo/50"
-      />
-      {hint ? (
-        <p className="mt-1.5 font-mono text-[9px] uppercase tracking-[0.12em] text-ink-mute">
-          {hint}
-        </p>
-      ) : null}
-    </label>
-  );
-}
-
-function SelectField({ label, value, onChange, options }) {
-  return (
-    <label className="block">
-      <span className="editorial-kicker text-ink-mute">{label}</span>
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="mt-2 w-full rounded-[0.85rem] border border-hairline bg-canvas/50 px-4 py-2.5 text-[14px] text-ink"
-      >
-        <option value="">Select…</option>
-        {options.map((name) => (
-          <option key={name} value={name}>
-            {name}
-          </option>
-        ))}
-      </select>
-    </label>
-  );
-}
-
-function ExternalLink({ href, label }) {
-  return (
-    <a
-      href={href}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="font-mono text-[10.5px] uppercase tracking-[0.14em] text-indigo hover:underline"
-    >
-      {label} ↗
-    </a>
-  );
-}
-
-function CopyRow({ label, value, copied, onCopy }) {
-  return (
-    <div>
-      <span className="editorial-kicker text-ink-mute">{label}</span>
-      <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center">
-        <code className="flex-1 break-all rounded-[0.85rem] border border-hairline bg-canvas/50 px-3 py-2 font-mono text-[11px] text-indigo">
-          {value || "—"}
-        </code>
-        <button
-          type="button"
-          onClick={onCopy}
-          disabled={!value}
-          className="shrink-0 rounded-full border border-hairline px-4 py-2 font-mono text-[10px] uppercase tracking-[0.14em] text-ink-dim"
-        >
-          {copied ? "Copied" : "Copy"}
-        </button>
-      </div>
     </div>
   );
 }

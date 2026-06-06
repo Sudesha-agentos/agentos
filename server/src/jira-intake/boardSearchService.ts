@@ -1,4 +1,5 @@
-import { intakeConfig } from "./config";
+import { getPipelineIntakeMapping } from "../pipeline/jira/intakeConfig";
+import { getActivePipelineJiraCredentials } from "../pipeline/jira/credentialsStore";
 import { parseDescription } from "./descriptionParser";
 import {
   escapeJqlString,
@@ -107,7 +108,7 @@ export async function searchBoardByKeyword(
   return {
     keyword,
     searchIn,
-    boardId: Number(intakeConfig.jira.boardId) || intakeConfig.jira.boardId,
+    boardId: getPipelineIntakeMapping().boardId || null,
     jql,
     total: issues.length,
     isLast: searchResult.isLast,

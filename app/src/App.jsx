@@ -55,7 +55,6 @@ function App() {
             <Route path="git" element={<GitIntegration />} />
             <Route path="github" element={<GitIntegration />} />
             <Route path="jira" element={<JiraIntegration />} />
-            <Route path="ai-worker" element={<JiraIntegration />} />
             <Route path="jira-search" element={<JiraSearch />} />
             <Route path="settings" element={<Settings />} />
           </Route>

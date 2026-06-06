@@ -38,7 +38,7 @@ export default function JiraSearch() {
         body="Search the entire Jira board for keywords in summaries and descriptions. Results are grouped by board column and fetched live from Jira via the intake service."
         right={
           <Link
-            to="/app/ai-worker"
+            to="/app/jira"
             className="rounded-full border border-hairline bg-surface/60 px-4 py-2 font-mono text-[10.5px] uppercase tracking-[0.16em] text-ink-dim transition-colors hover:text-ink"
           >
             AI Worker queue
