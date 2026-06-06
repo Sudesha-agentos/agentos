@@ -51,6 +51,15 @@ router.post("/jira/ai-worker", (req, res) => {
   handleAiWorkerWebhook(req, res);
 });
 
+router.get("/github", (_req, res) => {
+  res.json({
+    ok: true,
+    message:
+      "GitHub App webhook endpoint. GitHub sends POST with X-Hub-Signature-256; browser GET is only a health check.",
+    events: ["push", "pull_request", "installation", "installation_repositories"],
+  });
+});
+
 router.post("/github", (req, res, next) => {
   void handleGithubWebhook(req, res).catch(next);
 });
