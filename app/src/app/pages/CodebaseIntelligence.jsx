@@ -2,6 +2,7 @@ import { useState } from "react";
 import CodebaseVisualization from "../../features/codebase-viz/CodebaseVisualization";
 import IndexProgressBar from "../../widgets/index-progress/IndexProgressBar";
 import CodebaseIntelligenceStatusWidget from "../../widgets/codebase-intelligence-status/CodebaseIntelligenceStatusWidget";
+import { useCodebaseLayerStatus } from "../../entities/codebase";
 import { useGitIntegrationSetup } from "../../entities/git-integration";
 import { PageIntro } from "../../shared/ui/Panel";
 
@@ -11,6 +12,12 @@ export default function CodebaseIntelligence() {
   const branch = git?.defaultBranch ?? "main";
   const connected = Boolean(setup?.connected);
   const [indexRunId, setIndexRunId] = useState(null);
+  const { data: layerStatus } = useCodebaseLayerStatus({ branch, pollMs: 8000 });
+  const vizRefreshKey =
+    layerStatus?.graph?.computedAt ??
+    layerStatus?.index?.lastCompletedAt ??
+    layerStatus?.index?.lastIndexedAt ??
+    null;
 
   return (
     <div className="mx-auto w-full max-w-[96rem] space-y-6">
@@ -31,7 +38,9 @@ export default function CodebaseIntelligence() {
           title="Building codebase map"
         />
       ) : null}
-      {connected ? <CodebaseVisualization /> : null}
+      {connected ? (
+        <CodebaseVisualization branch={branch} refreshKey={vizRefreshKey} />
+      ) : null}
     </div>
   );
 }

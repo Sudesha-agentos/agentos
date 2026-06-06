@@ -15,17 +15,20 @@ const restCodebaseAdapter = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(branch ? { branch } : {}),
     }),
-  structure: () => fetchJson(apiPath("/api/codebase/structure")),
-  branches: () => fetchJson(apiPath("/api/codebase/branches")),
-  commits: () => fetchJson(apiPath("/api/codebase/commits")),
+  structure: () => fetchJson(apiPath("/api", "/codebase/structure")),
+  branches: () => fetchJson(apiPath("/api", "/codebase/branches")),
+  commits: () => fetchJson(apiPath("/api", "/codebase/commits")),
   search: (query) =>
-    fetchJson(apiPath(`/api/codebase/search?q=${encodeURIComponent(query)}`)),
+    fetchJson(apiPath("/api", `/codebase/search?q=${encodeURIComponent(query)}`)),
   visualization: (branch = "main") =>
-    fetchJson(apiPath(`/api/codebase/visualization?branch=${encodeURIComponent(branch)}`)),
+    fetchJson(
+      apiPath("/api", `/codebase/visualization?branch=${encodeURIComponent(branch)}`)
+    ),
   fileInterior: (branch, filePath) =>
     fetchJson(
       apiPath(
-        `/api/codebase/visualization/file?branch=${encodeURIComponent(branch)}&path=${encodeURIComponent(filePath)}`
+        "/api",
+        `/codebase/visualization/file?branch=${encodeURIComponent(branch)}&path=${encodeURIComponent(filePath)}`
       )
     ),
   ask: (question, branch = "main") =>
