@@ -12,6 +12,7 @@
     "build:server": "npm run build --prefix server",
     "lint": "npm run lint --prefix app",
     "test": "npm run test --prefix app",
-    "install:all": "npm install --prefix app && npm install --prefix server"
+    "install:all": "npm install --prefix app && npm install --prefix server",
+    "demo:generate": "node scripts/generate-pipeline-demo.mjs"
   }
 }

@@ -194,10 +194,11 @@ export function savePipelineJiraCredentials(input: {
   apiToken?: string;
   webhookSecret?: string;
   projectKeys?: string[];
+  boardId?: string;
 }): PipelineJiraCredentials {
   const existing = getDb()
     .prepare(
-      `SELECT api_token, webhook_secret, project_keys_json
+      `SELECT api_token, webhook_secret, project_keys_json, board_id
        FROM pipeline_jira_credentials WHERE singleton_id = 1`
     )
     .get() as
@@ -205,6 +206,7 @@ export function savePipelineJiraCredentials(input: {
         api_token: string | null;
         webhook_secret: string | null;
         project_keys_json: string | null;
+        board_id: string | null;
       }
     | undefined;
 
@@ -231,6 +233,12 @@ export function savePipelineJiraCredentials(input: {
           }
         })();
 
+  const boardId =
+    input.boardId?.trim() ||
+    existing?.board_id ||
+    process.env.PIPELINE_JIRA_BOARD_ID?.trim() ||
+    "";
+
   const creds: PipelineJiraCredentials = {
     baseUrl: normalizeBaseUrl(input.baseUrl),
     email: input.email.trim(),
@@ -243,14 +251,15 @@ export function savePipelineJiraCredentials(input: {
   getDb()
     .prepare(
       `INSERT INTO pipeline_jira_credentials (
-        singleton_id, base_url, email, api_token, webhook_secret, project_keys_json, updated_at
-      ) VALUES (1, @baseUrl, @email, @apiToken, @webhookSecret, @projectKeysJson, @now)
+        singleton_id, base_url, email, api_token, webhook_secret, project_keys_json, board_id, updated_at
+      ) VALUES (1, @baseUrl, @email, @apiToken, @webhookSecret, @projectKeysJson, @boardId, @now)
       ON CONFLICT(singleton_id) DO UPDATE SET
         base_url = excluded.base_url,
         email = excluded.email,
         api_token = excluded.api_token,
         webhook_secret = excluded.webhook_secret,
         project_keys_json = excluded.project_keys_json,
+        board_id = COALESCE(excluded.board_id, pipeline_jira_credentials.board_id),
         updated_at = excluded.updated_at`
     )
     .run({
@@ -259,6 +268,7 @@ export function savePipelineJiraCredentials(input: {
       apiToken: creds.apiToken,
       webhookSecret: creds.webhookSecret,
       projectKeysJson: JSON.stringify(creds.projectKeys),
+      boardId: boardId || null,
       now,
     });
 

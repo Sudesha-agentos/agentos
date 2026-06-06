@@ -1,15 +1,11 @@
 import type { Request, Response } from "express";
-import type { Prisma } from "../../db/prisma";
-import { ticketRepo } from "../../db/repositories/ticketRepo";
-import { runPipelineInBackground } from "../../queue/inProcessRunner";
-import { classifyIntent } from "../../integrations/intentClassifier";
 import { logger } from "../../utils/logger";
 import { getPipelineWebhookSecret } from "./credentialsStore";
-import {
-  normalizePipelineTicket,
-  type PipelineJiraWebhookPayload,
-} from "./ticketNormalizer";
+import { isPipelineIntakeStatus } from "./intakeConfig";
+import { mirrorEligibleStatus } from "./config";
+import { type PipelineJiraWebhookPayload } from "./ticketNormalizer";
 import { syncMirroredIssue } from "./mirror/syncService";
+import { enqueueIntakeFromWebhook } from "./intakeEnqueueService";
 
 function verifyPipelineWebhook(req: Request): boolean {
   const expected = getPipelineWebhookSecret();
@@ -18,7 +14,27 @@ function verifyPipelineWebhook(req: Request): boolean {
   return provided === expected;
 }
 
-/** Lane 2: issue_created → pipeline; issue_updated → selective mirror sync. */
+function enteredIntakeStatus(payload: PipelineJiraWebhookPayload): boolean {
+  const changelog = (
+    payload as {
+      changelog?: {
+        items?: Array<{ field?: string; toString?: string }>;
+      };
+    }
+  ).changelog;
+
+  if (changelog?.items?.length) {
+    const statusChange = changelog.items.find((i) => i.field === "status");
+    if (!statusChange) return false;
+    return isPipelineIntakeStatus(statusChange.toString);
+  }
+
+  const currentStatus =
+    (payload.issue.fields as { status?: { name?: string } }).status?.name ?? "";
+  return isPipelineIntakeStatus(currentStatus);
+}
+
+/** issue_updated in AI Worker column → decompose + queued pipeline; closed/done → mirror. */
 export async function handlePipelineJiraWebhook(
   req: Request,
   res: Response
@@ -39,56 +55,11 @@ export async function handlePipelineJiraWebhook(
 
   res.status(200).json({ ok: true, event });
 
-  if (event === "jira:issue_created") {
-    void handleIssueCreated(payload).catch((err) =>
-      logger.error({ err }, "pipeline issue_created failed")
-    );
-    return;
-  }
-
   if (event === "jira:issue_updated") {
     void handleIssueUpdated(payload).catch((err) =>
-      logger.error({ err }, "pipeline issue_updated mirror sync failed")
+      logger.error({ err }, "pipeline issue_updated failed")
     );
   }
-}
-
-async function handleIssueCreated(
-  payload: PipelineJiraWebhookPayload
-): Promise<void> {
-  logger.info(
-    {
-      jiraKey: payload.issue.key,
-      issueType: payload.issue.fields.issuetype?.name,
-    },
-    "pipeline jira webhook: issue_created"
-  );
-
-  const normalizedTicket = normalizePipelineTicket(payload);
-  const intent = classifyIntent(normalizedTicket);
-
-  if (!intent.requiresPipeline) {
-    logger.info(
-      { jiraKey: normalizedTicket.jiraKey, reason: intent.skipReason },
-      "pipeline ticket skipped"
-    );
-    return;
-  }
-
-  const ticket = await ticketRepo.create({
-    jiraTicketId: normalizedTicket.jiraTicketId,
-    jiraKey: normalizedTicket.jiraKey,
-    rawPayload: payload as unknown as Prisma.InputJsonValue,
-    normalizedData: {
-      ...normalizedTicket,
-      createdAt: normalizedTicket.createdAt.toISOString(),
-    } as unknown as Prisma.InputJsonValue,
-    status: "RECEIVED",
-  });
-
-  runPipelineInBackground(ticket.id);
-
-  logger.info({ ticketId: ticket.id }, "pipeline started in-process");
 }
 
 async function handleIssueUpdated(
@@ -96,13 +67,32 @@ async function handleIssueUpdated(
 ): Promise<void> {
   const jiraKey = payload.issue.key;
   const statusName =
-    (payload.issue.fields as { status?: { name?: string } }).status?.name ??
-    "";
+    (payload.issue.fields as { status?: { name?: string } }).status?.name ?? "";
 
   logger.info({ jiraKey, statusName }, "pipeline jira webhook: issue_updated");
 
-  const result = await syncMirroredIssue(jiraKey);
-  if (result.synced) {
-    logger.info({ jiraKey }, "mirror updated from webhook");
+  if (enteredIntakeStatus(payload)) {
+    const result = await enqueueIntakeFromWebhook(payload);
+    if (result) {
+      logger.info(
+        {
+          sourceKey: result.sourceKey,
+          enqueued: result.enqueued,
+          skipped: result.skipped,
+          started: result.started,
+          groups: result.groups,
+        },
+        result.started
+          ? "pipeline intake started after decomposition"
+          : "pipeline intake queued after decomposition"
+      );
+    }
+  }
+
+  if (mirrorEligibleStatus(statusName)) {
+    const result = await syncMirroredIssue(jiraKey);
+    if (result.synced) {
+      logger.info({ jiraKey }, "mirror updated from webhook");
+    }
   }
 }

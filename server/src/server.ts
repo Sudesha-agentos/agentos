@@ -5,16 +5,14 @@ import {
   loadGitCredentialsFromStore,
   restoreGitCredentialsFromPostgres,
 } from "./git-integration/gitCredentialsStore";
-import { loadJiraCredentialsFromStore } from "./jira-intake/jiraCredentialsStore";
-import { loadPipelineJiraCredentialsFromStore } from "./pipeline/jira/credentialsStore";
 import { initIntakeDb } from "./jira-intake/sqliteStore";
+import { loadPipelineJiraCredentialsFromStore } from "./pipeline/jira/credentialsStore";
 import { initCodebaseVizWebSocket } from "./codebaseIntelligence/codebaseVizHub";
 import { recoverStaleIndexRuns } from "./codebaseIntelligence/indexRecovery";
 import { logger } from "./utils/logger";
 
 async function bootstrap(): Promise<void> {
   initIntakeDb();
-  loadJiraCredentialsFromStore();
   loadPipelineJiraCredentialsFromStore();
   await restoreGitCredentialsFromPostgres().catch((err) => {
     logger.warn({ err }, "startup git credential restore failed");

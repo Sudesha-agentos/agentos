@@ -20,19 +20,18 @@ interface JiraIssueFields {
   project?: { key?: string };
 }
 
-export interface PipelineJiraWebhookPayload {
-  webhookEvent?: string;
-  issue: {
-    id: string;
-    key: string;
-    fields: JiraIssueFields;
-  };
+export interface PipelineJiraIssue {
+  id: string;
+  key: string;
+  fields: JiraIssueFields;
 }
 
-export function normalizePipelineTicket(
-  payload: PipelineJiraWebhookPayload
-): NormalizedTicket {
-  const issue = payload.issue;
+export interface PipelineJiraWebhookPayload {
+  webhookEvent?: string;
+  issue: PipelineJiraIssue;
+}
+
+export function normalizePipelineIssue(issue: PipelineJiraIssue): NormalizedTicket {
   const fields = issue.fields;
 
   return {
@@ -51,4 +50,10 @@ export function normalizePipelineTicket(
     createdAt: new Date(fields.created ?? Date.now()),
     projectKey: fields.project?.key ?? "",
   };
+}
+
+export function normalizePipelineTicket(
+  payload: PipelineJiraWebhookPayload
+): NormalizedTicket {
+  return normalizePipelineIssue(payload.issue);
 }

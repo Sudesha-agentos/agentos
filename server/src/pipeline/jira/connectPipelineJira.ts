@@ -29,6 +29,7 @@ export async function connectPipelineJira(input: {
   apiToken?: string;
   webhookSecret?: string;
   projectKeys?: string[];
+  boardId?: string;
   webhookUrl?: string;
   autoRegisterWebhook?: boolean;
 }) {
@@ -41,6 +42,7 @@ export async function connectPipelineJira(input: {
       apiToken: input.apiToken,
       webhookSecret: input.webhookSecret,
       projectKeys: input.projectKeys,
+      boardId: input.boardId,
     });
     try {
       const me = await fetchPipelineJiraCurrentUser();
@@ -51,6 +53,7 @@ export async function connectPipelineJira(input: {
         apiToken: input.apiToken,
         webhookSecret: input.webhookSecret,
         projectKeys: input.projectKeys,
+        boardId: input.boardId,
       });
     } catch {
       if (!email) {
@@ -65,6 +68,7 @@ export async function connectPipelineJira(input: {
       email,
       webhookSecret: input.webhookSecret,
       projectKeys: input.projectKeys,
+      boardId: input.boardId,
     });
   }
 

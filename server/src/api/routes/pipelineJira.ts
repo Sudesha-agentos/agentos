@@ -1,4 +1,4 @@
-import { Router, type Request } from "express";
+import { Router } from "express";
 import {
   connectPipelineJira,
   ensurePipelineJiraWebhook,
@@ -15,12 +15,22 @@ import {
   getMirrorStats,
   runMirrorBackfill,
 } from "../../pipeline/jira/mirror/syncService";
-import { runMirrorBackfillInBackground } from "../../queue/inProcessRunner";
+import {
+  getBoardColumnsOrdered,
+  listIntakeColumnTickets,
+  resolveIntakeStatusesForColumn,
+} from "../../pipeline/jira/boardService";
+import {
+  getPipelineIntakeMapping,
+  savePipelineIntakeColumn,
+} from "../../pipeline/jira/intakeConfig";
+import { runMirrorBackfillInBackground, getPipelineQueueState } from "../../queue/inProcessRunner";
 
 const router = Router();
 
 router.get("/setup", (req, res) => {
   const jira = getPublicPipelineJiraCredentials();
+  const intake = getPipelineIntakeMapping();
   let connected = false;
   try {
     validatePipelineJiraConfig();
@@ -32,9 +42,11 @@ router.get("/setup", (req, res) => {
   res.json({
     publicApiBase: pipelineJiraPublicBase(req),
     webhookUrl: pipelineJiraWebhookUrl(req),
-    webhookEvents: ["jira:issue_created", "jira:issue_updated"],
+    webhookEvents: ["jira:issue_updated"],
     webhookHint:
-      "Lane 2 pipeline webhook. issue_created starts the agent pipeline; issue_updated syncs closed/done tickets into the mirror for RAG.",
+      "Move a ticket into the AI Worker column/status in Jira to start the agent pipeline. Closed/done tickets are mirrored for RAG on update.",
+    intake,
+    queue: getPipelineQueueState(),
     mirror: getPipelineJiraMirrorConfig(),
     mirrorJql: connected
       ? buildMirrorBackfillJql(jira.projectKeys)
@@ -52,6 +64,9 @@ router.post("/connect", async (req, res) => {
     : undefined;
   const webhookSecret = req.body?.webhookSecret
     ? String(req.body.webhookSecret).trim()
+    : undefined;
+  const boardId = req.body?.boardId
+    ? String(req.body.boardId).trim()
     : undefined;
   const projectKeysRaw = req.body?.projectKeys;
   const projectKeys = Array.isArray(projectKeysRaw)
@@ -79,6 +94,7 @@ router.post("/connect", async (req, res) => {
       apiToken,
       webhookSecret,
       projectKeys,
+      boardId,
       webhookUrl,
       autoRegisterWebhook: req.body?.autoRegisterWebhook !== false,
     });
@@ -110,6 +126,46 @@ router.post("/webhook/register", async (req, res) => {
   } catch (err) {
     const e = err as Error;
     res.status(502).json({ error: e.message });
+  }
+});
+
+router.get("/boards/columns", async (_req, res, next) => {
+  try {
+    const columns = await getBoardColumnsOrdered();
+    res.json({ columns });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.put("/intake-column", async (req, res, next) => {
+  try {
+    validatePipelineJiraConfig();
+    const columnName = String(req.body?.columnName ?? "").trim();
+    if (!columnName) {
+      res.status(400).json({ error: "columnName is required" });
+      return;
+    }
+    const columns = await getBoardColumnsOrdered();
+    const statuses = resolveIntakeStatusesForColumn(columnName, columns);
+    const intake = savePipelineIntakeColumn({
+      boardId: req.body?.boardId ? String(req.body.boardId).trim() : undefined,
+      columnName,
+      statuses,
+    });
+    res.json(intake);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get("/intake/tickets", async (_req, res, next) => {
+  try {
+    validatePipelineJiraConfig();
+    const result = await listIntakeColumnTickets();
+    res.json(result);
+  } catch (err) {
+    next(err);
   }
 });
 

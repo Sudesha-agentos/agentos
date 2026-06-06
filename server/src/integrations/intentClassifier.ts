@@ -3,6 +3,23 @@ import type { IntentClassification, NormalizedTicket } from "../types/ticket";
 const SKIP_TYPES = new Set(["Bug", "Task", "Sub-task", "Spike"]);
 const MIN_DESCRIPTION_LENGTH = 50;
 
+/** AI Worker column intake — human picked this ticket; do not filter by issue type. */
+export function classifyAiWorkerIntake(
+  ticket: NormalizedTicket
+): IntentClassification {
+  if (ticket.summary.toLowerCase().includes("[no-agent]")) {
+    return {
+      requiresPipeline: false,
+      skipReason: "Manually excluded via [no-agent] flag",
+    };
+  }
+
+  return {
+    requiresPipeline: true,
+    confidence: calculateConfidence(ticket),
+  };
+}
+
 export function classifyIntent(
   ticket: NormalizedTicket
 ): IntentClassification {

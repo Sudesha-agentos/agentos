@@ -1,32 +1,24 @@
 import { Router } from "express";
 import { handleBitbucketWebhook } from "../../codebaseIntelligence/bitbucketWebhookHandler";
 import { handleGithubWebhook } from "../../codebaseIntelligence/githubWebhookHandler";
-import { handleAiWorkerWebhook } from "../../jira-intake/aiWorkerWebhookHandler";
-import { intakeConfig } from "../../jira-intake/config";
 import { handlePipelineJiraWebhook } from "../../pipeline/jira/webhookHandler";
+import { getPipelineIntakeMapping } from "../../pipeline/jira/intakeConfig";
 
 const router = Router();
 
-// Lane 1 — AI Worker intake only (status / board queue).
-router.get("/jira", (_req, res) => {
+router.get("/jira/pipeline", (_req, res) => {
+  const intake = getPipelineIntakeMapping();
   res.json({
     ok: true,
-    message: "Lane 1 Jira intake. POST issue_updated (etc.) for AI Worker queue.",
-    trackedStatuses: intakeConfig.aiWorkerStatuses,
-    aiWorkerPath: "/webhooks/jira/ai-worker",
+    message:
+      "Jira pipeline webhook. POST issue_updated when a ticket enters the AI Worker column to start the agent pipeline.",
     pipelinePath: "/webhooks/jira/pipeline",
+    intakeColumn: intake.aiWorkerColumnName || null,
+    intakeStatuses: intake.aiWorkerStatuses,
+    events: ["jira:issue_updated"],
   });
 });
 
-router.post("/jira", (req, res) => {
-  handleAiWorkerWebhook(req, res);
-});
-
-router.post("/jira/ai-worker", (req, res) => {
-  handleAiWorkerWebhook(req, res);
-});
-
-// Lane 2 — agent pipeline ingress + mirror sync.
 router.post("/jira/pipeline", (req, res, next) => {
   void handlePipelineJiraWebhook(req, res).catch(next);
 });
