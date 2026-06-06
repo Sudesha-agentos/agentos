@@ -62,6 +62,7 @@ export function createApp(): express.Express {
   });
 
   app.use("/", healthRouter);
+  app.use("/api", healthRouter);
   app.use("/api/auth", authRouter);
   app.use("/api/codebase", codebaseRouter);
   app.use("/codebase", codebaseRouter);
