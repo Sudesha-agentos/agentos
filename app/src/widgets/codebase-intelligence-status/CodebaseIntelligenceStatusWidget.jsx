@@ -47,32 +47,44 @@ export default function CodebaseIntelligenceStatusWidget({
   embedded = false,
   branch,
   showReindex = true,
+  onIndexStarted,
 }) {
   const { data, error, loading, refetch } = useCodebaseLayerStatus({
     branch,
     pollMs: 8000,
   });
 
-  const [reindexing, setReindexing] = useState(false);
-  const [reindexMessage, setReindexMessage] = useState(null);
-
-  async function handleReindex() {
-    const targetBranch = branch ?? data?.repo?.defaultBranch ?? "main";
-    setReindexing(true);
-    setReindexMessage(null);
-    try {
-      const result = await triggerFullCodebaseIndex(targetBranch);
-      setReindexMessage(result.message ?? "Full index started.");
-      refetch();
-    } catch (err) {
-      setReindexMessage(err instanceof Error ? err.message : "Re-index failed.");
-    } finally {
-      setReindexing(false);
-    }
-  }
+  const [indexing, setIndexing] = useState(false);
+  const [indexMessage, setIndexMessage] = useState(null);
 
   const ready = Boolean(data?.ready);
   const indexStatus = data?.index?.status ?? "none";
+  const needsInitialIndex =
+    Boolean(data?.connected) &&
+    !ready &&
+    indexStatus !== "running" &&
+    indexStatus !== "queued" &&
+    (data?.counts?.filesIndexed === 0 ||
+      indexStatus === "none" ||
+      indexStatus === "failed");
+
+  async function handleFetchIndex() {
+    const targetBranch = branch ?? data?.repo?.defaultBranch ?? "main";
+    setIndexing(true);
+    setIndexMessage(null);
+    try {
+      const result = await triggerFullCodebaseIndex(targetBranch);
+      setIndexMessage(result.message ?? "Fetching and indexing repository…");
+      if (result.runId) {
+        onIndexStarted?.({ runId: result.runId, branch: targetBranch });
+      }
+      refetch();
+    } catch (err) {
+      setIndexMessage(err instanceof Error ? err.message : "Index failed.");
+    } finally {
+      setIndexing(false);
+    }
+  }
 
   const body = (
     <div className={embedded ? "space-y-4" : "space-y-4 px-5 py-4 sm:px-6"}>
@@ -94,6 +106,18 @@ export default function CodebaseIntelligenceStatusWidget({
               : "No repository connected"}
           </p>
 
+          {!data?.connected ? (
+            <p className="text-[13px] leading-relaxed text-ink-dim">
+              Connect GitHub and select a repository to fetch and index the codebase automatically,
+              or connect first and use the button below to index manually.
+            </p>
+          ) : needsInitialIndex ? (
+            <p className="text-[13px] leading-relaxed text-ink-dim">
+              GitHub is connected but the codebase has not been indexed yet. Fetch the repository
+              now to build file intelligence, embeddings, and the visualization graph.
+            </p>
+          ) : null}
+
           <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <Metric label="Files indexed" value={data?.counts?.filesIndexed ?? 0} />
             <Metric label="Embeddings" value={data?.counts?.embeddings ?? 0} />
@@ -110,7 +134,7 @@ export default function CodebaseIntelligenceStatusWidget({
           {!data?.configuration?.openaiConfigured ? (
             <p className="rounded-md border border-warning/30 bg-warning/5 px-3 py-2 text-xs text-ink-dim">
               Set <code className="font-mono text-[11px] text-ink">OPENAI_API_KEY</code> for
-              embeddings and semantic search.
+              per-file summaries, embeddings, and semantic search.
             </p>
           ) : null}
 
@@ -122,27 +146,37 @@ export default function CodebaseIntelligenceStatusWidget({
             </ul>
           ) : null}
 
-          <div className="flex flex-wrap items-center gap-4 text-[13px]">
+          <div className="flex flex-wrap items-center gap-3 text-[13px]">
             {!data?.connected ? (
               <Link
                 to="/app/git"
-                className="text-ink-dim transition-colors hover:text-indigo"
+                className="inline-flex rounded-full bg-indigo px-6 py-2.5 font-mono text-[11px] uppercase tracking-[0.16em] text-white transition-opacity hover:opacity-90"
               >
-                Connect GitHub →
+                Connect GitHub
               </Link>
             ) : null}
-            {showReindex && data?.connected ? (
+            {showReindex && data?.connected && needsInitialIndex ? (
               <button
                 type="button"
-                onClick={handleReindex}
-                disabled={reindexing || indexStatus === "running" || indexStatus === "queued"}
-                className="text-ink-dim transition-colors hover:text-indigo disabled:opacity-50"
+                onClick={handleFetchIndex}
+                disabled={indexing}
+                className="inline-flex rounded-full bg-indigo px-6 py-2.5 font-mono text-[11px] uppercase tracking-[0.16em] text-white transition-opacity hover:opacity-90 disabled:opacity-50"
               >
-                {reindexing ? "Starting re-index…" : "Re-index full repo →"}
+                {indexing ? "Starting fetch…" : "Fetch & index codebase"}
               </button>
             ) : null}
-            {reindexMessage ? (
-              <span className="text-xs text-ink-mute">{reindexMessage}</span>
+            {showReindex && data?.connected && !needsInitialIndex ? (
+              <button
+                type="button"
+                onClick={handleFetchIndex}
+                disabled={indexing || indexStatus === "running" || indexStatus === "queued"}
+                className="rounded-full border border-indigo/50 bg-indigo/10 px-5 py-2 font-mono text-[11px] uppercase tracking-[0.14em] text-ink transition-all hover:shadow-glow-indigo disabled:opacity-50"
+              >
+                {indexing ? "Starting re-index…" : "Re-index full repo"}
+              </button>
+            ) : null}
+            {indexMessage ? (
+              <span className="text-xs text-ink-mute">{indexMessage}</span>
             ) : null}
           </div>
         </>
@@ -176,7 +210,7 @@ export default function CodebaseIntelligenceStatusWidget({
       <PanelHeader
         kicker="Codebase intelligence"
         title="Layer readiness"
-        body="Indexed files, embeddings, and graph status before ticket workflows consume this context."
+        body="Indexing runs when you connect GitHub and select a repo, or when you fetch manually below."
         right={data ? headerRight : null}
       />
       {body}

@@ -200,7 +200,7 @@ function GitIntegrationContent({ setup, refetch }) {
       });
       if (result.indexRunId) setIndexRunId(result.indexRunId);
       setStatus(
-        `Connected to ${result.fullName}. Initial codebase index ${result.indexQueued ? "started" : "queued"} in the background.`
+        `Connected to ${result.fullName}. Fetching and indexing the codebase in the background.`
       );
       await refetch();
     } catch (e) {

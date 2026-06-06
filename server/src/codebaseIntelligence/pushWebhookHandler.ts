@@ -1,6 +1,5 @@
 import { prisma } from "../db/client";
 import { logger } from "../utils/logger";
-import { runIncrementalIndex } from "./indexer";
 
 const prismaAny = prisma as any;
 
@@ -86,18 +85,8 @@ export async function enqueueCodebaseIndexFromPush(input: {
     });
   }
 
-  void runIncrementalIndex({
-    branchName,
-    changedFiles,
-    deletedFiles,
-    commitSha: headSha,
-    triggerType: "webhook",
-  }).catch((err) => {
-    logger.warn({ err, branchName }, "in-process incremental index failed");
-  });
-
   logger.info(
     { branchName, changedCount: changedFiles.length, deletedCount: deletedFiles.length },
-    "started codebase incremental index in-process"
+    "recorded push metadata — re-index from Codebase Intelligence or Git integration to refresh"
   );
 }
