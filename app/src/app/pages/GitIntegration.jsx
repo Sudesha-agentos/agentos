@@ -57,11 +57,16 @@ function GitIntegrationContent({ setup, refetch }) {
   const [selectedRepo, setSelectedRepo] = useState("");
   const [installPending, setInstallPending] = useState(false);
   const [selectPending, setSelectPending] = useState(false);
-  const [err, setErr] = useState(() =>
-    searchParams.get("github_error") === "invalid_state"
-      ? "GitHub install session expired or was invalid. Try Connect with GitHub again."
-      : ""
-  );
+  const [err, setErr] = useState(() => {
+    const code = searchParams.get("github_error");
+    if (code === "invalid_state") {
+      return "GitHub install session expired or was invalid. Try Connect with GitHub again.";
+    }
+    if (code === "install_failed") {
+      return "GitHub App installed on GitHub, but the server could not save it. Check Render DATABASE_URL and that GithubInstallation exists in Supabase, then try again.";
+    }
+    return "";
+  });
   const [status, setStatus] = useState("");
   const [indexRunId, setIndexRunId] = useState(null);
   const clearedGithubError = useRef(false);
@@ -75,13 +80,14 @@ function GitIntegrationContent({ setup, refetch }) {
     git?.authMethod === "github_app" || Boolean(activeInstallationId && tab === "github");
   const needsRepoPick =
     Boolean(setup?.needsRepoSelection) ||
+    Boolean(setup?.installationDetected && !connected) ||
     (isGithubApp &&
       Boolean(activeInstallationId) &&
       (!git?.workspace || !git?.repoSlug));
 
   useEffect(() => {
     if (clearedGithubError.current) return;
-    if (searchParams.get("github_error") !== "invalid_state") return;
+    if (!searchParams.get("github_error")) return;
     clearedGithubError.current = true;
     setSearchParams({}, { replace: true });
   }, [searchParams, setSearchParams]);
@@ -238,6 +244,16 @@ function GitIntegrationContent({ setup, refetch }) {
           enabled={Boolean(connected || indexRunId)}
         />
       )}
+
+      {setup?.databaseConfigured === false ? (
+        <Panel>
+          <PanelHeader
+            kicker="Server config"
+            title="DATABASE_URL is not set on the API"
+            body="GitHub installs cannot be saved without Postgres. Set DATABASE_URL on Render to your Supabase connection string, redeploy, then connect GitHub again."
+          />
+        </Panel>
+      ) : null}
 
       <GitHubSetupGuideWidget
         connected={connected}

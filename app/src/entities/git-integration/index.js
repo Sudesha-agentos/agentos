@@ -69,6 +69,7 @@ export async function fetchGitIntegrationSummary() {
   return {
     connected: Boolean(setup?.connected),
     needsRepoSelection,
+    installationDetected: Boolean(setup?.installationDetected),
     repoLabel,
     authMethod: git?.authMethod ?? null,
     installationId: git?.installationId ?? null,

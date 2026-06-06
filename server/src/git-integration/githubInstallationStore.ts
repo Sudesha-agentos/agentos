@@ -151,6 +151,34 @@ export async function listStoredRepositories(
   }));
 }
 
+export type GithubInstallState = {
+  installationId: string;
+  accountLogin: string;
+  selectedRepoOwner: string | null;
+  selectedRepoName: string | null;
+  updatedAt: Date;
+};
+
+/** Latest GitHub App install from Postgres (survives Render SQLite resets). */
+export async function getLatestGithubInstallState(): Promise<GithubInstallState | null> {
+  try {
+    const row = (await prismaAny.githubInstallation.findFirst({
+      orderBy: { updatedAt: "desc" },
+      select: {
+        installationId: true,
+        accountLogin: true,
+        selectedRepoOwner: true,
+        selectedRepoName: true,
+        updatedAt: true,
+      },
+    })) as GithubInstallState | null;
+    return row;
+  } catch (err) {
+    logger.warn({ err }, "read github installation from postgres failed");
+    return null;
+  }
+}
+
 export async function persistInstallationFlow(input: {
   installationId: string;
   accountLogin: string;
@@ -161,18 +189,22 @@ export async function persistInstallationFlow(input: {
   suspendedAt?: Date | null;
   repositories: InstallationRepo[];
 }): Promise<void> {
-  try {
-    await upsertGithubInstallation({
-      installationId: input.installationId,
-      accountLogin: input.accountLogin,
-      accountType: input.accountType,
-      targetType: input.targetType,
-      permissionsJson: input.permissionsJson,
-      eventsJson: input.eventsJson,
-      suspendedAt: input.suspendedAt,
-    });
-    await syncInstallationRepositories(input.installationId, input.repositories);
-  } catch (err) {
-    logger.warn({ err, installationId: input.installationId }, "postgres github install persist failed");
+  if (!process.env.DATABASE_URL?.trim()) {
+    logger.warn(
+      { installationId: input.installationId },
+      "DATABASE_URL not set — skipping Postgres github install persist"
+    );
+    return;
   }
+
+  await upsertGithubInstallation({
+    installationId: input.installationId,
+    accountLogin: input.accountLogin,
+    accountType: input.accountType,
+    targetType: input.targetType,
+    permissionsJson: input.permissionsJson,
+    eventsJson: input.eventsJson,
+    suspendedAt: input.suspendedAt,
+  });
+  await syncInstallationRepositories(input.installationId, input.repositories);
 }
