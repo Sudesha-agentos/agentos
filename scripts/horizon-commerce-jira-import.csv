@@ -1,0 +1,229 @@
+Work item id,Summary,Description,Issue Type,Priority,Status,Resolution,Labels,Labels,Labels,Component,Component,Parent,Reporter,Created
+"HC-EPIC-01","Merchant onboarding & KYC verification","Enable B2B merchants to register, upload KYC documents, and pass verification before accepting payments. Demo epic for AgentOS pipeline — move to AI Worker to queue all child stories and subtasks.","Epic","High","To Do","","horizon-commerce","agentos-demo","pipeline-demo","Frontend","Backend","","Sarah Chen","02/06/25 10:00"
+"HC-EPIC-02","Checkout, payments & settlement","Checkout idempotency, signed webhooks, and finance CSV exports. Contains intentional bugs in horizon-commerce-platform for the engineering agent to fix.","Epic","High","To Do","","horizon-commerce","agentos-demo","pipeline-demo","Payments","Backend","","Sarah Chen","02/06/25 10:00"
+"HC-101","Guided onboarding wizard with save-and-resume","*User story*
+As a merchant admin, I want a 4-step onboarding wizard that saves my progress so that I can complete KYC over multiple sessions without data loss.
+
+*Background*
+Horizon Commerce onboarding drops off at document upload. The demo repo has partial draft support in onboardingService.ts but no step model.
+
+*Acceptance criteria*
+1. Given a new merchant, when onboarding starts, then 4 steps are returned (business info, documents, review, confirmation).
+2. Given I save step 2, when I return within 7 days, then my draft restores at step 2.
+3. Given a document URL over 10MB, when I save, then validation rejects before persist.
+
+*Technical notes*
+- Draft TTL from config.onboardingDraftTtlDays
+- Audit every draft save via recordAudit
+
+*Codebase*
+- demo/horizon-commerce-platform/src/modules/merchant/onboardingService.ts
+- demo/horizon-commerce-platform/src/modules/merchant/wizardSteps.ts (stub — needs 4 steps)","Story","Highest","To Do","","horizon-commerce","agentos-demo","pipeline-demo","Frontend","Backend","HC-EPIC-01","Sarah Chen","02/06/25 11:00"
+"HC-101-1","Implement onboarding draft persistence API","*Goal*
+Persist merchant onboarding drafts with step index and document list.
+
+*Target files*
+- src/modules/merchant/onboardingService.ts
+- src/lib/audit.ts
+
+*Implementation steps*
+1. Ensure saveDraft stores step (1-4), documents[], updatedAt
+2. Ensure loadDraft respects onboardingDraftTtlDays and clears expired drafts
+3. Record audit entry onboarding.draft_saved on each save
+
+*Definition of done*
+- Unit-level manual test: save then load returns same step
+- Expired draft returns null after TTL","Sub-task","High","To Do","","horizon-commerce","agentos-demo","pipeline-demo","Backend","","HC-101","Sarah Chen","02/06/25 11:05"
+"HC-101-2","Add 4-step wizard step definitions","*Goal*
+Expose getWizardSteps() returning four ordered steps for the merchant portal.
+
+*Target files*
+- src/modules/merchant/wizardSteps.ts
+- src/index.ts
+
+*Implementation steps*
+1. Define WizardStep type with id, title, description
+2. Return steps: business_info, documents, review, confirmation
+3. Export from src/index.ts
+
+*Definition of done*
+- getWizardSteps().length === 4
+- Step ids are stable strings for UI routing","Sub-task","High","To Do","","horizon-commerce","agentos-demo","pipeline-demo","Frontend","Backend","HC-101","Marcus Webb","02/06/25 11:10"
+"HC-101-3","Fix document size validation on onboarding upload","*Goal*
+Validate uploaded document byte size, not URL string length.
+
+*Target files*
+- src/modules/merchant/onboardingService.ts
+- src/modules/merchant/kycValidator.ts
+
+*Implementation steps*
+1. Change saveDraft to accept documentSizesBytes: number[] parallel to documents
+2. Reject any file over config.maxUploadBytes with KycValidationError
+3. Add validateDocumentSizes helper in kycValidator.ts
+
+*Definition of done*
+- 10MB+ file rejected with clear error
+- Valid sizes persist normally","Sub-task","Medium","To Do","","horizon-commerce","agentos-demo","pipeline-demo","Backend","","HC-101","Priya Nair","02/06/25 11:15"
+"HC-102","Role-based access control for merchant team","*User story*
+As a org owner, I want to assign viewer, editor, billing, and owner roles so that my team has least-privilege access to refunds and API keys.
+
+*Background*
+assignRole exists but there is no central permission guard. Support and finance roles need different capabilities.
+
+*Acceptance criteria*
+1. Given Viewer role, when user attempts refund, then action is denied.
+2. Given Editor role, when user creates API key, then action is denied.
+3. Given role change, when saved, then audit log records actor and target.
+
+*Codebase*
+- src/modules/merchant/onboardingService.ts
+- src/modules/merchant/permissionGuard.ts (stub)","Story","High","To Do","","horizon-commerce","agentos-demo","pipeline-demo","Backend","Security","HC-EPIC-01","James Okafor","02/06/25 12:00"
+"HC-102-1","Extend assignRole with invite metadata","*Goal*
+Track who assigned each role and when for audit compliance.
+
+*Target files*
+- src/modules/merchant/onboardingService.ts
+- src/lib/audit.ts
+
+*Implementation steps*
+1. Add assignRoleBy(actorId, userId, role) that records actor in audit
+2. Keep assignRole as wrapper for backward compatibility
+
+*Definition of done*
+- Audit entry includes actor, target, role","Sub-task","Medium","To Do","","horizon-commerce","agentos-demo","pipeline-demo","Backend","","HC-102","James Okafor","02/06/25 12:05"
+"HC-102-2","Implement permissionGuard for refund and API key actions","*Goal*
+Central guard used by refundService and API routes.
+
+*Target files*
+- src/modules/merchant/permissionGuard.ts
+- src/modules/orders/refundService.ts
+
+*Implementation steps*
+1. Implement assertCan(userId, action) for refund, api_key_create, view_pii
+2. Wire refundService to call assertCan before processing
+3. Viewer and billing roles cannot refund
+
+*Definition of done*
+- Unauthorized refund throws with clear message","Sub-task","High","To Do","","horizon-commerce","agentos-demo","pipeline-demo","Backend","Security","HC-102","Elena Vasquez","02/06/25 12:10"
+"HC-103","Presigned S3 URLs for KYC document upload","*User story*
+As a merchant admin, I want presigned upload URLs for KYC documents so that large files upload directly to S3 without hitting API body limits.
+
+*Background*
+documentUpload.ts is a stub. Production uses S3; demo uses fake presign URLs.
+
+*Acceptance criteria*
+1. Given merchantId and filename, when presign requested, then URL expires in 15 minutes.
+2. Given invalid content type, when presign requested, then request is rejected.
+
+*Codebase*
+- src/modules/merchant/documentUpload.ts (stub)","Story","High","To Do","","horizon-commerce","agentos-demo","pipeline-demo","Backend","","HC-EPIC-01","Tom Bradley","02/06/25 13:00"
+"HC-103-1","Implement createPresignedUploadUrl in documentUpload.ts","*Goal*
+Return demo-safe presigned URL structure for KYC uploads.
+
+*Target files*
+- src/modules/merchant/documentUpload.ts
+
+*Implementation steps*
+1. Add createPresignedUploadUrl(merchantId, filename, contentType, sizeBytes)
+2. Reject sizeBytes > config.maxUploadBytes
+3. Return { url, expiresAt, fields } demo object
+
+*Definition of done*
+- Oversized file rejected
+- Valid request returns url and expiresAt","Sub-task","High","To Do","","horizon-commerce","agentos-demo","pipeline-demo","Backend","","HC-103","Tom Bradley","02/06/25 13:05"
+"HC-201","Fix duplicate charge on double-click Pay","*User story*
+As a shopper, I want checkout to charge my card only once so that I am not double-billed when I double-click Pay.
+
+*Background*
+KNOWN BUG in checkoutService.ts — idempotency was removed for demo. processCheckout creates a new chargeId on every call.
+
+*Acceptance criteria*
+1. Given same idempotencyKey, when checkout called twice, then second call returns same charge or rejects duplicate.
+2. Given different keys, when checkout called, then separate charges are created.
+
+*Codebase*
+- src/modules/payments/checkoutService.ts
+- apps/merchant-portal/src/checkoutButton.ts (stub debounce)","Story","Highest","To Do","","horizon-commerce","agentos-demo","pipeline-demo","Payments","Frontend","HC-EPIC-02","Marcus Webb","02/06/25 14:00"
+"HC-201-1","Restore idempotency key handling in processCheckout","*Goal*
+Prevent duplicate charges for the same idempotencyKey.
+
+*Target files*
+- src/modules/payments/checkoutService.ts
+- src/lib/errors.ts
+- test/checkout.test.js
+
+*Implementation steps*
+1. Track processed idempotency keys in memory Set
+2. Throw PaymentDuplicateError on duplicate key
+3. Return stable chargeId for first successful charge
+4. Update test to assert duplicate is rejected
+
+*Definition of done*
+- Duplicate key throws PaymentDuplicateError
+- Tests pass","Sub-task","Highest","To Do","","horizon-commerce","agentos-demo","pipeline-demo","Payments","Backend","HC-201","Marcus Webb","02/06/25 14:05"
+"HC-201-2","Add Pay button debounce in merchant portal","*Goal*
+Disable Pay button for 2s after first click to reduce duplicate submits.
+
+*Target files*
+- apps/merchant-portal/src/checkoutButton.ts
+
+*Implementation steps*
+1. Implement createCheckoutButtonHandler(onPay) returning debounced handler
+2. Use 2000ms window
+3. Export for portal integration
+
+*Definition of done*
+- Rapid double invoke only calls onPay once within 2s","Sub-task","Medium","To Do","","horizon-commerce","agentos-demo","pipeline-demo","Frontend","","HC-201","Priya Nair","02/06/25 14:10"
+"HC-202","Fix webhook signature for payloads over 64KB","*User story*
+As a integration engineer, I want webhook signatures to validate on large order payloads so that ERP sync works for large B2B orders.
+
+*Background*
+BUG: verifySignature truncates body at 64KB before HMAC. Large orders fail validation despite correct secret.
+
+*Acceptance criteria*
+1. Given 200-line-item payload, when signature verified with SDK, then validation passes.
+2. Given tampered payload, when verified, then validation fails.
+
+*Codebase*
+- src/modules/payments/webhookDispatcher.ts","Story","High","To Do","","horizon-commerce","agentos-demo","pipeline-demo","Payments","API","HC-EPIC-02","James Okafor","02/06/25 15:00"
+"HC-202-1","Sign and verify full webhook body regardless of size","*Goal*
+Remove 64KB truncation from verifySignature and signPayload usage.
+
+*Target files*
+- src/modules/payments/webhookDispatcher.ts
+
+*Implementation steps*
+1. Remove body.slice(0, 65536) truncation
+2. Use full body string for HMAC in signPayload and verifySignature
+3. Add comment referencing HC-202
+
+*Definition of done*
+- Payloads >64KB validate correctly with matching secret","Sub-task","High","To Do","","horizon-commerce","agentos-demo","pipeline-demo","Payments","Backend","HC-202","James Okafor","02/06/25 15:05"
+"HC-203","Settlement CSV export with date range filter","*User story*
+As a finance analyst, I want CSV export of settlements filtered by date range so that month-end close does not require manual copy-paste.
+
+*Background*
+toSettlementCsv exists but lacks date filtering. exportSettlementsByDate is stubbed.
+
+*Acceptance criteria*
+1. Given start and end date, when export runs, then only rows in range are included.
+2. Given empty range, when export runs, then CSV has headers only.
+
+*Codebase*
+- src/modules/payments/settlementReporter.ts
+- src/modules/analytics/exportService.ts","Story","Medium","To Do","","horizon-commerce","agentos-demo","pipeline-demo","Payments","Data","HC-EPIC-02","Elena Vasquez","02/06/25 16:00"
+"HC-203-1","Implement exportSettlementsByDate in settlementReporter","*Goal*
+Filter settlement rows by settlementDate inclusive range and return CSV.
+
+*Target files*
+- src/modules/payments/settlementReporter.ts
+
+*Implementation steps*
+1. Add exportSettlementsByDate(rows, startDate, endDate)
+2. Parse settlementDate as ISO date strings
+3. Reuse toSettlementCsv for output
+
+*Definition of done*
+- In-range rows exported
+- Out-of-range rows excluded","Sub-task","Medium","To Do","","horizon-commerce","agentos-demo","pipeline-demo","Payments","Backend","HC-203","Elena Vasquez","02/06/25 16:05"
+"HC-099","[DONE] Audit log export for compliance","Completed reference ticket for RAG mirror. Implemented in src/lib/audit.ts listAudit(). Used as historical context during discovery.","Story","Medium","Done","Done","horizon-commerce","agentos-demo","pipeline-demo","Security","Backend","HC-EPIC-01","Sarah Chen","01/06/25 10:00"

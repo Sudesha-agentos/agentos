@@ -1,8 +1,14 @@
-import { intakeConfig, validateJiraConfig } from "./config";
+import {
+  getActivePipelineJiraCredentials,
+  validatePipelineJiraConfig,
+} from "../pipeline/jira/credentialsStore";
+import { pipelineJiraFetch } from "../pipeline/jira/client";
+import { getPipelineIntakeMapping } from "../pipeline/jira/intakeConfig";
+import { getBoardColumnsOrdered } from "../pipeline/jira/boardService";
 
 function getAuthHeader(): string {
-  const { email, apiToken } = intakeConfig.jira;
-  const token = Buffer.from(`${email}:${apiToken}`).toString("base64");
+  const creds = getActivePipelineJiraCredentials();
+  const token = Buffer.from(`${creds.email}:${creds.apiToken}`).toString("base64");
   return `Basic ${token}`;
 }
 
@@ -10,91 +16,55 @@ export async function jiraFetch(
   path: string,
   options: RequestInit = {}
 ): Promise<unknown> {
-  validateJiraConfig();
-  const url = `${intakeConfig.jira.baseUrl}${path}`;
-  const res = await fetch(url, {
-    ...options,
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-      Authorization: getAuthHeader(),
-      ...(options.headers as Record<string, string> | undefined),
-    },
-  });
-
-  const text = await res.text();
-  let data: unknown;
-  try {
-    data = text ? JSON.parse(text) : null;
-  } catch {
-    data = text;
-  }
-
-  if (!res.ok) {
-    const obj = data as {
-      errorMessages?: string[];
-      message?: string;
-    } | null;
-    const msg =
-      obj && typeof obj === "object" && obj.errorMessages?.length
-        ? obj.errorMessages.join("; ")
-        : obj && typeof obj === "object" && obj.message
-          ? obj.message
-          : text || res.statusText;
-    const err = new Error(`Jira API ${res.status}: ${msg}`) as Error & {
-      status?: number;
-      body?: unknown;
-    };
-    err.status = res.status;
-    err.body = data;
-    throw err;
-  }
-
-  return data;
+  validatePipelineJiraConfig();
+  return pipelineJiraFetch(path, options);
 }
 
 export function escapeJqlString(value: string): string {
-  return String(value).replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+  return value.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
 }
 
 export async function getBoardFilterJql(): Promise<string> {
-  const boardId = intakeConfig.jira.boardId;
-  try {
-    const board = (await jiraFetch(
-      `/rest/agile/1.0/board/${boardId}`
-    )) as { location?: { projectKey?: string } };
-    if (board?.location?.projectKey) {
-      return `project = "${escapeJqlString(board.location.projectKey)}"`;
+  const { boardId } = getPipelineIntakeMapping();
+  if (!boardId) {
+    const keys = getActivePipelineJiraCredentials().projectKeys;
+    if (keys.length === 1) return `project = "${escapeJqlString(keys[0])}"`;
+    if (keys.length > 1) {
+      const list = keys.map((k) => `"${escapeJqlString(k)}"`).join(", ");
+      return `project in (${list})`;
     }
-  } catch {
-    // fall through
+    return "order by updated DESC";
   }
 
-  try {
-    const configData = (await jiraFetch(
-      `/rest/agile/1.0/board/${boardId}/configuration`
-    )) as { filter?: { id?: string } };
-    const filterId = configData?.filter?.id;
-    if (filterId) {
-      const filter = (await jiraFetch(`/rest/api/3/filter/${filterId}`)) as {
-        jql?: string;
-      };
-      if (filter?.jql) return `(${filter.jql})`;
-    }
-  } catch {
-    // fall through
-  }
+  const configData = (await jiraFetch(
+    `/rest/agile/1.0/board/${boardId}/configuration`
+  )) as { filter?: { query?: string } };
 
-  return `board = ${boardId}`;
+  const filterJql = configData?.filter?.query?.trim();
+  if (filterJql) return filterJql;
+
+  const keys = getActivePipelineJiraCredentials().projectKeys;
+  if (keys.length === 1) return `project = "${escapeJqlString(keys[0])}"`;
+  return "order by updated DESC";
 }
 
-export async function searchIssues(
+export async function getBoardColumnMapping(): Promise<Map<string, string>> {
+  const columns = await getBoardColumnsOrdered();
+  const map = new Map<string, string>();
+  for (const col of columns) {
+    for (const status of col.statuses) {
+      map.set(status.toLowerCase(), col.name);
+    }
+  }
+  return map;
+}
+
+export async function searchIssues<T = unknown>(
   jql: string,
   { maxResults = 100, nextPageToken }: { maxResults?: number; nextPageToken?: string } = {}
 ): Promise<{
-  issues: unknown[];
-  total: number;
-  isLast?: boolean;
+  issues: T[];
+  isLast: boolean;
   nextPageToken?: string;
 }> {
   const body: Record<string, unknown> = {
@@ -119,39 +89,16 @@ export async function searchIssues(
     method: "POST",
     body: JSON.stringify(body),
   })) as {
-    issues?: unknown[];
-    total?: number;
+    issues?: T[];
     isLast?: boolean;
     nextPageToken?: string;
   };
 
   return {
-    issues: result.issues || [],
-    total: result.total ?? (result.issues || []).length,
-    isLast: result.isLast,
+    issues: result.issues ?? [],
+    isLast: Boolean(result.isLast),
     nextPageToken: result.nextPageToken,
   };
 }
 
-export async function getBoardColumnMapping(): Promise<Map<string, string>> {
-  const boardId = intakeConfig.jira.boardId;
-  const mapping = new Map<string, string>();
-
-  try {
-    const configData = (await jiraFetch(
-      `/rest/agile/1.0/board/${boardId}/configuration`
-    )) as {
-      columnConfig?: { columns?: { name?: string; statuses?: { name?: string }[] }[] };
-    };
-    for (const column of configData?.columnConfig?.columns || []) {
-      const label = column.name || "";
-      for (const status of column.statuses || []) {
-        if (status.name) mapping.set(status.name.toLowerCase(), label);
-      }
-    }
-  } catch {
-    // optional enrichment
-  }
-
-  return mapping;
-}
+export { getAuthHeader };

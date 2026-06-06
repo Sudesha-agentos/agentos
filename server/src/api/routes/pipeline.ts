@@ -2,7 +2,11 @@ import { Router } from "express";
 import { prisma } from "../../db/client";
 import { pipelineRepo } from "../../db/repositories/pipelineRepo";
 import { ticketRepo } from "../../db/repositories/ticketRepo";
-import { runPipelineInBackground } from "../../queue/inProcessRunner";
+import {
+  isTicketInPipelineQueue,
+  isJiraKeyInPipelineQueue,
+} from "../../queue/inProcessRunner";
+import { enqueueIntakeFromJiraKey } from "../../pipeline/jira/intakeEnqueueService";
 import { NotFoundError, ValidationError } from "../../utils/errors";
 
 const router = Router();
@@ -32,11 +36,11 @@ router.post("/:ticketId/run", async (req, res, next) => {
   try {
     const ticket = await ticketRepo.findById(req.params.ticketId);
     if (!ticket) throw new NotFoundError("Ticket not found");
-    if (ticket.status === "PROCESSING") {
-      throw new ValidationError("Ticket already processing");
+    if (isTicketInPipelineQueue(ticket.id) || isJiraKeyInPipelineQueue(ticket.jiraKey)) {
+      throw new ValidationError("Ticket already active or queued");
     }
-    const { started } = runPipelineInBackground(ticket.id);
-    res.status(202).json({ ticketId: ticket.id, started });
+    const result = await enqueueIntakeFromJiraKey(ticket.jiraKey);
+    res.status(202).json(result);
   } catch (err) {
     next(err);
   }
