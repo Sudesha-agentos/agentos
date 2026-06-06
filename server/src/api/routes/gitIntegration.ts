@@ -14,6 +14,8 @@ import {
   githubAppInstallUrl,
   githubAppPublicConfig,
   isGithubAppConfigured,
+  listAppInstallations,
+  probeGithubAppCredentials,
 } from "../../integrations/git/githubApp";
 import { restoreGitCredentialsFromPostgres } from "../../git-integration/gitCredentialsStore";
 import { resolveGitIntegrationSetupState } from "../../git-integration/gitSetupState";
@@ -114,29 +116,40 @@ router.get("/integration/setup", async (req, res, next) => {
 
 router.get("/integration/diagnostics", async (_req, res, next) => {
   try {
+    const githubProbe = isGithubAppConfigured()
+      ? await probeGithubAppCredentials()
+      : { ok: false, error: "github_app_not_configured" };
+
+    let githubInstallations: Awaited<ReturnType<typeof listAppInstallations>> = [];
+    if (githubProbe.ok) {
+      try {
+        githubInstallations = await listAppInstallations();
+      } catch (err) {
+        logger.warn({ err }, "list github app installations failed");
+      }
+    }
+
     let databaseOk = false;
     let databaseError: string | null = null;
+    let latestInstallation: {
+      installationId: string;
+      accountLogin: string;
+      selectedRepoOwner: string | null;
+      selectedRepoName: string | null;
+    } | null = null;
+
     if (process.env.DATABASE_URL?.trim()) {
       try {
         const row = await getLatestGithubInstallState();
         databaseOk = true;
-        res.json({
-          githubAppConfigured: isGithubAppConfigured(),
-          databaseConfigured: true,
-          databaseReachable: true,
-          frontendUrlConfigured: Boolean(process.env.FRONTEND_URL?.trim()),
-          frontendGitUrl: frontendGitUrl() || null,
-          corsOrigin: process.env.CORS_ORIGIN ?? "*",
-          latestInstallation: row
-            ? {
-                installationId: row.installationId,
-                accountLogin: row.accountLogin,
-                selectedRepoOwner: row.selectedRepoOwner,
-                selectedRepoName: row.selectedRepoName,
-              }
-            : null,
-        });
-        return;
+        latestInstallation = row
+          ? {
+              installationId: row.installationId,
+              accountLogin: row.accountLogin,
+              selectedRepoOwner: row.selectedRepoOwner,
+              selectedRepoName: row.selectedRepoName,
+            }
+          : null;
       } catch (err) {
         databaseError = err instanceof Error ? err.message : "database_error";
       }
@@ -144,13 +157,37 @@ router.get("/integration/diagnostics", async (_req, res, next) => {
 
     res.json({
       githubAppConfigured: isGithubAppConfigured(),
+      githubApiReachable: githubProbe.ok,
+      githubApiError: githubProbe.error ?? null,
+      githubAppName: githubProbe.appName ?? null,
+      githubInstallationsOnGitHub: githubInstallations.map((row) => ({
+        id: row.id,
+        accountLogin: row.accountLogin,
+        repositorySelection: row.repositorySelection,
+      })),
       databaseConfigured: Boolean(process.env.DATABASE_URL?.trim()),
       databaseReachable: databaseOk,
       databaseError,
       frontendUrlConfigured: Boolean(process.env.FRONTEND_URL?.trim()),
       frontendGitUrl: frontendGitUrl() || null,
       corsOrigin: process.env.CORS_ORIGIN ?? "*",
-      latestInstallation: null,
+      latestInstallation,
+      hints: [
+        !process.env.FRONTEND_URL?.trim()
+          ? "Set FRONTEND_URL=https://agentos-inky.vercel.app on Render"
+          : null,
+        !githubProbe.ok
+          ? "Fix GITHUB_APP_ID + GITHUB_APP_PRIVATE_KEY (PEM with literal \\n newlines on Render)"
+          : null,
+        githubProbe.ok &&
+        githubInstallations.length > 0 &&
+        !latestInstallation
+          ? "GitHub has installations but Postgres is empty — POST /github/complete-install with installation id"
+          : null,
+        githubProbe.ok && githubInstallations.length === 0
+          ? "No GitHub App installations found — click Connect with GitHub in the app"
+          : null,
+      ].filter(Boolean),
     });
   } catch (err) {
     next(err);
@@ -220,13 +257,47 @@ router.get("/oauth/github/callback", async (req, res) => {
   });
 });
 
-router.post("/github/complete-install", async (req, res, next) => {
+router.post("/github/sync-install", async (req, res) => {
   try {
-    const installationId = String(req.body?.installationId ?? "");
+    const installations = await listAppInstallations();
+    if (!installations.length) {
+      res.status(404).json({
+        error: "no_github_installations",
+        message: "No GitHub App installations found. Install the app from /app/git first.",
+      });
+      return;
+    }
+    const requested = req.body?.installationId
+      ? String(req.body.installationId)
+      : String(installations[0]!.id);
+    const result = await completeGithubInstallation(requested);
+    res.json({ synced: true, ...result });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "sync_install_failed";
+    logger.warn({ err }, "github sync-install failed");
+    res.status(502).json({ error: "github_sync_install_failed", message });
+  }
+});
+
+router.post("/github/complete-install", async (req, res) => {
+  const installationId = String(req.body?.installationId ?? "");
+  if (!installationId.trim()) {
+    res.status(400).json({
+      error: "installation_id_required",
+      message: "installationId is required",
+    });
+    return;
+  }
+  try {
     const result = await completeGithubInstallation(installationId);
     res.json(result);
   } catch (err) {
-    next(err);
+    const message = err instanceof Error ? err.message : "complete_install_failed";
+    logger.warn({ err, installationId }, "github complete-install failed");
+    res.status(502).json({
+      error: "github_complete_install_failed",
+      message,
+    });
   }
 });
 

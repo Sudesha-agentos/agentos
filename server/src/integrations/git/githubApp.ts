@@ -17,7 +17,17 @@ export function isGithubAppConfigured(): boolean {
 
 function normalizePrivateKey(raw?: string): string | null {
   if (!raw?.trim()) return null;
-  return raw.includes("\\n") ? raw.replace(/\\n/g, "\n") : raw;
+  let key = raw.trim().replace(/^["']|["']$/g, "");
+  if (key.includes("\\n")) {
+    key = key.replace(/\\n/g, "\n");
+  }
+  key = key.trim();
+  if (!key.includes("BEGIN")) {
+    const body = key.replace(/\s+/g, "");
+    const lines = body.match(/.{1,64}/g) ?? [body];
+    key = `-----BEGIN RSA PRIVATE KEY-----\n${lines.join("\n")}\n-----END RSA PRIVATE KEY-----`;
+  }
+  return key;
 }
 
 export function createAppJwt(): string {
@@ -132,6 +142,55 @@ export function githubAppInstallUrl(state?: string): string | null {
   const oauthState = state ?? createOAuthState();
   const params = new URLSearchParams({ state: oauthState });
   return `https://github.com/apps/${config.appSlug}/installations/new?${params.toString()}`;
+}
+
+export type AppInstallationSummary = {
+  id: number;
+  accountLogin: string;
+  accountType: string;
+  repositorySelection: string;
+};
+
+/** Lists installations of this GitHub App (JWT auth). */
+export async function listAppInstallations(): Promise<AppInstallationSummary[]> {
+  const data = await appFetch<
+    | Array<{
+        id: number;
+        repository_selection: string;
+        account: { login: string; type: string };
+      }>
+    | {
+        installations: Array<{
+          id: number;
+          repository_selection: string;
+          account: { login: string; type: string };
+        }>;
+      }
+  >("/app/installations?per_page=100");
+  const rows = Array.isArray(data) ? data : (data.installations ?? []);
+  return rows.map((row) => ({
+    id: row.id,
+    accountLogin: row.account.login,
+    accountType: row.account.type,
+    repositorySelection: row.repository_selection,
+  }));
+}
+
+/** Verifies JWT + private key by calling GET /app (no installation required). */
+export async function probeGithubAppCredentials(): Promise<{
+  ok: boolean;
+  appName?: string;
+  error?: string;
+}> {
+  try {
+    const data = await appFetch<{ name?: string; slug?: string }>("/app");
+    return { ok: true, appName: data.name ?? data.slug ?? "github-app" };
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "github_app_probe_failed",
+    };
+  }
 }
 
 export function githubAppPublicConfig() {
