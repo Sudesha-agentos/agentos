@@ -1,8 +1,14 @@
 import OpenAI from "openai";
+import type { ChatCompletionCreateParamsNonStreaming } from "openai/resources/chat/completions";
 
 let cached: OpenAI | undefined;
 
 export const DEFAULT_OPENAI_CHAT_MODEL = "gpt-5.1";
+
+function sanitizeModelName(raw: string | undefined): string {
+  if (!raw) return "";
+  return raw.replace(/^\uFEFF/, "").replace(/^["']|["']$/g, "").trim();
+}
 
 export function isOpenAIConfigured(): boolean {
   return Boolean(process.env.OPENAI_API_KEY?.trim());
@@ -11,9 +17,9 @@ export function isOpenAIConfigured(): boolean {
 /** Primary chat model for agents, ask, tour, summaries, and discovery. */
 export function getOpenAIChatModel(): string {
   return (
-    process.env.OPENAI_CHAT_MODEL?.trim() ||
-    process.env.OPENAI_MODEL?.trim() ||
-    process.env.OPENAI_SUMMARY_MODEL?.trim() ||
+    sanitizeModelName(process.env.OPENAI_CHAT_MODEL) ||
+    sanitizeModelName(process.env.OPENAI_MODEL) ||
+    sanitizeModelName(process.env.OPENAI_SUMMARY_MODEL) ||
     DEFAULT_OPENAI_CHAT_MODEL
   );
 }
