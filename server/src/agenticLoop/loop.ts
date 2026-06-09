@@ -1,9 +1,5 @@
 import { auditRepo } from "../db/repositories/auditRepo";
-import {
-  chatCompletionTokenLimit,
-  getOpenAIChatModel,
-  getOpenAIClient,
-} from "../llm/openaiClient";
+import { createChatCompletion, getOpenAIChatModel } from "../llm/openaiClient";
 import type { AgenticMessage } from "../llm/openaiCompletion";
 import { anthropicToolsToOpenAI } from "../llm/openaiTools";
 import { executeToolCall, type ToolCallInput, type ToolCallResult } from "../tools/executor";
@@ -91,9 +87,9 @@ export async function runAgenticLoop(
     const model = getOpenAIChatModel();
     const response = await withRetry(
       () =>
-        getOpenAIClient().chat.completions.create({
+        createChatCompletion({
           model,
-          ...chatCompletionTokenLimit(6000, model),
+          maxTokens: 6000,
           messages: [{ role: "system", content: systemPrompt }, ...messages],
           tools: forcedWrapUp ? undefined : openaiTools,
           tool_choice: forcedWrapUp ? "none" : "auto",
