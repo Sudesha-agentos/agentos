@@ -1,8 +1,14 @@
 import OpenAI from "openai";
+import type { ChatCompletionCreateParamsNonStreaming } from "openai/resources/chat/completions";
 
 let cached: OpenAI | undefined;
 
 export const DEFAULT_OPENAI_CHAT_MODEL = "gpt-5.1";
+
+function sanitizeModelName(raw: string | undefined): string {
+  if (!raw) return "";
+  return raw.replace(/^\uFEFF/, "").replace(/^["']|["']$/g, "").trim();
+}
 
 export function isOpenAIConfigured(): boolean {
   return Boolean(process.env.OPENAI_API_KEY?.trim());
@@ -11,9 +17,9 @@ export function isOpenAIConfigured(): boolean {
 /** Primary chat model for agents, ask, tour, summaries, and discovery. */
 export function getOpenAIChatModel(): string {
   return (
-    process.env.OPENAI_CHAT_MODEL?.trim() ||
-    process.env.OPENAI_MODEL?.trim() ||
-    process.env.OPENAI_SUMMARY_MODEL?.trim() ||
+    sanitizeModelName(process.env.OPENAI_CHAT_MODEL) ||
+    sanitizeModelName(process.env.OPENAI_MODEL) ||
+    sanitizeModelName(process.env.OPENAI_SUMMARY_MODEL) ||
     DEFAULT_OPENAI_CHAT_MODEL
   );
 }
@@ -23,20 +29,25 @@ export function getOpenAISummaryModel(): string {
   return getOpenAIChatModel();
 }
 
-/** Newer chat models reject `max_tokens` and require `max_completion_tokens`. */
-export function usesMaxCompletionTokens(model?: string): boolean {
-  const name = (model ?? getOpenAIChatModel()).toLowerCase();
-  return /^gpt-5/.test(name) || /^o\d/.test(name);
+/** GPT-5 / o-series reject `max_tokens`; always send `max_completion_tokens`. */
+export function chatCompletionTokenLimit(
+  maxTokens: number
+): { max_completion_tokens: number } {
+  return { max_completion_tokens: maxTokens };
 }
 
-export function chatCompletionTokenLimit(
-  maxTokens: number,
-  model?: string
-): { max_tokens: number } | { max_completion_tokens: number } {
-  if (usesMaxCompletionTokens(model)) {
-    return { max_completion_tokens: maxTokens };
+export async function createChatCompletion(
+  params: ChatCompletionCreateParamsNonStreaming & {
+    maxTokens?: number;
+    max_tokens?: never;
+    max_completion_tokens?: never;
   }
-  return { max_tokens: maxTokens };
+) {
+  const { maxTokens = 4000, ...rest } = params;
+  return getOpenAIClient().chat.completions.create({
+    ...rest,
+    ...chatCompletionTokenLimit(maxTokens),
+  });
 }
 
 /** Lazy OpenAI client — server boot must not require OPENAI_API_KEY. */

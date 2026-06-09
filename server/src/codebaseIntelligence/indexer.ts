@@ -1,10 +1,9 @@
 import { createHash } from "node:crypto";
 import { prisma } from "../db/client";
 import {
-  chatCompletionTokenLimit,
+  createChatCompletion,
   getOpenAIClient,
   getOpenAISummaryModel,
-  openAIChatTokenLimit,
   isOpenAIConfigured,
 } from "../llm/openaiClient";
 import { gitClient } from "../integrations/gitProvider";
@@ -392,9 +391,9 @@ async function extractFileIntelligence(
     const summaryModel = getOpenAISummaryModel();
     const response = await withRetry(
       () =>
-        getOpenAIClient().chat.completions.create({
+        createChatCompletion({
           model: summaryModel,
-          ...chatCompletionTokenLimit(900, summaryModel),
+          maxTokens: 900,
           response_format: { type: "json_object" },
           messages: [
             {
