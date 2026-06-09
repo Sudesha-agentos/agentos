@@ -111,13 +111,20 @@ async function fetchDirectChildren(parentKey: string): Promise<HierarchyIssue[]>
     HIERARCHY_FIELDS
   )) as HierarchyIssue;
 
-  const fromSearch = await runSearchWithFallback([
-    `parent = "${parentKey}" ORDER BY rank ASC, created ASC`,
-  ]);
-
   const merged = new Map<string, HierarchyIssue>();
-  for (const child of fromSearch) {
-    merged.set(child.key, child);
+
+  try {
+    const fromSearch = await runSearchWithFallback([
+      `parent = "${parentKey}" ORDER BY rank ASC, created ASC`,
+    ]);
+    for (const child of fromSearch) {
+      merged.set(child.key, child);
+    }
+  } catch (err) {
+    logger.warn(
+      { err, parentKey },
+      "Jira parent search failed — falling back to subtasks field"
+    );
   }
 
   for (const stub of issue.fields?.subtasks ?? []) {
