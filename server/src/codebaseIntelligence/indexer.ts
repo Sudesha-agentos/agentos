@@ -4,6 +4,7 @@ import {
   chatCompletionTokenLimit,
   getOpenAIClient,
   getOpenAISummaryModel,
+  openAIChatTokenLimit,
   isOpenAIConfigured,
 } from "../llm/openaiClient";
 import { gitClient } from "../integrations/gitProvider";
