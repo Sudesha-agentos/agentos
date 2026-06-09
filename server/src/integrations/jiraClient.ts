@@ -69,14 +69,15 @@ export class JiraClient {
     jql: string,
     options: { fields?: string[]; maxResults?: number } = {}
   ): Promise<JiraIssueSearchResult<TIssue>> {
-    const params = new URLSearchParams({
+    const body: Record<string, unknown> = {
       jql,
-      maxResults: String(options.maxResults ?? 10),
+      maxResults: options.maxResults ?? 10,
+      fields: options.fields?.length ? options.fields : ["summary", "status", "issuetype"],
+    };
+    return this.request("/rest/api/3/search/jql", {
+      method: "POST",
+      body: JSON.stringify(body),
     });
-    if (options.fields?.length) {
-      params.set("fields", options.fields.join(","));
-    }
-    return this.request(`/rest/api/3/search?${params.toString()}`);
   }
 
   addComment(jiraKey: string, comment: JiraComment): Promise<unknown> {
