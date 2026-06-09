@@ -23,6 +23,22 @@ export function getOpenAISummaryModel(): string {
   return getOpenAIChatModel();
 }
 
+/** Newer chat models reject `max_tokens` and require `max_completion_tokens`. */
+export function usesMaxCompletionTokens(model?: string): boolean {
+  const name = (model ?? getOpenAIChatModel()).toLowerCase();
+  return /^gpt-5/.test(name) || /^o\d/.test(name);
+}
+
+export function chatCompletionTokenLimit(
+  maxTokens: number,
+  model?: string
+): { max_tokens: number } | { max_completion_tokens: number } {
+  if (usesMaxCompletionTokens(model)) {
+    return { max_completion_tokens: maxTokens };
+  }
+  return { max_tokens: maxTokens };
+}
+
 /** Lazy OpenAI client — server boot must not require OPENAI_API_KEY. */
 export function getOpenAIClient(): OpenAI {
   if (cached) return cached;

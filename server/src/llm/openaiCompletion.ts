@@ -2,7 +2,11 @@ import type { ChatCompletionMessageParam } from "openai/resources/chat/completio
 import { AgentParseError } from "../utils/errors";
 import { logger } from "../utils/logger";
 import { withRetry } from "../utils/retry";
-import { getOpenAIChatModel, getOpenAIClient } from "./openaiClient";
+import {
+  chatCompletionTokenLimit,
+  getOpenAIChatModel,
+  getOpenAIClient,
+} from "./openaiClient";
 
 // GPT-5.1 pricing placeholder — update when billing constants are finalized.
 const INPUT_COST_PER_TOKEN = 0.00000125;
@@ -29,11 +33,12 @@ export async function chatCompletionText(params: {
   user: string;
   maxTokens?: number;
 }): Promise<{ text: string; usage: LlmUsage }> {
+  const model = getOpenAIChatModel();
   const response = await withRetry(
     () =>
       getOpenAIClient().chat.completions.create({
-        model: getOpenAIChatModel(),
-        max_tokens: params.maxTokens ?? 4000,
+        model,
+        ...chatCompletionTokenLimit(params.maxTokens ?? 4000, model),
         messages: [
           { role: "system", content: params.system },
           { role: "user", content: params.user },
