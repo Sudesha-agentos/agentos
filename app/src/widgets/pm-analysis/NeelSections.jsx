@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Panel, PanelHeader } from "../../shared/ui/Panel";
-import { NEEL_NAME } from "../../entities/pm-agents";
+import { VIRIN_NAME } from "../../entities/pm-agents";
 
 export function NeelConversationPanel({ analysis, onAnswer, onConfirm, busy, prominent = false }) {
   const status = analysis?.status;
@@ -10,7 +10,7 @@ export function NeelConversationPanel({ analysis, onAnswer, onConfirm, busy, pro
     return (
       <NeelInputPanel
         prominent={prominent}
-        kicker={`${NEEL_NAME} asks`}
+        kicker={`${VIRIN_NAME} asks`}
         title="One question at a time"
         prompt={pendingQuestion}
         options={analysis?.pendingQuestionOptions}
@@ -30,7 +30,7 @@ export function NeelConversationPanel({ analysis, onAnswer, onConfirm, busy, pro
         <PanelHeader
           kicker="Gate · Stage 4"
           title="Confirm solution direction"
-          body="Neel won't write the full PRD until you align on this approach."
+          body={`${VIRIN_NAME} won't write the full PRD until you align on this approach.`}
         />
         <div className="space-y-5 px-5 py-5 sm:px-6">
           <blockquote className="border-l-4 border-indigo/40 pl-4">
@@ -257,7 +257,7 @@ function NeelInputPanel({
           <p className="text-[12px] text-app-ink-mute">
             {hasPresets
               ? "Options reflect your company, business context, and codebase — pick one or Other."
-              : "Neel asks one question, then listens."}
+              : `${VIRIN_NAME} asks one question, then listens.`}
           </p>
           <button
             type="submit"
@@ -278,7 +278,7 @@ export function NeelDiscoverySection({ questionMode, expanded = false }) {
       <Panel>
         <PanelHeader kicker="Stage 2" title="Discovery" />
         <p className="px-5 py-8 text-center text-[13px] text-app-ink-dim sm:px-6">
-          Discovery conversation will appear here as Neel asks questions.
+          Discovery conversation will appear here as {VIRIN_NAME} asks questions.
         </p>
       </Panel>
     );
@@ -383,7 +383,7 @@ export function NeelCodebaseSection({ analysis: codebaseAnalysis, expanded = fal
       <Panel>
         <PanelHeader kicker="Stage 3" title="Codebase analysis" />
         <p className="px-5 py-8 text-center text-[13px] text-app-ink-dim sm:px-6">
-          Runs after discovery — Neel maps modules, reuse, and technical constraints.
+          Runs after discovery — {VIRIN_NAME} maps modules, reuse, and technical constraints.
         </p>
       </Panel>
     );

@@ -30,7 +30,7 @@ export default function MarketingFooter() {
 
           <p className="mt-4 max-w-xs text-[14px] leading-relaxed text-white/60">
 
-            From Jira intake to PRD, implementation, and QA gates — Neel, Ananta, and Virin run
+            From Jira intake to PRD, implementation, and QA gates — Virin, Ananta, and Neel run
 
             your pipeline end to end.
 

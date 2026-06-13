@@ -1,3 +1,5 @@
+import { VIRIN_NAME } from "../../entities/pm-agents";
+
 export const PM_PIPELINE_PREFIX = "pm:";
 
 export function isPmPipelineId(id) {
@@ -18,7 +20,7 @@ export function mapPmAnalysisToPipelineSummary(pm) {
     kind: "pm",
     ticketId: pm.jiraKey,
     jiraKey: pm.jiraKey,
-    summary: pm.summary ?? "PM analysis",
+    summary: pm.summary ?? `${VIRIN_NAME} analysis`,
     currentStage: pm.currentStage,
     status: pm.status,
     startedAt: pm.startedAt,

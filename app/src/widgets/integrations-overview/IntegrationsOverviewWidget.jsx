@@ -11,10 +11,16 @@ export default function IntegrationsOverviewWidget() {
         title="Connected services"
         body="Jira intake, GitHub repository access, and codebase layer readiness at a glance."
       />
-      <div className="grid gap-4 p-5 lg:grid-cols-3 sm:p-6">
-        <JiraIntakeOverviewWidget embedded />
-        <GitHubIntegrationOverviewWidget embedded />
-        <CodebaseIntelligenceStatusWidget embedded showReindex={false} />
+      <div className="flex w-full flex-col gap-4 p-5 sm:p-6 lg:flex-row lg:items-stretch">
+        <div className="min-w-0 flex-1">
+          <JiraIntakeOverviewWidget embedded />
+        </div>
+        <div className="min-w-0 flex-1">
+          <GitHubIntegrationOverviewWidget embedded />
+        </div>
+        <div className="min-w-0 flex-1">
+          <CodebaseIntelligenceStatusWidget embedded showReindex={false} />
+        </div>
       </div>
     </Panel>
   );

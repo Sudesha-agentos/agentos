@@ -4,7 +4,9 @@ import { fetchJson } from "../../shared/lib/fetchJson";
 import { useResource } from "../../shared/lib/useResource";
 import { mockApi } from "../../app/api/mock";
 
-export const NEEL_NAME = "Neel";
+export const VIRIN_NAME = "Virin";
+/** @deprecated Use VIRIN_NAME — PM/product agent display name. */
+export const NEEL_NAME = VIRIN_NAME;
 
 const pm = (path) => apiPath("/api", `/pm-agents${path}`);
 
@@ -82,6 +84,7 @@ const adapter = DATA_MODE === "rest" ? restPmAdapter : mockPmAdapter;
 export const PM_STAGE_LABELS = {
   INTAKE: "Intake & classification",
   QUESTION_MODE: "Discovery conversation",
+  COMPETITOR_ANALYSIS: "Competitor analysis",
   CODEBASE_ANALYSIS: "Codebase analysis",
   SOLUTIONING: "Solution direction",
   PRD: "PRD generation",
@@ -93,6 +96,7 @@ export const PM_STAGE_LABELS = {
 export const PM_STAGE_ORDER = [
   "INTAKE",
   "QUESTION_MODE",
+  "COMPETITOR_ANALYSIS",
   "CODEBASE_ANALYSIS",
   "SOLUTIONING",
   "PRD",

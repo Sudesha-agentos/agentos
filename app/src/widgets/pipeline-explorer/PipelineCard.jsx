@@ -1,3 +1,4 @@
+import { AGENT_NAMES } from "../../shared/config/app";
 import StatusPill from "../../app/components/StatusPill";
 import StageRail from "../../shared/components/StageRail";
 import PmStageRail from "../pm-analysis/PmStageRail";
@@ -30,7 +31,7 @@ export default function PipelineCard({
             <p className="font-mono text-[11px] text-indigo">{pipeline.jiraKey}</p>
             {isPm ? (
               <span className="rounded-full border border-indigo/25 bg-indigo/10 px-1.5 py-0.5 font-mono text-[8px] uppercase tracking-[0.1em] text-indigo">
-                PM
+                {AGENT_NAMES.VIRIN}
               </span>
             ) : null}
           </div>

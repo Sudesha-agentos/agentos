@@ -1,18 +1,19 @@
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useCompanyProfile } from "../../entities/company-intelligence";
+import { AGENT_NAMES } from "../../shared/config/app";
 import {
   analyzePmTicket,
   answerNeelQuestion,
   confirmNeelDirection,
   getPmResumeStage,
-  NEEL_NAME,
   PM_STAGE_LABELS,
   PM_STAGE_ORDER,
   resumePmAnalysis,
   runPmRetrospective,
   usePmAnalysis,
   usePmAnalyses,
+  VIRIN_NAME,
 } from "../../entities/pm-agents";
 import { useJiraSyncIssues } from "../../entities/jira-sync";
 import { usePipelineIntakeTickets } from "../../entities/pipeline-jira";
@@ -171,9 +172,9 @@ export default function PmAgents() {
     <AnimatedAppPage wide>
       <header className="grid gap-4 pb-2 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
         <PageIntro
-          kicker="Product discovery agent"
-          title={NEEL_NAME}
-          body="Conversational PM that classifies tickets, discovers requirements one question at a time, pressure-tests against your codebase, and writes a PRD only after you confirm the direction."
+          kicker="Product"
+          title={AGENT_NAMES.VIRIN}
+          body="Conversational discovery that classifies tickets, asks one question at a time, pressure-tests against your codebase, and writes a PRD only after you confirm the direction."
         />
         <ul className="flex flex-wrap gap-2 lg:justify-end">
           {PRINCIPLES.map((p) => (
@@ -192,7 +193,7 @@ export default function PmAgents() {
           <PanelHeader
             kicker="Setup"
             title="Configure company profile first"
-            body="Neel validates every idea against your business context and revenue model. Add company details so discovery and PRD stages can judge fit."
+            body={`${AGENT_NAMES.VIRIN} validates every idea against your business context and revenue model. Add company details so discovery and PRD stages can judge fit.`}
             right={
               <Link
                 to="/app/company-intelligence"
@@ -233,10 +234,10 @@ export default function PmAgents() {
             className="app-btn-primary shrink-0 disabled:opacity-50"
           >
             {isRunning && !needsAttention
-              ? `${NEEL_NAME} is working…`
+              ? `${VIRIN_NAME} is working…`
               : needsAttention
                 ? "Session in progress"
-                : `Analyze with ${NEEL_NAME}`}
+                : `Analyze with ${VIRIN_NAME}`}
           </button>
         </div>
 
@@ -293,7 +294,7 @@ export default function PmAgents() {
         <div className="flex flex-col items-center justify-center gap-4 rounded-app border border-dashed border-app-border py-16">
           <Spinner />
           <div className="text-center">
-            <p className="text-sm font-medium text-app-ink">{NEEL_NAME} is reading the ticket</p>
+            <p className="text-sm font-medium text-app-ink">{VIRIN_NAME} is reading the ticket</p>
             <p className="mt-1 text-[13px] text-app-ink-dim">Stage 1 — intake & classification</p>
           </div>
           <div className="w-full max-w-xs px-6">
@@ -326,13 +327,13 @@ export default function PmAgents() {
       {!analysis && !showEmptyLoader && (
         <div className="rounded-app border border-dashed border-app-border px-6 py-20 text-center">
           <div className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-indigo/10 font-display text-2xl text-indigo">
-            N
+            V
           </div>
           <p className="mt-4 text-[15px] font-medium text-app-ink">
             No active session
           </p>
           <p className="mx-auto mt-2 max-w-md text-[14px] text-app-ink-dim">
-            Enter a Jira key above to start. {NEEL_NAME} will classify the ticket, ask discovery
+            Enter a Jira key above to start. {VIRIN_NAME} will classify the ticket, ask discovery
             questions one at a time, analyze your codebase, and produce a PRD with engineering
             tickets.
           </p>

@@ -10,13 +10,34 @@ export const DATA_MODE =
     ? DATA_MODES.REST
     : DATA_MODES.MOCK;
 
+export const AGENT_NAMES = {
+  VIRIN: "Virin",
+  ANANTA: "Ananta",
+  NEEL: "Neel",
+} as const;
+
+/** Agent modules — Virin (product), Ananta (tech), Neel (QA). */
+export const AGENT_NAV = [
+  {
+    to: "/app/pm-agents",
+    label: AGENT_NAMES.VIRIN,
+    breadcrumb: AGENT_NAMES.VIRIN,
+    role: "Product",
+  },
+  {
+    to: "/app/codebase",
+    label: AGENT_NAMES.ANANTA,
+    breadcrumb: AGENT_NAMES.ANANTA,
+    role: "Tech",
+  },
+  { to: "/app/qa", label: AGENT_NAMES.NEEL, breadcrumb: AGENT_NAMES.NEEL, role: "QA" },
+] as const;
+
 /** Flat list for breadcrumbs and mobile nav. */
 export const APP_NAV = [
   { to: "/app", label: "Command Center", breadcrumb: "Command Center", end: true },
   { to: "/app/pipelines", label: "Pipeline Explorer", breadcrumb: "Pipelines" },
-  { to: "/app/pm-agents", label: "Neel", breadcrumb: "Neel" },
-  { to: "/app/codebase", label: "Codebase", breadcrumb: "Codebase" },
-  { to: "/app/qa", label: "QA Center", breadcrumb: "QA Center" },
+  ...AGENT_NAV.map(({ to, label, breadcrumb }) => ({ to, label, breadcrumb })),
   { to: "/app/costs", label: "Cost Intelligence", breadcrumb: "Costs" },
   { to: "/app/audit", label: "Audit Trail", breadcrumb: "Audit" },
   { to: "/app/settings", label: "Configuration", breadcrumb: "Configuration" },
@@ -36,13 +57,15 @@ export const APP_NAV_SECTIONS = [
     ],
   },
   {
+    id: "agents",
+    label: "Agents",
+    items: AGENT_NAV.map(({ to, label, breadcrumb }) => ({ to, label, breadcrumb })),
+  },
+  {
     id: "operations",
     label: "Operations",
     items: [
       { to: "/app/pipelines", label: "Pipeline Explorer", breadcrumb: "Pipelines" },
-      { to: "/app/pm-agents", label: "Neel", breadcrumb: "Neel" },
-      { to: "/app/codebase", label: "Codebase Intelligence", breadcrumb: "Codebase" },
-      { to: "/app/qa", label: "QA Center", breadcrumb: "QA" },
       {
         to: "/app/org-intelligence",
         label: "Org Intelligence",
@@ -85,11 +108,11 @@ export const STAGE_ORDER: PipelineStage[] = [
 
 export const STAGE_LABELS: Record<PipelineStage, string> = {
   INGESTION: "Ingestion",
-  PRODUCT_AGENT: "Discovery",
+  PRODUCT_AGENT: AGENT_NAMES.VIRIN,
   PRD_VALIDATION: "PRD Gate",
-  ENGINEERING_AGENT: "Engineering",
+  ENGINEERING_AGENT: AGENT_NAMES.ANANTA,
   IMPLEMENTATION_VALIDATION: "Impl. Gate",
-  QA_AGENT: "QA Agent",
+  QA_AGENT: AGENT_NAMES.NEEL,
   QA_VALIDATION: "QA Gate",
   OUTPUT: "Writeback",
 };

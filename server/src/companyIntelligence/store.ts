@@ -1,11 +1,36 @@
 import { prisma } from "../db/client";
-import type { CompanyProfile, CompanyProfileInput } from "./types";
+import type { Prisma } from "../generated/prisma/client";
+import type { CompanyProfile, CompanyProfileInput, CompetitorEntry } from "./types";
 
 const DEFAULT_ID = "default";
 
 function parseStringArray(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
   return value.map((v) => String(v).trim()).filter(Boolean);
+}
+
+function parseCompetitors(value: unknown): CompetitorEntry[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((c): CompetitorEntry[] => {
+    if (!c || typeof c !== "object") return [];
+    const row = c as Record<string, unknown>;
+    const name = String(row.name ?? "").trim();
+    if (!name) return [];
+    const description = String(row.description ?? "").trim();
+    const source = String(row.source ?? "").trim();
+    return [
+      {
+        name,
+        website: String(row.website ?? "").trim(),
+        ...(description ? { description } : {}),
+        ...(source ? { source } : {}),
+      },
+    ];
+  });
+}
+
+function competitorsToJson(competitors: CompetitorEntry[]): Prisma.InputJsonValue {
+  return competitors as unknown as Prisma.InputJsonValue;
 }
 
 function rowToProfile(row: {
@@ -19,6 +44,7 @@ function rowToProfile(row: {
   businessContext: string;
   strategicGoals: unknown;
   nonGoals: unknown;
+  competitors: unknown;
   updatedAt: Date;
   updatedBy: string | null;
 }): CompanyProfile {
@@ -33,6 +59,7 @@ function rowToProfile(row: {
     businessContext: row.businessContext,
     strategicGoals: parseStringArray(row.strategicGoals),
     nonGoals: parseStringArray(row.nonGoals),
+    competitors: parseCompetitors(row.competitors),
     updatedAt: row.updatedAt.toISOString(),
     updatedBy: row.updatedBy,
   };
@@ -49,6 +76,7 @@ export const EMPTY_PROFILE: CompanyProfile = {
   businessContext: "",
   strategicGoals: [],
   nonGoals: [],
+  competitors: [],
   updatedAt: new Date(0).toISOString(),
   updatedBy: null,
 };
@@ -79,6 +107,8 @@ export async function saveCompanyProfile(
         : undefined,
     nonGoals:
       input.nonGoals !== undefined ? parseStringArray(input.nonGoals) : undefined,
+    competitors:
+      input.competitors !== undefined ? parseCompetitors(input.competitors) : undefined,
     updatedBy: input.updatedBy !== undefined ? input.updatedBy : undefined,
   };
 
@@ -95,6 +125,7 @@ export async function saveCompanyProfile(
       businessContext: data.businessContext ?? "",
       strategicGoals: data.strategicGoals ?? [],
       nonGoals: data.nonGoals ?? [],
+      competitors: competitorsToJson(data.competitors ?? []),
       updatedBy: data.updatedBy ?? null,
     },
     update: {
@@ -107,6 +138,9 @@ export async function saveCompanyProfile(
       ...(data.businessContext !== undefined ? { businessContext: data.businessContext } : {}),
       ...(data.strategicGoals !== undefined ? { strategicGoals: data.strategicGoals } : {}),
       ...(data.nonGoals !== undefined ? { nonGoals: data.nonGoals } : {}),
+      ...(data.competitors !== undefined
+        ? { competitors: competitorsToJson(data.competitors) }
+        : {}),
       ...(data.updatedBy !== undefined ? { updatedBy: data.updatedBy } : {}),
     },
   });

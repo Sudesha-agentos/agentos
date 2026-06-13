@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import {
   PM_STAGE_ORDER,
   PM_STAGE_LABELS,
-  NEEL_NAME,
+  VIRIN_NAME,
   getPmHandoff,
   startPmCodingPipeline,
 } from "../../entities/pm-agents";
@@ -15,6 +15,7 @@ import {
   NeelIntakeSection,
   NeelPostShipSection,
 } from "./NeelSections";
+import { CompetitorAnalysisSection } from "./CompetitorAnalysisSection";
 import { Panel, PanelHeader } from "../../shared/ui/Panel";
 import { motionSafe, pageStagger, sectionFadeUp } from "../../lib/motion";
 
@@ -576,7 +577,7 @@ export function PmAnalysisOutputs({
     <Panel key="progress">
       <PanelHeader
         kicker={analysis.jiraKey}
-        title={analysis.ticketInput?.summary ?? `${NEEL_NAME} analysis`}
+        title={analysis.ticketInput?.summary ?? `${VIRIN_NAME} analysis`}
         right={
           <span className="type-kicker">
             {analysis.status}
@@ -597,6 +598,7 @@ export function PmAnalysisOutputs({
     />,
     <NeelIntakeSection key="intake" intake={analysis.neelIntake} />,
     <NeelDiscoverySection key="discovery" questionMode={analysis.questionMode} />,
+    <CompetitorAnalysisSection key="competitors" competitorAnalysis={analysis.competitorAnalysis} />,
     <NeelCodebaseSection key="codebase" analysis={analysis.codebaseAnalysis} />,
     analysis.solutioning?.humanConfirmed || analysis.status === "COMPLETED" ? (
       <Panel key="solution">

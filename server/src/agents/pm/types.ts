@@ -196,6 +196,7 @@ export interface PmAnalysisRecord {
   neelMode?: NeelRunMode;
   neelIntake?: IntakeOutput;
   questionMode?: QuestionModeState;
+  competitorAnalysis?: import("../neel/types").CompetitorAnalysisState;
   codebaseAnalysis?: CodebaseAnalysisOutput;
   solutioning?: SolutioningOutput;
   handoffPackage?: HandoffPackageOutput;

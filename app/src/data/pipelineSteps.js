@@ -11,7 +11,7 @@ export const pipelineSteps = [
       "ticket.title  Add usage-based billing controls",
       "ticket.body   Enterprise admins need limits by workspace.",
       "signal        ambiguity detected: limit scope unspecified",
-      "status        awaiting Product Agent",
+      "status        awaiting Virin",
     ],
   },
   {
@@ -54,7 +54,7 @@ export const pipelineSteps = [
   },
   {
     id: "04",
-    title: "Engineering Agent plans implementation",
+    title: "Ananta plans implementation",
     kicker: "Build planning",
     description:
       "Engineering receives a validated PRD, not a vibe. The plan maps requirements to files, APIs, migrations, and risks.",
@@ -69,7 +69,7 @@ export const pipelineSteps = [
   },
   {
     id: "05",
-    title: "QA Agent maps tests to acceptance criteria",
+    title: "Neel maps tests to acceptance criteria",
     kicker: "Test synthesis",
     description:
       "QA is not guessing what Product wanted. Each generated test links directly to a criterion and a failure mode.",

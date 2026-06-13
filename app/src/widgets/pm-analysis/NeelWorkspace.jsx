@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { NEEL_NAME, PM_STAGE_LABELS } from "../../entities/pm-agents";
+import { VIRIN_NAME, PM_STAGE_LABELS } from "../../entities/pm-agents";
 import { Panel, PanelHeader } from "../../shared/ui/Panel";
 import { NeelStatusBadge, NeelTicketTypeBadge } from "./NeelStatusBadge";
 import { NeelStageStepper } from "./NeelStageStepper";
@@ -11,6 +11,7 @@ import {
   NeelIntakeSection,
   NeelPostShipSection,
 } from "./NeelSections";
+import { CompetitorAnalysisSection } from "./CompetitorAnalysisSection";
 import DiscoveryPrdSection from "../discovery/DiscoveryPrdSection";
 import {
   PmRetrospectiveSection,
@@ -118,6 +119,7 @@ function OverviewTab({ analysis, onRetrospective, retroRunning }) {
   return (
     <div className="space-y-5">
       <NeelIntakeSection intake={analysis.neelIntake} />
+      <CompetitorAnalysisSection competitorAnalysis={analysis.competitorAnalysis} />
       {(analysis.solutioning?.humanConfirmed || analysis.status === "COMPLETED") && (
         <Panel>
           <PanelHeader kicker="Stage 4" title="Solution direction" />
@@ -205,7 +207,7 @@ export function NeelWorkspace({
       {/* Sidebar */}
       <aside className="space-y-4 xl:sticky xl:top-24 xl:self-start">
         <Panel className="hidden xl:block">
-          <PanelHeader kicker="Progress" title={`${NEEL_NAME} pipeline`} />
+          <PanelHeader kicker="Progress" title={`${VIRIN_NAME} pipeline`} />
           <div className="px-4 py-4 sm:px-5">
             <NeelStageStepper analysis={analysis} />
           </div>
@@ -292,7 +294,10 @@ export function NeelWorkspace({
           />
         )}
         {tab === "discovery" && (
-          <NeelDiscoverySection questionMode={analysis.questionMode} expanded />
+          <div className="space-y-5">
+            <NeelDiscoverySection questionMode={analysis.questionMode} expanded />
+            <CompetitorAnalysisSection competitorAnalysis={analysis.competitorAnalysis} expanded />
+          </div>
         )}
         {tab === "codebase" && (
           <NeelCodebaseSection analysis={analysis.codebaseAnalysis} expanded />

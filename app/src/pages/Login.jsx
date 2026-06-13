@@ -59,7 +59,7 @@ export default function Login() {
           <p className="mt-2 text-center text-[15px] text-[#6B6B6B]">
             {isSignup
               ? "Start your workspace — connect Jira and run your first pipeline."
-              : "Sign in to run pipelines, manage company context, and work with Neel."}
+              : "Sign in to run pipelines, manage company context, and work with Virin, Ananta, and Neel."}
           </p>
 
           <form onSubmit={onSubmit} className="mt-8 space-y-5">

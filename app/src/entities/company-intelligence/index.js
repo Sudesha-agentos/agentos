@@ -16,6 +16,7 @@ export const EMPTY_COMPANY_PROFILE = {
   businessContext: "",
   strategicGoals: [],
   nonGoals: [],
+  competitors: [],
   updatedAt: null,
   updatedBy: null,
 };
@@ -58,6 +59,31 @@ const restAdapter = {
       body: JSON.stringify(profile),
     });
     writeLocalProfile(data.profile);
+    return data;
+  },
+  async fetchFromWeb({ website, companyName, profile }) {
+    const data = await fetchJson(apiPath("/api/company-intelligence/fetch-from-web"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        website,
+        companyName,
+        ...profile,
+      }),
+    });
+    return data;
+  },
+  async fetchCompetitors({ website, companyName, productSummary, profile }) {
+    const data = await fetchJson(apiPath("/api/company-intelligence/fetch-competitors"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        website,
+        companyName,
+        productSummary,
+        ...profile,
+      }),
+    });
     return data;
   },
 };
@@ -103,6 +129,78 @@ const mockAdapter = {
       repoLabel: null,
     };
   },
+  async fetchFromWeb({ website, companyName }) {
+    const host = String(website || "")
+      .replace(/^https?:\/\//i, "")
+      .split("/")[0];
+    const brand = companyName?.trim() || host.split(".")[0] || "Company";
+    const title = brand.charAt(0).toUpperCase() + brand.slice(1);
+
+    return {
+      suggested: {
+        companyName: title,
+        website: website?.startsWith("http") ? website : `https://${host}`,
+        productSummary: `${title} delivers a B2B SaaS platform for workflow automation and team collaboration.`,
+        icp: "Mid-market and enterprise teams adopting AI-assisted product delivery.",
+        revenueModel: "Subscription SaaS with tiered workspace pricing and usage-based API overage.",
+        pricingSummary: "Starter, Growth, and Enterprise tiers — exact pricing inferred from public marketing pages.",
+        strategicGoals: [
+          "Expand enterprise adoption",
+          "Ship AI-native workflow features",
+          "Reduce time-to-value for new customers",
+        ],
+        nonGoals: [],
+      },
+      sources: [
+        { url: website, method: "jina_reader", chars: 4200, ok: true },
+        { url: `${website}/about`, method: "html_meta", chars: 1800, ok: true },
+      ],
+      technologies: ["Jina Reader", "Open Graph / JSON-LD meta", "Multi-page crawl (/about, /pricing)"],
+      confidenceNotes:
+        "Mock mode — sample enrichment. Connect the API server for live Jina Reader + LLM structuring.",
+      costUsd: 0,
+      model: "mock",
+    };
+  },
+  async fetchCompetitors({ website, companyName, productSummary }) {
+    const host = String(website || "")
+      .replace(/^https?:\/\//i, "")
+      .split("/")[0];
+    const brand = companyName?.trim() || host.split(".")[0] || "Company";
+    const title = brand.charAt(0).toUpperCase() + brand.slice(1);
+
+    const competitors = [
+      {
+        name: "RivalFlow",
+        website: "https://rivalflow.example",
+        description: "Workflow automation for mid-market ops teams.",
+        source: "mock",
+      },
+      {
+        name: "OpsPilot",
+        website: "https://opspilot.example",
+        description: `${title} competitor focused on AI-assisted task routing.`,
+        source: "mock",
+      },
+      {
+        name: "TeamForge",
+        website: "https://teamforge.example",
+        description: "Enterprise collaboration with embedded PM agents.",
+        source: "mock",
+      },
+    ];
+
+    return {
+      competitors,
+      suggested: { competitors },
+      sources: [{ url: website, method: "mock", chars: 0, ok: true }],
+      costUsd: 0,
+      model: "mock",
+      confidenceNotes: productSummary
+        ? `Mock competitors inferred from product: ${productSummary.slice(0, 80)}…`
+        : "Mock mode — connect API server for live competitor discovery.",
+    };
+  },
 };
 
 export const companyIntelligenceAdapter =
@@ -118,4 +216,17 @@ export async function saveCompanyProfile(profile) {
 
 export async function generateCompanyContext(profile) {
   return companyIntelligenceAdapter.generateContext(profile);
+}
+
+export async function fetchCompanyFromWeb({ website, companyName, profile }) {
+  return companyIntelligenceAdapter.fetchFromWeb({ website, companyName, profile });
+}
+
+export async function fetchCompetitorsFromWeb({ website, companyName, productSummary, profile }) {
+  return companyIntelligenceAdapter.fetchCompetitors({
+    website,
+    companyName,
+    productSummary,
+    profile,
+  });
 }

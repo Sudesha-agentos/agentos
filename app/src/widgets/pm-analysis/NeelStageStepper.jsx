@@ -9,6 +9,7 @@ export function NeelStageStepper({ analysis, compact = false }) {
     if (meta.some((m) => m.stage === stage && m.status === "FAILED")) return "failed";
     if (current === stage && status === "RUNNING") return "active";
     if (status === "AWAITING_INPUT" && stage === "QUESTION_MODE") return "waiting";
+    if (status === "AWAITING_INPUT" && stage === "COMPETITOR_ANALYSIS") return "waiting";
     if (status === "AWAITING_CONFIRMATION" && stage === "SOLUTIONING") return "waiting";
     if (meta.some((m) => m.stage === stage && m.status === "COMPLETED")) return "done";
     return "pending";

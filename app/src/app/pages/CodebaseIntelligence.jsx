@@ -11,7 +11,9 @@ import CodebaseHealthPanel from "../../widgets/codebase-health/CodebaseHealthPan
 import CodebaseKnowledgePanel from "../../widgets/codebase-knowledge/CodebaseKnowledgePanel";
 import CodebaseIntelligenceStatusWidget from "../../widgets/codebase-intelligence-status/CodebaseIntelligenceStatusWidget";
 import { useGitIntegrationSetup } from "../../entities/git-integration";
+import { useCodebaseLayerStatus } from "../../entities/codebase";
 import Spinner from "../components/Spinner";
+import { AGENT_NAMES } from "../../shared/config/app";
 import { PageIntro } from "../../shared/ui/Panel";
 import { AppTabButton } from "../../shared/ui/AppChrome";
 import { AnimatedAppPage } from "../../shared/ui/AnimatedAppPage";
@@ -71,8 +73,13 @@ function renderTabContent(tab, branch) {
 export default function CodebaseIntelligence() {
   const { data: setup } = useGitIntegrationSetup({ pollMs: 30000 });
   const git = setup?.git;
-  const branch = git?.defaultBranch ?? "main";
-  const connected = Boolean(setup?.connected);
+  const gitBranch = git?.defaultBranch ?? "main";
+  const { data: layerStatus } = useCodebaseLayerStatus({ branch: gitBranch, pollMs: 30000 });
+  const branch = layerStatus?.repo?.defaultBranch ?? gitBranch;
+  const connected =
+    Boolean(setup?.connected) ||
+    Boolean(layerStatus?.connected) ||
+    Boolean(layerStatus?.ready);
   const [indexRunId, setIndexRunId] = useState(null);
   const [params, setParams] = useSearchParams();
   const tab = params.get("tab") ?? "explorer";
@@ -86,8 +93,8 @@ export default function CodebaseIntelligence() {
   return (
     <AnimatedAppPage wide>
       <PageIntro
-        kicker="Codebase Intelligence"
-        title="Insights from your repository"
+        kicker="Tech"
+        title={AGENT_NAMES.ANANTA}
         body="Browse indexed files by directory, read per-file intelligence, and open the map when you need the full visualization."
       />
       <CodebaseIntelligenceStatusWidget

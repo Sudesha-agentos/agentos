@@ -1,5 +1,4 @@
-import { PM_STAGE_ORDER } from "../../entities/pm-agents";
-import { PM_STAGE_LABELS } from "../../entities/pm-agents";
+import { VIRIN_NAME, PM_STAGE_ORDER, PM_STAGE_LABELS } from "../../entities/pm-agents";
 
 const TONE = {
   completed: "bg-success shadow-[0_0_6px_1px_rgba(34,197,94,0.4)]",
@@ -29,7 +28,7 @@ export default function PmStageRail({
     <div
       className={`flex items-center gap-0 ${className}`}
       role="img"
-      aria-label={`PM pipeline at ${currentStage ? PM_STAGE_LABELS[currentStage] : "complete"}`}
+      aria-label={`${VIRIN_NAME} pipeline at ${currentStage ? PM_STAGE_LABELS[currentStage] : "complete"}`}
     >
       {PM_STAGE_ORDER.map((stage, index) => {
         const done =

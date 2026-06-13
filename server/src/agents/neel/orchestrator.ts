@@ -1,4 +1,5 @@
 import { companyIntelligence, mapBusinessFitToRevenueRisk } from "../../companyIntelligence";
+import { analyzeCompetitorApproaches } from "../../companyIntelligence/competitorAnalyzer";
 import { mergeUsage } from "../../llm/openaiCompletion";
 import type { GeneratedPRD } from "../../prd/prdGenerator";
 import { recordRetrospectiveLearning } from "../../rag/retrievalLearning";
@@ -30,6 +31,7 @@ import type {
   PostShipOutput,
   QuestionModeState,
   SolutioningOutput,
+  CompetitorAnalysisState,
 } from "./types";
 import { NEEL_STAGE_ORDER } from "./types";
 
@@ -121,6 +123,26 @@ function normalizeQuestionOptions(raw: unknown): string[] {
     .map((o) => String(o).trim())
     .filter((o) => o.length > 0 && !/^other\b/i.test(o))
     .slice(0, 4);
+}
+
+function competitorBlock(record: PmAnalysisRecord): string {
+  const ca = record.competitorAnalysis;
+  if (!ca || ca.decision !== "run" || !ca.analyses?.length) {
+    return "Competitor analysis: not run or skipped.";
+  }
+  const parts = [
+    ca.summaryMarkdown ?? "",
+    ...ca.analyses.map(
+      (a) =>
+        `**${a.competitorName}** (${a.competitorWebsite}): ${a.howTheySolveIt}\nStrengths: ${a.strengths.join("; ")}\nGaps: ${a.gaps.join("; ")}`
+    ),
+  ];
+  return parts.filter(Boolean).join("\n\n");
+}
+
+function isAffirmativeCompetitorAnswer(answer: string): boolean {
+  const a = answer.trim().toLowerCase();
+  return /^(yes|yeah|y|run|analyze|sure|ok|do it)/.test(a) || a.includes("analyze competitor");
 }
 
 function formatConversation(state: QuestionModeState | undefined): string {
@@ -322,6 +344,8 @@ async function runNeelStageHandler(
       return runIntake(jiraKey, ticket, ctx, record, mode);
     case "QUESTION_MODE":
       return runQuestionMode(jiraKey, ticket, ctx, record, mode);
+    case "COMPETITOR_ANALYSIS":
+      return runCompetitorAnalysis(jiraKey, ticket, ctx, record, mode);
     case "CODEBASE_ANALYSIS":
       await runCodebaseAnalysis(jiraKey, ticket, ctx, record);
       return false;
@@ -505,6 +529,85 @@ async function runQuestionMode(
   return false;
 }
 
+async function runCompetitorAnalysis(
+  jiraKey: string,
+  ticket: PmTicketInput,
+  _ctx: Awaited<ReturnType<typeof gatherPmContext>>,
+  record: PmAnalysisRecord,
+  mode: NeelRunMode
+): Promise<boolean> {
+  const profile = await companyIntelligence.getProfile();
+  const competitors = profile.competitors ?? [];
+  const featureSummary =
+    record.questionMode?.discoverySummary?.trim() || ticket.summary;
+
+  let state: CompetitorAnalysisState = record.competitorAnalysis ?? {
+    decision: "pending",
+    featureSummary,
+    analyses: [],
+  };
+
+  if (record.pendingAnswer && record.pendingQuestionStage === "COMPETITOR_ANALYSIS") {
+    const runAnalysis = isAffirmativeCompetitorAnswer(record.pendingAnswer);
+    state.decision = runAnalysis ? "run" : "skipped";
+    pmAnalysisStore.update(jiraKey, {
+      pendingAnswer: undefined,
+      pendingQuestion: undefined,
+      pendingQuestionOptions: undefined,
+      pendingQuestionStage: undefined,
+      pendingFlag: undefined,
+      competitorAnalysis: state,
+    });
+    if (!runAnalysis) return false;
+  } else if (state.decision === "skipped") {
+    return false;
+  } else if (state.decision === "run" && state.analyses.length > 0) {
+    return false;
+  } else if (!competitors.length) {
+    state.decision = "skipped";
+    pmAnalysisStore.update(jiraKey, { competitorAnalysis: state });
+    return false;
+  } else if (mode === "interactive" && state.decision === "pending") {
+    const names = competitors.map((c) => c.name).join(", ");
+    pmAnalysisStore.update(jiraKey, {
+      status: "AWAITING_INPUT",
+      pendingQuestion: `Discovery is complete. Should I run competitor analysis on how ${names} approach this problem today?`,
+      pendingQuestionOptions: ["Yes, analyze competitors", "No, skip for now"],
+      pendingQuestionStage: "COMPETITOR_ANALYSIS",
+      competitorAnalysis: { ...state, featureSummary },
+    });
+    return true;
+  } else if (state.decision === "pending") {
+    state.decision = "skipped";
+    pmAnalysisStore.update(jiraKey, { competitorAnalysis: state });
+    return false;
+  }
+
+  if (state.decision === "run" && !state.analyses.length) {
+    const result = await analyzeCompetitorApproaches({
+      featureSummary,
+      ticketSummary: ticket.summary,
+      competitors,
+    });
+    state = {
+      ...state,
+      analyses: result.analyses,
+      summaryMarkdown: result.summaryMarkdown,
+      completedAt: new Date().toISOString(),
+    };
+    pmAnalysisStore.update(jiraKey, { competitorAnalysis: state });
+    pmAnalysisStore.appendStageMeta(jiraKey, {
+      stage: "COMPETITOR_ANALYSIS",
+      status: "COMPLETED",
+      startedAt: new Date().toISOString(),
+      completedAt: new Date().toISOString(),
+      costUsd: result.usage.costUsd,
+    });
+  }
+
+  return false;
+}
+
 async function runCodebaseAnalysis(
   jiraKey: string,
   ticket: PmTicketInput,
@@ -541,6 +644,7 @@ async function runSolutioning(
   const prompt = renderTemplate(PROMPT_SOLUTIONING, {
     company_context: companyContextFromRecord(record, ctx),
     discovery_summary: record.questionMode?.discoverySummary ?? "",
+    competitor_analysis: competitorBlock(record),
     codebase_analysis_json: JSON.stringify(record.codebaseAnalysis ?? {}, null, 2),
     flags: (record.questionMode?.flagsRaised ?? []).join("\n") || "none",
   });
@@ -569,6 +673,7 @@ async function runPrdGeneration(
     company_context: companyContextFromRecord(record, ctx),
     solution_summary: record.solutioning?.summaryMarkdown ?? "",
     discovery_summary: record.questionMode?.discoverySummary ?? "",
+    competitor_analysis: competitorBlock(record),
     codebase_analysis_json: JSON.stringify(record.codebaseAnalysis ?? {}, null, 2),
     jira_key: jiraKey,
     ticket_summary: ticket.summary,
@@ -623,6 +728,9 @@ export async function submitNeelAnswer(jiraKey: string, answer: string): Promise
   }
   if (stage === "QUESTION_MODE" || record.currentStage === "QUESTION_MODE") {
     return runNeelPipeline({ jiraKey: key, resumeFrom: "QUESTION_MODE", mode });
+  }
+  if (stage === "COMPETITOR_ANALYSIS" || record.currentStage === "COMPETITOR_ANALYSIS") {
+    return runNeelPipeline({ jiraKey: key, resumeFrom: "COMPETITOR_ANALYSIS", mode });
   }
 
   return runNeelPipeline({ jiraKey: key, resumeFrom: stage ?? "QUESTION_MODE", mode });

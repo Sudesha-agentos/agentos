@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
+import { AGENT_NAMES } from "../../shared/config/app";
 import { useGitIntegrationSetup } from "../../entities/git-integration";
 import CodebaseSearchCore from "./CodebaseSearchCore";
 import {
@@ -44,12 +45,12 @@ export function CodebaseCommandPaletteProvider({ children }) {
                 onClick={(e) => e.stopPropagation()}
                 role="dialog"
                 aria-modal="true"
-                aria-label="Codebase search"
+                aria-label={`${AGENT_NAMES.ANANTA} search`}
               >
                 <header className="flex items-center justify-between border-b border-hairline px-4 py-3">
                   <div>
                     <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-ink-mute">
-                      Codebase
+                      {AGENT_NAMES.ANANTA}
                     </p>
                     <p className="font-display text-lg text-ink">Search or ask</p>
                   </div>

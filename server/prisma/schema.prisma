@@ -217,6 +217,7 @@ model CompanyProfile {
   businessContext String   @default("") @db.Text
   strategicGoals  Json     @default("[]")
   nonGoals        Json     @default("[]")
+  competitors     Json     @default("[]")
   updatedAt       DateTime @updatedAt
   updatedBy       String?
 }

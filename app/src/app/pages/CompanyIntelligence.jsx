@@ -1,9 +1,12 @@
 import { useState } from "react";
 import {
+  fetchCompanyFromWeb,
+  fetchCompetitorsFromWeb,
   generateCompanyContext,
   saveCompanyProfile,
   useCompanyProfile,
 } from "../../entities/company-intelligence";
+import { AGENT_NAMES } from "../../shared/config/app";
 import { PageIntro, Panel, PanelHeader } from "../../shared/ui/Panel";
 import { AnimatedAppPage } from "../../shared/ui/AnimatedAppPage";
 
@@ -33,15 +36,20 @@ export default function CompanyIntelligence() {
   const [form, setForm] = useState(null);
   const [saving, setSaving] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [fetchingWeb, setFetchingWeb] = useState(false);
+  const [fetchingCompetitors, setFetchingCompetitors] = useState(false);
   const [error, setError] = useState(null);
   const [savedAt, setSavedAt] = useState(null);
   const [genMeta, setGenMeta] = useState(null);
+  const [webMeta, setWebMeta] = useState(null);
+  const [competitorMeta, setCompetitorMeta] = useState(null);
 
   if (!form && data) {
     setForm({
       ...data,
       strategicGoalsText: arrayToLines(data.strategicGoals),
       nonGoalsText: arrayToLines(data.nonGoals),
+      competitors: data.competitors ?? [],
     });
   }
 
@@ -60,7 +68,30 @@ export default function CompanyIntelligence() {
       businessContext: form.businessContext,
       strategicGoals: linesToArray(form.strategicGoalsText),
       nonGoals: linesToArray(form.nonGoalsText),
+      competitors: form.competitors ?? [],
     };
+  }
+
+  function updateCompetitor(index, field, value) {
+    setForm((f) => {
+      const list = [...(f.competitors ?? [])];
+      list[index] = { ...list[index], [field]: value };
+      return { ...f, competitors: list };
+    });
+  }
+
+  function addCompetitor() {
+    setForm((f) => ({
+      ...f,
+      competitors: [...(f.competitors ?? []), { name: "", website: "", description: "" }],
+    }));
+  }
+
+  function removeCompetitor(index) {
+    setForm((f) => ({
+      ...f,
+      competitors: (f.competitors ?? []).filter((_, i) => i !== index),
+    }));
   }
 
   async function handleSave(e) {
@@ -73,6 +104,7 @@ export default function CompanyIntelligence() {
         ...profile,
         strategicGoalsText: arrayToLines(profile.strategicGoals),
         nonGoalsText: arrayToLines(profile.nonGoals),
+        competitors: profile.competitors ?? [],
       });
       setSavedAt(new Date());
       await refetch();
@@ -80,6 +112,77 @@ export default function CompanyIntelligence() {
       setError(err.message ?? "Save failed");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleFetchFromWeb() {
+    const website = form?.website?.trim();
+    if (!website) {
+      setError("Enter a website URL first, then auto-fetch company details.");
+      return;
+    }
+    setFetchingWeb(true);
+    setError(null);
+    try {
+      const result = await fetchCompanyFromWeb({
+        website,
+        companyName: form?.companyName,
+        profile: toPayload(),
+      });
+      const { suggested } = result;
+      setWebMeta({
+        technologies: result.technologies,
+        confidenceNotes: result.confidenceNotes,
+        sources: result.sources,
+        model: result.model,
+        costUsd: result.costUsd,
+      });
+      setForm({
+        ...form,
+        companyName: suggested.companyName ?? form.companyName,
+        website: suggested.website ?? form.website,
+        productSummary: suggested.productSummary ?? form.productSummary,
+        icp: suggested.icp ?? form.icp,
+        revenueModel: suggested.revenueModel ?? form.revenueModel,
+        pricingSummary: suggested.pricingSummary ?? form.pricingSummary,
+        strategicGoalsText: arrayToLines(suggested.strategicGoals ?? linesToArray(form.strategicGoalsText)),
+        nonGoalsText: arrayToLines(suggested.nonGoals ?? linesToArray(form.nonGoalsText)),
+      });
+    } catch (err) {
+      setError(err.message ?? "Web fetch failed");
+    } finally {
+      setFetchingWeb(false);
+    }
+  }
+
+  async function handleFetchCompetitors() {
+    const website = form?.website?.trim();
+    if (!website) {
+      setError("Enter a website URL first, then fetch competitors.");
+      return;
+    }
+    setFetchingCompetitors(true);
+    setError(null);
+    try {
+      const result = await fetchCompetitorsFromWeb({
+        website,
+        companyName: form?.companyName,
+        productSummary: form?.productSummary,
+        profile: toPayload(),
+      });
+      setCompetitorMeta({
+        model: result.model,
+        costUsd: result.costUsd,
+        sources: result.sources,
+      });
+      setForm({
+        ...form,
+        competitors: result.competitors ?? result.suggested?.competitors ?? [],
+      });
+    } catch (err) {
+      setError(err.message ?? "Competitor fetch failed");
+    } finally {
+      setFetchingCompetitors(false);
     }
   }
 
@@ -100,6 +203,7 @@ export default function CompanyIntelligence() {
         ...profile,
         strategicGoalsText: arrayToLines(profile.strategicGoals),
         nonGoalsText: arrayToLines(profile.nonGoals),
+        competitors: profile.competitors ?? [],
       });
       setSavedAt(new Date());
       await refetch();
@@ -126,12 +230,26 @@ export default function CompanyIntelligence() {
       <PageIntro
         kicker="Business intelligence"
         title="Company profile"
-        body="Business context is inferred from your indexed codebase — product domains, modules, and monetization signals. Neel validates every idea against this before writing a PRD."
+        body={`Start with your website — we scrape public pages and pre-fill company details. Review and edit anything before saving. ${AGENT_NAMES.VIRIN} validates every idea against this before writing a PRD.`}
       />
 
       <form onSubmit={handleSave} className="space-y-5">
         <Panel>
-          <PanelHeader kicker="Basics" title="Company details" />
+          <PanelHeader
+            kicker="Basics"
+            title="Company details"
+            body="Auto-fetch from your public website, then edit any field that looks wrong."
+            right={
+              <button
+                type="button"
+                disabled={fetchingWeb || !form?.website?.trim()}
+                onClick={handleFetchFromWeb}
+                className="rounded-full border border-indigo/30 bg-indigo/10 px-4 py-2 text-[12px] font-medium text-indigo transition hover:bg-indigo/15 disabled:opacity-50"
+              >
+                {fetchingWeb ? "Fetching…" : "Auto-fetch from web"}
+              </button>
+            }
+          />
           <div className="grid gap-5 px-5 py-5 sm:grid-cols-2 sm:px-6">
             <Field label="Company name">
               <input
@@ -142,7 +260,7 @@ export default function CompanyIntelligence() {
                 className={inputClass}
               />
             </Field>
-            <Field label="Website">
+            <Field label="Website" hint="Homepage URL — used for Jina Reader + meta scraping.">
               <input
                 type="url"
                 value={form?.website ?? ""}
@@ -177,13 +295,36 @@ export default function CompanyIntelligence() {
               </Field>
             </div>
           </div>
+          {webMeta && (
+            <div className="border-t border-app-border px-5 py-4 sm:px-6">
+              <p className="text-[12px] text-app-ink-mute">
+                Fetched with {webMeta.technologies?.join(" · ")}
+                {webMeta.model ? ` · ${webMeta.model}` : ""}
+                {webMeta.costUsd != null ? ` · $${webMeta.costUsd.toFixed(4)}` : ""}
+              </p>
+              {webMeta.confidenceNotes ? (
+                <p className="mt-2 text-[13px] leading-relaxed text-app-ink-dim">
+                  {webMeta.confidenceNotes}
+                </p>
+              ) : null}
+              {webMeta.sources?.length ? (
+                <p className="mt-2 font-mono text-[10px] text-app-ink-mute">
+                  {webMeta.sources.filter((s) => s.ok).length} of {webMeta.sources.length} pages
+                  scraped
+                </p>
+              ) : null}
+              <p className="mt-2 text-[12px] text-warning">
+                Review all fields below — scraped data can be incomplete or outdated.
+              </p>
+            </div>
+          )}
         </Panel>
 
         <Panel>
           <PanelHeader
             kicker="Revenue"
             title="How you make money"
-            body="Neel uses this to judge revenue impact and prioritization."
+            body={`${AGENT_NAMES.VIRIN} uses this to judge revenue impact and prioritization.`}
           />
           <div className="grid gap-5 px-5 py-5 sm:px-6">
             <Field
@@ -234,11 +375,98 @@ export default function CompanyIntelligence() {
           </div>
         </Panel>
 
+        <Panel>
+          <PanelHeader
+            kicker="Market"
+            title="Competitors"
+            body={`${AGENT_NAMES.VIRIN} can analyze how competitors solve similar problems during discovery.`}
+            right={
+              <button
+                type="button"
+                disabled={fetchingCompetitors || !form?.website?.trim()}
+                onClick={handleFetchCompetitors}
+                className="rounded-full border border-indigo/30 bg-indigo/10 px-4 py-2 text-[12px] font-medium text-indigo transition hover:bg-indigo/15 disabled:opacity-50"
+              >
+                {fetchingCompetitors ? "Fetching…" : "Fetch competitors from web"}
+              </button>
+            }
+          />
+          <div className="space-y-4 px-5 py-5 sm:px-6">
+            {(form?.competitors ?? []).length === 0 ? (
+              <p className="text-[13px] text-app-ink-mute">
+                No competitors yet — fetch from web or add manually.
+              </p>
+            ) : (
+              (form.competitors ?? []).map((comp, index) => (
+                <div
+                  key={index}
+                  className="grid gap-3 rounded-app-sm border border-app-border bg-app-surface-muted/20 p-4 sm:grid-cols-[1fr_1fr_1.2fr_auto]"
+                >
+                  <Field label="Name">
+                    <input
+                      type="text"
+                      value={comp.name ?? ""}
+                      onChange={(e) => updateCompetitor(index, "name", e.target.value)}
+                      placeholder="Rival Inc"
+                      className={inputClass}
+                    />
+                  </Field>
+                  <Field label="Website">
+                    <input
+                      type="url"
+                      value={comp.website ?? ""}
+                      onChange={(e) => updateCompetitor(index, "website", e.target.value)}
+                      placeholder="https://rival.com"
+                      className={inputClass}
+                    />
+                  </Field>
+                  <Field label="Description">
+                    <input
+                      type="text"
+                      value={comp.description ?? ""}
+                      onChange={(e) => updateCompetitor(index, "description", e.target.value)}
+                      placeholder="What they offer in this space"
+                      className={inputClass}
+                    />
+                  </Field>
+                  <div className="flex items-end">
+                    <button
+                      type="button"
+                      onClick={() => removeCompetitor(index)}
+                      className="rounded-full border border-danger/30 px-3 py-2 text-[12px] text-danger transition hover:bg-danger/5"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+            <button
+              type="button"
+              onClick={addCompetitor}
+              className="rounded-full border border-app-border px-4 py-2 text-[12px] text-app-ink-dim transition hover:border-indigo/30 hover:text-indigo"
+            >
+              + Add competitor
+            </button>
+          </div>
+          {competitorMeta && (
+            <div className="border-t border-app-border px-5 py-4 sm:px-6">
+              <p className="text-[12px] text-app-ink-mute">
+                Discovered with {competitorMeta.model ?? "web search"}
+                {competitorMeta.costUsd != null ? ` · $${competitorMeta.costUsd.toFixed(4)}` : ""}
+                {competitorMeta.sources?.length
+                  ? ` · ${competitorMeta.sources.filter((s) => s.ok).length} sources`
+                  : ""}
+              </p>
+            </div>
+          )}
+        </Panel>
+
         <Panel className="border-indigo/20">
           <PanelHeader
             kicker="Generated · editable"
             title="Business context"
-            body="Inferred from your indexed codebase (architecture, modules, billing/product signals) with gpt-5.5. Edit freely — Neel reads this verbatim."
+            body={`Inferred from your indexed codebase (architecture, modules, billing/product signals) with gpt-5.5. Edit freely — ${AGENT_NAMES.VIRIN} reads this verbatim.`}
             right={
               <button
                 type="button"

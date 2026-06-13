@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { AGENT_NAMES } from "../../shared/config/app";
 import {
   runPmRetrospective,
   usePmAnalysis,
   PM_STAGE_LABELS,
+  VIRIN_NAME,
 } from "../../entities/pm-agents";
 import Spinner from "../../app/components/Spinner";
 import StatusPill from "../../app/components/StatusPill";
@@ -46,14 +48,14 @@ export default function PmPipelineDetailPanel({ pipelineId, onClose }) {
   if (loading && !analysis) {
     return (
       <div className="flex h-64 items-center justify-center">
-        <Spinner label="Loading PM analysis" />
+        <Spinner label={`Loading ${VIRIN_NAME} analysis`} />
       </div>
     );
   }
 
   if (!analysis) {
     return (
-      <div className="p-8 text-center text-sm text-ink-dim">PM analysis not found.</div>
+      <div className="p-8 text-center text-sm text-ink-dim">{VIRIN_NAME} analysis not found.</div>
     );
   }
 
@@ -71,11 +73,11 @@ export default function PmPipelineDetailPanel({ pipelineId, onClose }) {
             <div className="flex items-center gap-2">
               <p className="font-mono text-[11px] text-indigo">{analysis.jiraKey}</p>
               <span className="rounded-full border border-indigo/30 bg-indigo/10 px-2 py-0.5 font-mono text-[9px] uppercase tracking-[0.12em] text-indigo">
-                Neel
+                {AGENT_NAMES.VIRIN}
               </span>
             </div>
             <h2 className="mt-1 font-display text-xl text-ink">
-              {analysis.ticketInput?.summary ?? "PM analysis"}
+              {analysis.ticketInput?.summary ?? `${VIRIN_NAME} analysis`}
             </h2>
           </div>
           <div className="flex items-center gap-2">
@@ -109,7 +111,7 @@ export default function PmPipelineDetailPanel({ pipelineId, onClose }) {
         {isRunning && !analysis.enrichment && (
           <div className="mb-5 flex items-center gap-3 rounded-xl border border-indigo/30 bg-indigo/5 px-4 py-3">
             <Spinner />
-            <p className="font-mono text-[12px] text-ink-dim">PM pipeline running — outputs appear as each stage completes.</p>
+            <p className="font-mono text-[12px] text-ink-dim">{VIRIN_NAME} pipeline running — outputs appear as each stage completes.</p>
           </div>
         )}
 
@@ -125,7 +127,7 @@ export default function PmPipelineDetailPanel({ pipelineId, onClose }) {
                 to="/app/pm-agents"
                 className="font-mono text-[11px] text-indigo hover:underline"
               >
-                Open Neel →
+                Open {AGENT_NAMES.VIRIN} →
               </Link>
             </div>
           </Panel>
