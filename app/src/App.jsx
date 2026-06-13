@@ -1,5 +1,6 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import Marketing from "./pages/Marketing";
+import ContactPage from "./marketing/agent-team/ContactPage";
 import Login from "./pages/Login";
 import AppShell from "./app/layout/AppShell";
 import Dashboard from "./app/pages/Dashboard";
@@ -30,6 +31,7 @@ function App() {
       <AuthProvider>
         <Routes>
           <Route path="/" element={<Marketing />} />
+          <Route path="/contact" element={<ContactPage />} />
           <Route
             path="/login"
             element={

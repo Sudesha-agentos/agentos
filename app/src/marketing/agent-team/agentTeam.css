@@ -1,0 +1,155 @@
+@import url("https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Poppins:wght@500;600;700&display=swap");
+
+.agent-team {
+  --cream: #f7f3ec;
+  --cream-light: #faf7f0;
+  --charcoal: #2b2d33;
+  --charcoal-soft: #3e4147;
+  --body-gray: #6b6b6b;
+  --pill-bg: #f0eeeb;
+  --olive-start: #a8c53a;
+  --olive-end: #8fb52e;
+  --amber-start: #f2c94c;
+  --amber-end: #e8a23c;
+  --lavender-start: #d9b8e8;
+  --lavender-end: #c49edb;
+  --card-shadow: 0 24px 64px -24px rgba(43, 45, 51, 0.12), 0 8px 24px -12px rgba(43, 45, 51, 0.08);
+  font-family: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+  color: var(--charcoal);
+  background: linear-gradient(180deg, var(--cream) 0%, var(--cream-light) 100%);
+  overflow-x: clip;
+}
+
+.agent-team h1,
+.agent-team h2,
+.agent-team h3 {
+  font-family: "Poppins", "DM Sans", sans-serif;
+  letter-spacing: -0.03em;
+}
+
+.agent-team .at-card {
+  background: #fff;
+  border-radius: 28px;
+  box-shadow: var(--card-shadow);
+}
+
+.agent-team .at-pill {
+  background: var(--pill-bg);
+  border-radius: 999px;
+}
+
+.agent-team .at-btn-charcoal {
+  background: linear-gradient(180deg, var(--charcoal) 0%, var(--charcoal-soft) 100%);
+  color: #fff;
+  border-radius: 999px;
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.25s ease;
+}
+
+.agent-team .at-btn-charcoal:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 32px -8px rgba(43, 45, 51, 0.35);
+}
+
+.agent-team .at-glass-badge {
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  border-radius: 999px;
+}
+
+.agent-team .at-gradient-olive {
+  background: linear-gradient(135deg, var(--olive-start) 0%, var(--olive-end) 100%);
+}
+
+.agent-team .at-gradient-amber {
+  background: linear-gradient(135deg, var(--amber-start) 0%, var(--amber-end) 100%);
+}
+
+.agent-team .at-gradient-lavender {
+  background: linear-gradient(135deg, var(--lavender-start) 0%, var(--lavender-end) 100%);
+}
+
+.agent-team .at-metric {
+  font-family: "Poppins", sans-serif;
+  font-weight: 700;
+  font-size: clamp(2.5rem, 5vw, 3.75rem);
+  line-height: 1;
+  letter-spacing: -0.04em;
+}
+
+.agent-team .at-marquee-track {
+  animation: at-marquee 35s linear infinite;
+}
+
+.agent-team .at-marquee-logos-track {
+  animation: at-marquee-logos 40s linear infinite;
+  will-change: transform;
+}
+
+.agent-team .at-logo-pill {
+  background: #fff;
+  border: 1px solid #e8e4de;
+  border-radius: 14px;
+  padding: 10px 18px;
+  box-shadow: 0 4px 16px -8px rgba(43, 45, 51, 0.1);
+}
+
+@keyframes at-marquee-logos {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.agent-team .at-marquee-logos:hover .at-marquee-logos-track {
+  animation-play-state: running;
+}
+
+@keyframes at-marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.agent-team .at-marquee:hover .at-marquee-track {
+  animation-play-state: paused;
+}
+
+.agent-team input:focus,
+.agent-team textarea:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(168, 197, 58, 0.35);
+  border-color: var(--olive-start);
+}
+
+.agent-team .at-agent-figure img {
+  filter: drop-shadow(0 24px 48px rgba(43, 45, 51, 0.18));
+}
+
+.agent-team .at-brain-core-ring {
+  animation: at-brain-pulse 3s ease-in-out infinite;
+}
+
+@keyframes at-brain-pulse {
+  0%,
+  100% {
+    opacity: 0.5;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.85;
+    transform: scale(1.06);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .agent-team .at-marquee-track,
+  .agent-team .at-marquee-logos-track {
+    animation: none;
+  }
+}

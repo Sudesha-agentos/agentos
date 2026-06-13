@@ -1,0 +1,130 @@
+import { useEffect, useState } from "react";
+import { Link, useLocation } from "react-router-dom";
+import { NAV_LINKS } from "../constants";
+
+function NavItem({ link, isActive }) {
+  const location = useLocation();
+  const isHome = location.pathname === "/";
+
+  if (link.href.startsWith("/")) {
+    return (
+      <Link
+        to={link.href}
+        className={`relative text-[14px] transition-colors ${
+          isActive ? "font-medium text-[#2B2D33]" : "text-[#6B6B6B] hover:text-[#2B2D33]"
+        }`}
+      >
+        {link.label}
+        {isActive && (
+          <span className="absolute -bottom-1.5 left-0 h-0.5 w-full rounded-full bg-[#A8C53A]" />
+        )}
+      </Link>
+    );
+  }
+
+  const href = isHome ? link.href : `/${link.href}`;
+  return (
+    <a
+      href={href}
+      className={`relative text-[14px] transition-colors ${
+        isActive ? "font-medium text-[#2B2D33]" : "text-[#6B6B6B] hover:text-[#2B2D33]"
+      }`}
+    >
+      {link.label}
+      {isActive && (
+        <span className="absolute -bottom-1.5 left-0 h-0.5 w-full rounded-full bg-[#A8C53A]" />
+      )}
+    </a>
+  );
+}
+
+export default function MarketingHeader() {
+  const [scrolled, setScrolled] = useState(false);
+  const [active, setActive] = useState("");
+  const location = useLocation();
+  const isHome = location.pathname === "/";
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 24);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  useEffect(() => {
+    if (!isHome) return undefined;
+    const sections = [
+      { id: "hero", link: "" },
+      { id: "agents", link: "#agents" },
+      { id: "shared-brain", link: "#shared-brain" },
+      { id: "clients", link: "#clients" },
+    ];
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visible = entries
+          .filter((e) => e.isIntersecting)
+          .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+        if (visible) {
+          const match = sections.find((s) => s.id === visible.target.id);
+          setActive(match?.link ?? "");
+        }
+      },
+      { rootMargin: "-40% 0px -45% 0px", threshold: [0, 0.25, 0.5] }
+    );
+
+    sections.forEach(({ id }) => {
+      const el = document.getElementById(id);
+      if (el) observer.observe(el);
+    });
+    return () => observer.disconnect();
+  }, [isHome]);
+
+  return (
+    <header
+      data-marketing-header
+      className={`fixed inset-x-0 top-0 z-50 transition-all duration-300 ${
+        scrolled
+          ? "border-b border-black/[0.04] bg-[#F7F3EC]/85 py-3 shadow-sm backdrop-blur-xl"
+          : "bg-[#F7F3EC]/40 py-5 backdrop-blur-sm"
+      }`}
+    >
+      <div className="mx-auto flex max-w-6xl items-center justify-between px-5 sm:px-8">
+        <Link to="/" className="flex items-center gap-2.5">
+          <span className="flex size-9 items-center justify-center rounded-2xl bg-[#2B2D33] font-bold text-white">
+            A
+          </span>
+          <span className="font-[Poppins] text-lg font-semibold tracking-tight text-[#2B2D33]">
+            Agentos
+          </span>
+        </Link>
+
+        <nav className="hidden items-center gap-8 md:flex">
+          {NAV_LINKS.map((link) => {
+            const isActive =
+              link.href.startsWith("#") && isHome
+                ? active === link.href
+                : location.pathname === link.href;
+            return <NavItem key={link.label} link={link} isActive={isActive} />;
+          })}
+        </nav>
+
+        <div className="flex items-center gap-3">
+          <Link
+            to="/login"
+            className="at-pill hidden px-5 py-2.5 text-[13px] font-medium text-[#6B6B6B] transition hover:text-[#2B2D33] sm:inline-flex"
+          >
+            Login
+          </Link>
+          <Link
+            to="/login"
+            state={{ mode: "signup" }}
+            className="at-btn-charcoal px-5 py-2.5 text-[13px] font-semibold"
+          >
+            Get Started
+          </Link>
+        </div>
+      </div>
+    </header>
+  );
+}
