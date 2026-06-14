@@ -1,0 +1,1 @@
+ALTER TABLE "CompanyProfile" ADD COLUMN IF NOT EXISTS "competitors" JSONB NOT NULL DEFAULT '[]';

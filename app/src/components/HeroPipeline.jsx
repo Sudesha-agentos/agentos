@@ -7,9 +7,9 @@ import { EASE } from "../lib/motion";
  * a system that is calmly thinking, not a marketing celebration.
  */
 const NODES = [
-  { id: "product", label: "Product Agent", x: 120, y: 130 },
-  { id: "engineering", label: "Engineering Agent", x: 420, y: 130 },
-  { id: "qa", label: "QA Agent", x: 720, y: 130 },
+  { id: "product", label: "Virin", x: 120, y: 130 },
+  { id: "engineering", label: "Ananta", x: 420, y: 130 },
+  { id: "qa", label: "Neel", x: 720, y: 130 },
 ];
 
 const EDGES = [
@@ -175,7 +175,7 @@ export default function HeroPipeline() {
         <svg
           viewBox="0 0 840 260"
           role="img"
-          aria-label="Animated pipeline showing Product Agent, Engineering Agent, and QA Agent connected by data flow"
+          aria-label="Animated pipeline showing Virin, Ananta, and Neel connected by data flow"
           className="relative w-full h-auto"
         >
           <defs>

@@ -722,10 +722,10 @@ const MOCK_METRICS = {
 
 const MOCK_ACTIVITY = {
   events: [
-    { id: "ev1", pipelineId: "pl_01J7H2", tone: "progress", message: "PLT-1287 entered QA Agent — 4 minutes ago", timestamp: minutes(4) },
+    { id: "ev1", pipelineId: "pl_01J7H2", tone: "progress", message: "PLT-1287 entered Neel — 4 minutes ago", timestamp: minutes(4) },
     { id: "ev2", pipelineId: "pl_01J6XP", tone: "paused", message: "PLT-1271 paused at PRD gate — confidence 61% — needs review", timestamp: minutes(14) },
     { id: "ev3", pipelineId: "pl_01J6L1", tone: "complete", message: "PLT-1264 completed — PRD approved — PR #847 created", timestamp: minutes(38) },
-    { id: "ev4", pipelineId: "pl_01J6CK", tone: "failed", message: "PLT-1252 failed at Engineering Agent — integration timeout", timestamp: minutes(82) },
+    { id: "ev4", pipelineId: "pl_01J6CK", tone: "failed", message: "PLT-1252 failed at Ananta — integration timeout", timestamp: minutes(82) },
     { id: "ev5", pipelineId: "pl_01J5W3", tone: "complete", message: "PLT-1244 completed — full pipeline without intervention", timestamp: minutes(132) },
   ],
 };
@@ -1064,20 +1064,20 @@ const MOCK_GIT_REPOS = [
 ];
 
 let mockGitState = {
-  connected: false,
+  connected: true,
   git: {
-    provider: null,
-    workspace: "",
-    repoSlug: "",
+    provider: "github",
+    workspace: "acme",
+    repoSlug: "agentos",
     username: null,
-    hasToken: false,
-    tokenHint: null,
+    hasToken: true,
+    tokenHint: "ghp_…",
     webhookSecret: "",
     defaultBranch: "main",
-    configured: false,
-    authMethod: null,
-    installationId: null,
-    source: "none",
+    configured: true,
+    authMethod: "github_app",
+    installationId: "mock-install-1",
+    source: "database",
   },
 };
 
@@ -1105,7 +1105,7 @@ function buildMockGitIntegrationSetup() {
         "QA sandbox clone",
       ],
       installUrl: "https://github.com/apps/agentos-dev/installations/new",
-      setupUrl: "/app/git",
+      setupUrl: "/app/settings/integrations/github",
       webhookUrl,
     },
     webhooks: {

@@ -1,3 +1,10 @@
+export interface CompetitorEntry {
+  name: string;
+  website: string;
+  description?: string;
+  source?: string;
+}
+
 export interface CompanyProfile {
   id: string;
   companyName: string;
@@ -9,6 +16,7 @@ export interface CompanyProfile {
   businessContext: string;
   strategicGoals: string[];
   nonGoals: string[];
+  competitors: CompetitorEntry[];
   updatedAt: string;
   updatedBy?: string | null;
 }

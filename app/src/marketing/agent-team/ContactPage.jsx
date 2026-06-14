@@ -26,8 +26,8 @@ export default function ContactPage() {
             Let&apos;s build your AI team
           </h1>
           <p className="mt-4 max-w-md text-[16px] leading-relaxed text-[#6B6B6B]">
-            Tell us about your Jira workflow and we&apos;ll show how Neel runs discovery, Ananta
-            plans against your codebase, and Virin holds the QA gate before writeback.
+            Tell us about your Jira workflow and we&apos;ll show how Virin runs discovery, Ananta
+            plans against your codebase, and Neel holds the QA gate before writeback.
           </p>
           <div className="mt-10 space-y-4">
             {[

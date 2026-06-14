@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { useGitIntegrationSummary } from "../../entities/git-integration";
 import LabelPill from "../../app/components/LabelPill";
 import Spinner from "../../app/components/Spinner";
+import { AGENT_NAMES } from "../../shared/config/app";
 import { Panel, PanelHeader } from "../../shared/ui/Panel";
 
 export default function GitHubIntegrationOverviewWidget({ embedded = false }) {
@@ -44,7 +45,7 @@ export default function GitHubIntegrationOverviewWidget({ embedded = false }) {
             ) : null}
             <div className="flex flex-wrap gap-4 text-[13px]">
               <Link
-                to="/app/git"
+                to="/app/settings/integrations/github"
                 className="text-ink-dim transition-colors hover:text-indigo"
               >
                 Open GitHub integration →
@@ -53,7 +54,7 @@ export default function GitHubIntegrationOverviewWidget({ embedded = false }) {
                 to="/app/codebase"
                 className="text-ink-dim transition-colors hover:text-indigo"
               >
-                Codebase intelligence →
+                {AGENT_NAMES.ANANTA} →
               </Link>
             </div>
           </>
@@ -63,7 +64,7 @@ export default function GitHubIntegrationOverviewWidget({ embedded = false }) {
 
   if (embedded) {
     return (
-      <div className="rounded-app-sm border border-app-border bg-app-surface-muted/60 p-4">
+      <div className="min-w-0 overflow-hidden rounded-app-sm border border-app-border bg-app-surface-muted/60 p-4">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-app-ink-mute">
             GitHub

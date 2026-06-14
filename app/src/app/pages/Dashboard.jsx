@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
+import { AGENT_NAMES } from "../../shared/config/app";
 import CommandCenterWidget from "../../widgets/command-center/CommandCenterWidget";
 import IntegrationsOverviewWidget from "../../widgets/integrations-overview/IntegrationsOverviewWidget";
 import { useAuth } from "../../shared/providers/useAuth";
@@ -8,11 +9,11 @@ import { chipFadeUp, pageStagger } from "../../lib/motion";
 
 const QUICK_ACTIONS = [
   { to: "/app/pipelines", label: "Pipeline Explorer", tone: "lavender" },
-  { to: "/app/pm-agents", label: "Neel", tone: "peach" },
-  { to: "/app/codebase", label: "Codebase", tone: "mint" },
-  { to: "/app/jira", label: "Jira", tone: "butter" },
-  { to: "/app/git", label: "GitHub", tone: "lavender" },
-  { to: "/app/qa", label: "QA Center", tone: "mint" },
+  { to: "/app/pm-agents", label: AGENT_NAMES.VIRIN, tone: "peach" },
+  { to: "/app/codebase", label: AGENT_NAMES.ANANTA, tone: "mint" },
+  { to: "/app/settings/integrations/jira", label: "Jira", tone: "butter" },
+  { to: "/app/settings/integrations/github", label: "GitHub", tone: "lavender" },
+  { to: "/app/qa", label: AGENT_NAMES.NEEL, tone: "mint" },
 ];
 
 const CHIP_TONES = {
@@ -34,7 +35,7 @@ export default function Dashboard() {
 
   return (
     <AnimatedAppPage className="space-y-6">
-      <section className="app-card p-6 sm:p-8">
+      <section className="app-card-interactive p-6 sm:p-8">
         <p className="type-kicker">Workspace overview</p>
         <h1 className="mt-2 type-page-title">Welcome back, {name}</h1>
         <p className="mt-2 type-page-lede">

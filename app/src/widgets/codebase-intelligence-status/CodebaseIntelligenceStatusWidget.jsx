@@ -6,6 +6,7 @@ import {
   triggerFullCodebaseIndex,
   useCodebaseLayerStatus,
 } from "../../entities/codebase";
+import { AGENT_NAMES } from "../../shared/config/app";
 import { Panel, PanelHeader } from "../../shared/ui/Panel";
 
 function formatRelativeTime(iso) {
@@ -87,7 +88,7 @@ export default function CodebaseIntelligenceStatusWidget({
   }
 
   const body = (
-    <div className={embedded ? "space-y-4" : "space-y-4 px-5 py-4 sm:px-6"}>
+    <div className={embedded ? "min-w-0 space-y-4" : "space-y-4 px-5 py-4 sm:px-6"}>
       {loading && !data ? (
         <div className="flex justify-center py-6">
           <Spinner />
@@ -100,11 +101,13 @@ export default function CodebaseIntelligenceStatusWidget({
         </p>
       ) : (
         <>
-          <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-ink-dim">
-            {data?.repo?.fullName
-              ? `Repository · ${data.repo.fullName} · ${data.repo.defaultBranch}`
-              : "No repository connected"}
-          </p>
+          {!embedded ? (
+            <p className="truncate font-mono text-[11px] uppercase tracking-[0.14em] text-ink-dim">
+              {data?.repo?.fullName
+                ? `Repository · ${data.repo.fullName} · ${data.repo.defaultBranch}`
+                : "No repository connected"}
+            </p>
+          ) : null}
 
           {!data?.connected ? (
             <p className="text-[13px] leading-relaxed text-ink-dim">
@@ -118,16 +121,20 @@ export default function CodebaseIntelligenceStatusWidget({
             </p>
           ) : null}
 
-          <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <Metric label="Files indexed" value={data?.counts?.filesIndexed ?? 0} />
-            <Metric label="Embeddings" value={data?.counts?.embeddings ?? 0} />
+          <dl
+            className={`grid min-w-0 gap-2 ${embedded ? "grid-cols-2" : "grid-cols-2 gap-3 sm:grid-cols-4"}`}
+          >
+            <Metric label="Files indexed" value={data?.counts?.filesIndexed ?? 0} compact={embedded} />
+            <Metric label="Embeddings" value={data?.counts?.embeddings ?? 0} compact={embedded} />
             <Metric
               label="Graph"
               value={data?.graph?.ready ? "Ready" : "Pending"}
+              compact={embedded}
             />
             <Metric
               label="Last indexed"
               value={formatRelativeTime(data?.index?.lastIndexedAt) ?? "—"}
+              compact={embedded}
             />
           </dl>
 
@@ -149,7 +156,7 @@ export default function CodebaseIntelligenceStatusWidget({
           <div className="flex flex-wrap items-center gap-3 text-[13px]">
             {!data?.connected ? (
               <Link
-                to="/app/git"
+                to="/app/settings/integrations/github"
                 className="inline-flex rounded-full bg-indigo px-6 py-2.5 font-mono text-[11px] uppercase tracking-[0.16em] text-white transition-opacity hover:opacity-90"
               >
                 Connect GitHub
@@ -186,19 +193,25 @@ export default function CodebaseIntelligenceStatusWidget({
 
   const headerRight = (
     <LabelPill
-      label={ready ? "Layer ready" : indexStatusLabel(indexStatus)}
+      label={
+        ready
+          ? embedded
+            ? "Ready"
+            : "Layer ready"
+          : indexStatusLabel(indexStatus)
+      }
       tone={indexStatusTone(indexStatus, ready)}
     />
   );
 
   if (embedded) {
     return (
-      <div className="rounded-app-sm border border-app-border bg-app-surface-muted/60 p-4">
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-app-ink-mute">
+      <div className="min-w-0 rounded-app-sm border border-app-border bg-app-surface-muted/60 p-4">
+        <div className="mb-3 flex min-w-0 items-center justify-between gap-2">
+          <p className="min-w-0 truncate text-[10px] font-semibold uppercase tracking-[0.14em] text-app-ink-mute">
             Codebase layer
           </p>
-          {data ? headerRight : null}
+          {data ? <div className="shrink-0">{headerRight}</div> : null}
         </div>
         {body}
       </div>
@@ -208,7 +221,7 @@ export default function CodebaseIntelligenceStatusWidget({
   return (
     <Panel>
       <PanelHeader
-        kicker="Codebase intelligence"
+        kicker={AGENT_NAMES.ANANTA}
         title="Layer readiness"
         body="Indexing runs when you connect GitHub and select a repo, or when you fetch manually below."
         right={data ? headerRight : null}
@@ -218,13 +231,24 @@ export default function CodebaseIntelligenceStatusWidget({
   );
 }
 
-function Metric({ label, value }) {
+function Metric({ label, value, compact = false }) {
+  if (compact) {
+    return (
+      <div className="min-w-0">
+        <dt className="font-mono text-[9px] uppercase tracking-[0.14em] text-ink-mute">
+          {label}
+        </dt>
+        <dd className="mt-0.5 truncate text-[13px] font-medium text-ink">{value}</dd>
+      </div>
+    );
+  }
+
   return (
-    <div className="rounded-lg border border-hairline bg-surface/40 px-3 py-2">
+    <div className="min-w-0 rounded-lg border border-hairline bg-surface/40 px-3 py-2">
       <dt className="font-mono text-[9px] uppercase tracking-[0.14em] text-ink-mute">
         {label}
       </dt>
-      <dd className="mt-1 font-display text-lg text-ink">{value}</dd>
+      <dd className="mt-1 truncate font-display text-lg text-ink">{value}</dd>
     </div>
   );
 }

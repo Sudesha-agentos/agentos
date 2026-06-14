@@ -171,6 +171,9 @@ COMPANY CONTEXT:
 DISCOVERY:
 {{discovery_summary}}
 
+COMPETITOR ANALYSIS:
+{{competitor_analysis}}
+
 CODEBASE ANALYSIS:
 {{codebase_analysis_json}}
 
@@ -215,6 +218,9 @@ Confirmed direction:
 
 Discovery:
 {{discovery_summary}}
+
+Competitor landscape:
+{{competitor_analysis}}
 
 Codebase constraints:
 {{codebase_analysis_json}}

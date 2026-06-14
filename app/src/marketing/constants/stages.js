@@ -10,7 +10,7 @@ export const PIPELINE_STAGES = [
   },
   {
     id: "product",
-    label: "Product Agent",
+    label: "Virin",
     shortLabel: "PRD",
     scrollStart: 0.12,
     scrollEnd: 0.32,
@@ -18,7 +18,7 @@ export const PIPELINE_STAGES = [
   },
   {
     id: "engineering",
-    label: "Engineering Agent",
+    label: "Ananta",
     shortLabel: "Build",
     scrollStart: 0.32,
     scrollEnd: 0.52,
@@ -26,7 +26,7 @@ export const PIPELINE_STAGES = [
   },
   {
     id: "qa",
-    label: "QA Agent",
+    label: "Neel",
     shortLabel: "Tests",
     scrollStart: 0.52,
     scrollEnd: 0.72,

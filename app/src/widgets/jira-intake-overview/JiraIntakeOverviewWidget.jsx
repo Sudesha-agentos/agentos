@@ -40,7 +40,7 @@ export default function JiraIntakeOverviewWidget({ embedded = false }) {
           </p>
           <PipelineQueueSummary setup={setup} />
           <div className="flex flex-wrap gap-4 text-[13px]">
-            <Link to="/app/jira" className="text-ink-dim transition-colors hover:text-indigo">
+            <Link to="/app/settings/integrations/jira" className="text-ink-dim transition-colors hover:text-indigo">
               Jira pipeline setup →
             </Link>
             <Link
@@ -63,7 +63,7 @@ export default function JiraIntakeOverviewWidget({ embedded = false }) {
 
   if (embedded) {
     return (
-      <div className="rounded-app-sm border border-app-border bg-app-surface-muted/60 p-4">
+      <div className="min-w-0 overflow-hidden rounded-app-sm border border-app-border bg-app-surface-muted/60 p-4">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-app-ink-mute">
             Jira pipeline

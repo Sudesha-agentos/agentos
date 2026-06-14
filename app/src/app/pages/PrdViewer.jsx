@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { usePipelineDetail } from "../../entities/pipeline";
+import { AGENT_NAMES } from "../../shared/config/app";
 import { PageIntro, Panel, PanelHeader } from "../../shared/ui/Panel";
 import { AnimatedAppPage } from "../../shared/ui/AnimatedAppPage";
 import Spinner from "../components/Spinner";
@@ -139,7 +140,7 @@ function prdGateBand(score) {
 
 function PrdSection({ active, prd }) {
   if (!prd || typeof prd !== "object") {
-    return <p className="text-app-ink-dim">PRD output will appear after the Product Agent completes.</p>;
+    return <p className="text-app-ink-dim">PRD output will appear after {AGENT_NAMES.VIRIN} completes.</p>;
   }
 
   if (active === "problem") {

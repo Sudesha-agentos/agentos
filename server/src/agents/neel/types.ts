@@ -10,6 +10,7 @@ export type NeelTicketType =
 export type NeelStageId =
   | "INTAKE"
   | "QUESTION_MODE"
+  | "COMPETITOR_ANALYSIS"
   | "CODEBASE_ANALYSIS"
   | "SOLUTIONING"
   | "PRD"
@@ -20,6 +21,7 @@ export type NeelStageId =
 export const NEEL_STAGE_ORDER: NeelStageId[] = [
   "INTAKE",
   "QUESTION_MODE",
+  "COMPETITOR_ANALYSIS",
   "CODEBASE_ANALYSIS",
   "SOLUTIONING",
   "PRD",
@@ -118,4 +120,23 @@ export interface NeelNextQuestionResult {
   flag?: string;
   reason?: string;
   discoverySummary?: string;
+}
+
+export type CompetitorAnalysisDecision = "pending" | "run" | "skipped";
+
+export interface CompetitorApproachAnalysis {
+  competitorName: string;
+  competitorWebsite: string;
+  howTheySolveIt: string;
+  strengths: string[];
+  gaps: string[];
+  sources: string[];
+}
+
+export interface CompetitorAnalysisState {
+  decision: CompetitorAnalysisDecision;
+  featureSummary: string;
+  analyses: CompetitorApproachAnalysis[];
+  summaryMarkdown?: string;
+  completedAt?: string;
 }
