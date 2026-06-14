@@ -23,15 +23,15 @@
 .agent-team .at-grid-bg {
   background-color: var(--cream);
   background-image:
-    linear-gradient(rgba(43, 45, 51, 0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(43, 45, 51, 0.03) 1px, transparent 1px);
-  background-size: 28px 28px;
+    linear-gradient(180deg, var(--cream) 0%, var(--cream-light) 100%),
+    linear-gradient(rgba(43, 45, 51, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(43, 45, 51, 0.05) 1px, transparent 1px);
+  background-size: 100% 100%, 28px 28px, 28px 28px;
   mask-image: linear-gradient(
     180deg,
     transparent 0%,
-    rgba(0, 0, 0, 0.12) 12vh,
-    black 22vh,
-    black calc(100% - 80px),
+    rgba(0, 0, 0, 0.15) 10vh,
+    black 20vh,
     black 100%
   );
 }
@@ -260,7 +260,218 @@
 
 .agent-team .at-landing-root {
   position: relative;
-  background: linear-gradient(180deg, var(--cream) 0%, var(--cream-light) 100%);
+  isolation: isolate;
+  background: transparent;
+}
+
+/* Cofounder-style marketing navbar — floating glass boxes, no full-width bar */
+.agent-team .at-marketing-header {
+  position: fixed;
+  inset-inline: 0;
+  top: 0;
+  z-index: 50;
+  display: flex;
+  justify-content: center;
+  transition:
+    background-color 120ms ease-out 30ms,
+    border-color 120ms ease-out,
+    box-shadow 120ms ease-out;
+}
+
+.agent-team .at-marketing-header-hero {
+  background: transparent;
+  border-bottom: 1px solid transparent;
+  box-shadow: none;
+}
+
+.agent-team .at-marketing-header-solid {
+  background: #f5f5f2;
+  border-bottom: 1px solid #e8e7e6;
+  box-shadow: none;
+}
+
+.agent-team .at-marketing-header-inner {
+  display: flex;
+  width: 100%;
+  max-width: 1440px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 20px;
+}
+
+@media (min-width: 1000px) {
+  .agent-team .at-marketing-header-inner {
+    padding: 26px 20px 23px;
+  }
+}
+
+.agent-team .at-marketing-logo {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+}
+
+.agent-team .at-marketing-logo-mark {
+  display: flex;
+  width: 36px;
+  height: 36px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 16px;
+  background: #2b2d33;
+  color: #fff;
+  font-weight: 700;
+  transition: background-color 200ms ease, color 200ms ease;
+}
+
+.agent-team .at-marketing-logo-mark.at-marketing-logo-light {
+  background: #fff;
+  color: #2b2d33;
+}
+
+.agent-team .at-marketing-logo-text {
+  font-family: "Poppins", "DM Sans", sans-serif;
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  transition: color 200ms ease;
+}
+
+@media (min-width: 1000px) {
+  .agent-team .at-marketing-logo-text {
+    font-size: 20px;
+  }
+}
+
+.agent-team .at-marketing-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.agent-team .at-nav-glass-box {
+  position: relative;
+  display: flex;
+  height: 41px;
+  align-items: center;
+  border-radius: 8px;
+}
+
+.agent-team .at-nav-glass-box-group {
+  gap: 2px;
+  padding: 0 10px 0 14px;
+}
+
+.agent-team .at-nav-glass-box-single,
+.agent-team .at-nav-glass-box-login {
+  justify-content: center;
+  padding: 0 8px;
+}
+
+.agent-team .at-nav-glass-box-login {
+  width: 75px;
+}
+
+.agent-team .at-nav-glass-surface {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  border-radius: 8px;
+  backdrop-filter: blur(16px);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0.08) 100%);
+  box-shadow:
+    inset 0 -1px 0 rgba(0, 0, 0, 0.12),
+    inset 0 -1px 2px rgba(0, 0, 0, 0.1),
+    inset 0 1px 1px rgba(255, 255, 255, 0.24);
+  transition: background 200ms ease, box-shadow 200ms ease, border-color 200ms ease;
+}
+
+.agent-team .at-marketing-header-solid .at-nav-glass-surface {
+  background: linear-gradient(180deg, #ffffff 0%, #f5f5f2 100%);
+  border: 0.67px solid rgba(32, 32, 32, 0.08);
+  box-shadow:
+    0 2px 3px rgba(0, 0, 0, 0.06),
+    inset 0 0 0 0.36px rgba(255, 255, 255, 0.35);
+}
+
+.agent-team .at-nav-link-item {
+  position: relative;
+  z-index: 1;
+  padding: 2px 6px;
+  font-size: 15px;
+  font-weight: 410;
+  line-height: 150%;
+  letter-spacing: 0.15px;
+  white-space: nowrap;
+  text-decoration: none;
+  transition: color 200ms ease, font-weight 200ms ease;
+}
+
+.agent-team .at-nav-link-item-light {
+  color: #fbfbf8;
+}
+
+.agent-team .at-nav-link-item-dark {
+  color: #2b2d33;
+}
+
+.agent-team .at-nav-link-item-active {
+  font-weight: 500;
+}
+
+.agent-team .at-nav-cta-box {
+  position: relative;
+  display: inline-flex;
+  height: 41px;
+  min-width: 130px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 12px;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 460;
+  letter-spacing: 0.15px;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: color 200ms ease;
+}
+
+.agent-team .at-nav-cta-surface {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  border-radius: 8px;
+  transition: background 200ms ease, box-shadow 200ms ease, border-color 200ms ease;
+}
+
+.agent-team .at-nav-cta-box-light {
+  color: #1a1a1a;
+}
+
+.agent-team .at-nav-cta-box-light .at-nav-cta-surface {
+  background: #f1f1ee;
+  border: 0.67px solid rgba(32, 32, 32, 0.1);
+  box-shadow:
+    0 1px 1px rgba(0, 0, 0, 0.5),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.23);
+}
+
+.agent-team .at-nav-cta-box-dark {
+  color: #fbfbf8;
+}
+
+.agent-team .at-nav-cta-box-dark .at-nav-cta-surface {
+  background: #2b2d33;
+  border: 0.67px solid #383838;
+  box-shadow:
+    0 0 0 1px rgba(64, 64, 64, 0.12),
+    inset 0 2px 0 rgba(255, 255, 255, 0.24);
+}
+
+.agent-team .at-nav-cta-box:hover .at-nav-cta-surface {
+  filter: brightness(0.97);
 }
 
 .agent-team .at-hero-scene {

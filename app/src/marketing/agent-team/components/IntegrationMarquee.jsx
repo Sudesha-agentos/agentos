@@ -4,7 +4,7 @@ export default function IntegrationMarquee() {
   const items = [...INTEGRATIONS, ...INTEGRATIONS];
 
   return (
-    <section className="overflow-hidden border-y border-[#E8E4DE] bg-[#FAF7F0] py-10">
+    <section className="overflow-hidden border-y border-[#E8E4DE] bg-[#FAF7F0]/75 py-10 backdrop-blur-[2px]">
       <p className="text-center text-[11px] font-semibold uppercase tracking-wider text-[#6B6B6B]">
         Connected to every tool your team uses
       </p>
