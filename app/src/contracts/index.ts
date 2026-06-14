@@ -148,16 +148,35 @@ export const AuthUserSchema = z.object({
   name: z.string(),
 });
 
+export const OnboardingProfileSchema = z.object({
+  userId: z.string(),
+  email: z.string().email(),
+  name: z.string(),
+  companyStage: z
+    .enum(["idea", "mvp", "growth", "scale", "enterprise"])
+    .nullable(),
+  teamSize: z.enum(["solo", "2-10", "11-50", "51-200", "200+"]).nullable(),
+  role: z
+    .enum(["founder", "product", "engineering", "engineering_lead", "ops", "other"])
+    .nullable(),
+  completed: z.boolean(),
+  completedAt: z.string().nullable(),
+  updatedAt: z.string().nullable(),
+});
+
 export const AuthSessionSchema = z.object({
   token: z.string(),
   issuedAt: z.string(),
   user: AuthUserSchema,
+  onboardingCompleted: z.boolean().optional(),
 });
 
 export const LoginRequestSchema = z.object({
   email: z.string().email(),
   password: z.string().min(8),
 });
+
+export const SignupRequestSchema = LoginRequestSchema;
 
 export const LoginResponseSchema = AuthSessionSchema;
 
@@ -170,6 +189,7 @@ export const SettingsSchema = z.object({
   prdConfidenceThreshold: z.number(),
   implementationConfidenceThreshold: z.number(),
   qaCoverageThreshold: z.number(),
+  systemDesignComplexityThreshold: z.number(),
   canaryStagingBaseUrl: z.string(),
   canaryProductionBaseUrl: z.string(),
   canaryAuthToken: z.string(),

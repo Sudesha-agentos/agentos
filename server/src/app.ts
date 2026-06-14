@@ -6,6 +6,7 @@ import express, {
 } from "express";
 import helmet from "helmet";
 import authRouter from "./api/routes/auth";
+import onboardingRouter from "./api/routes/onboarding";
 import codebaseRouter from "./api/routes/codebase";
 import gitIntegrationRouter from "./api/routes/gitIntegration";
 import healthRouter from "./api/routes/health";
@@ -21,6 +22,7 @@ import companyIntelligenceRouter from "./api/routes/companyIntelligence";
 import qaRouter from "./api/routes/qa";
 import settingsRouter from "./api/routes/settings";
 import agentChatRouter from "./api/routes/agentChat";
+import costsRouter from "./api/routes/costs";
 import webhooksRouter from "./api/routes/webhooks";
 import { isAppError } from "./utils/errors";
 import { logger } from "./utils/logger";
@@ -73,6 +75,7 @@ export function createApp(): express.Express {
   app.use("/", healthRouter);
   app.use("/api", healthRouter);
   app.use("/api/auth", authRouter);
+  app.use("/api/onboarding", onboardingRouter);
   app.use("/api/codebase", codebaseRouter);
   app.use("/codebase", codebaseRouter);
   app.use("/jira-intake", jiraIntakeRouter);
@@ -93,6 +96,7 @@ export function createApp(): express.Express {
   app.use("/api/company-intelligence", companyIntelligenceRouter);
   app.use("/api/settings", settingsRouter);
   app.use("/api/agent-chat", agentChatRouter);
+  app.use("/api/costs", costsRouter);
 
   app.use((_req, res) => {
     res.status(404).json({ error: "not_found" });
