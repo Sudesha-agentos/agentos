@@ -2,64 +2,70 @@ import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { NAV_LINKS } from "../constants";
 
-function NavItem({ link, isActive, light }) {
+const SECTION_LINKS = NAV_LINKS.filter((link) => link.href.startsWith("#"));
+const ROUTE_LINKS = NAV_LINKS.filter((link) => link.href.startsWith("/"));
+
+function GlassBox({ children, className = "" }) {
+  return (
+    <div className={`at-nav-glass-box ${className}`}>
+      <span className="at-nav-glass-surface" aria-hidden />
+      {children}
+    </div>
+  );
+}
+
+function NavLink({ link, isActive, light }) {
   const location = useLocation();
   const isHome = location.pathname === "/";
 
-  const baseClass = light
-    ? isActive
-      ? "font-medium text-white"
-      : "text-white/75 hover:text-white"
-    : isActive
-      ? "font-medium text-[#2B2D33]"
-      : "text-[#6B6B6B] hover:text-[#2B2D33]";
+  const className = `at-nav-link-item ${isActive ? "at-nav-link-item-active" : ""} ${
+    light ? "at-nav-link-item-light" : "at-nav-link-item-dark"
+  }`;
 
   if (link.href.startsWith("/")) {
     return (
-      <Link to={link.href} className={`relative text-[14px] transition-colors ${baseClass}`}>
+      <Link to={link.href} className={className}>
         {link.label}
-        {isActive && (
-          <span
-            className={`absolute -bottom-1.5 left-0 h-0.5 w-full rounded-full ${
-              light ? "bg-white" : "bg-[#A8C53A]"
-            }`}
-          />
-        )}
       </Link>
     );
   }
 
   const href = isHome ? link.href : `/${link.href}`;
   return (
-    <a href={href} className={`relative text-[14px] transition-colors ${baseClass}`}>
+    <a href={href} className={className}>
       {link.label}
-      {isActive && (
-        <span
-          className={`absolute -bottom-1.5 left-0 h-0.5 w-full rounded-full ${
-            light ? "bg-white" : "bg-[#A8C53A]"
-          }`}
-        />
-      )}
     </a>
   );
 }
 
 export default function MarketingHeader() {
-  const [scrolled, setScrolled] = useState(false);
-  const [onHero, setOnHero] = useState(true);
+  const [heroInView, setHeroInView] = useState(true);
   const [active, setActive] = useState("");
   const location = useLocation();
   const isHome = location.pathname === "/";
 
   useEffect(() => {
-    const onScroll = () => {
-      setScrolled(window.scrollY > 24);
-      setOnHero(window.scrollY < window.innerHeight * 0.55);
+    if (!isHome) {
+      setHeroInView(false);
+      return undefined;
+    }
+
+    const hero = document.getElementById("hero");
+    if (!hero) return undefined;
+
+    const updateHeroInView = () => {
+      const rect = hero.getBoundingClientRect();
+      setHeroInView(rect.bottom > 88);
     };
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
+
+    updateHeroInView();
+    window.addEventListener("scroll", updateHeroInView, { passive: true });
+    window.addEventListener("resize", updateHeroInView);
+    return () => {
+      window.removeEventListener("scroll", updateHeroInView);
+      window.removeEventListener("resize", updateHeroInView);
+    };
+  }, [isHome]);
 
   useEffect(() => {
     if (!isHome) return undefined;
@@ -90,68 +96,65 @@ export default function MarketingHeader() {
     return () => observer.disconnect();
   }, [isHome]);
 
-  const lightHeader = isHome && onHero && !scrolled;
+  const lightHeader = isHome && heroInView;
 
   return (
     <header
       data-marketing-header
-      className={`fixed inset-x-0 top-0 z-50 transition-all duration-300 ${
-        scrolled
-          ? "border-b border-black/[0.04] bg-[#F7F3EC]/90 py-3 shadow-sm backdrop-blur-xl"
-          : "bg-transparent py-5 backdrop-blur-[2px]"
+      className={`at-marketing-header ${
+        lightHeader ? "at-marketing-header-hero" : "at-marketing-header-solid"
       }`}
     >
-      <div className="mx-auto flex max-w-6xl items-center justify-between px-5 sm:px-8">
-        <Link to="/" className="flex items-center gap-2.5">
-          <span
-            className={`flex size-9 items-center justify-center rounded-2xl font-bold transition-colors ${
-              lightHeader ? "bg-white text-[#2B2D33]" : "bg-[#2B2D33] text-white"
-            }`}
-          >
+      <div className="at-marketing-header-inner">
+        <Link to="/" className="at-marketing-logo" aria-label="Agentos home">
+          <span className={`at-marketing-logo-mark ${lightHeader ? "at-marketing-logo-light" : ""}`}>
             A
           </span>
-          <span
-            className={`font-[Poppins] text-lg font-semibold tracking-tight transition-colors ${
-              lightHeader ? "text-white" : "text-[#2B2D33]"
-            }`}
-          >
+          <span className={`at-marketing-logo-text ${lightHeader ? "text-white" : "text-[#2B2D33]"}`}>
             Agentos
           </span>
         </Link>
 
-        <nav className="hidden items-center gap-8 md:flex">
-          {NAV_LINKS.map((link) => {
-            const isActive =
-              link.href.startsWith("#") && isHome
-                ? active === link.href
-                : location.pathname === link.href;
-            return (
-              <NavItem key={link.label} link={link} isActive={isActive} light={lightHeader} />
-            );
-          })}
-        </nav>
+        <div className="at-marketing-header-actions">
+          <nav className="hidden items-center gap-3 min-[1000px]:flex">
+            <GlassBox className="at-nav-glass-box-group">
+              {SECTION_LINKS.map((link) => (
+                <NavLink
+                  key={link.label}
+                  link={link}
+                  isActive={isHome && active === link.href}
+                  light={lightHeader}
+                />
+              ))}
+            </GlassBox>
 
-        <div className="flex items-center gap-3">
-          <Link
-            to="/login"
-            className={`hidden px-5 py-2.5 text-[13px] font-medium transition sm:inline-flex ${
-              lightHeader
-                ? "rounded-full text-white/85 hover:bg-white/10 hover:text-white"
-                : "at-pill text-[#6B6B6B] hover:text-[#2B2D33]"
-            }`}
-          >
-            Login
-          </Link>
+            {ROUTE_LINKS.map((link) => (
+              <GlassBox key={link.label} className="at-nav-glass-box-single">
+                <NavLink
+                  link={link}
+                  isActive={location.pathname === link.href}
+                  light={lightHeader}
+                />
+              </GlassBox>
+            ))}
+
+            <GlassBox className="at-nav-glass-box-login">
+              <Link
+                to="/login"
+                className={`at-nav-link-item ${lightHeader ? "at-nav-link-item-light" : "at-nav-link-item-dark"}`}
+              >
+                Login
+              </Link>
+            </GlassBox>
+          </nav>
+
           <Link
             to="/login"
             state={{ mode: "signup" }}
-            className={`px-5 py-2.5 text-[13px] font-semibold transition ${
-              lightHeader
-                ? "inline-flex rounded-full bg-white text-[#2B2D33] hover:bg-white/95"
-                : "at-btn-charcoal"
-            }`}
+            className={`at-nav-cta-box ${lightHeader ? "at-nav-cta-box-light" : "at-nav-cta-box-dark"}`}
           >
-            Get Started
+            <span className="at-nav-cta-surface" aria-hidden />
+            <span className="relative z-10">Get Started</span>
           </Link>
         </div>
       </div>
