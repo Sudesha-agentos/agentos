@@ -3,6 +3,12 @@
 
 import { computeEstimatedRoi } from "../../shared/roi/estimatedRoi";
 
+const MOCK_ORG_SLUG = "agentos";
+function mockOrgPath(...segments) {
+  const tail = segments.filter(Boolean).join("/");
+  return tail ? `/${MOCK_ORG_SLUG}/${tail}` : `/${MOCK_ORG_SLUG}`;
+}
+
 let used = false;
 function markUsed() {
   used = true;
@@ -1394,7 +1400,7 @@ function buildMockGitIntegrationSetup() {
         "QA sandbox clone",
       ],
       installUrl: "https://github.com/apps/agentos-dev/installations/new",
-      setupUrl: "/app/settings/integrations/github",
+      setupUrl: mockOrgPath("settings", "integrations", "github"),
       webhookUrl,
     },
     webhooks: {
@@ -1493,35 +1499,35 @@ export const mockApi = {
           label: "Running",
           value: String(running),
           tone: "running",
-          href: "/app/pipelines?tab=active",
+          href: `${mockOrgPath("pipelines")}?tab=active`,
         },
         {
           id: "review",
           label: "Need review",
           value: String(review),
           tone: "review",
-          href: "/app/pipelines?tab=review",
+          href: `${mockOrgPath("pipelines")}?tab=review`,
         },
         {
           id: "completed",
           label: "Completed",
           value: String(completedToday),
           tone: "success",
-          href: "/app/pipelines?tab=history",
+          href: `${mockOrgPath("pipelines")}?tab=history`,
         },
         {
           id: "cost",
           label: "Cost today",
           value: "$18.40",
           tone: "neutral",
-          href: "/app/costs",
+          href: mockOrgPath("costs"),
         },
         {
           id: "pass_rate",
           label: "Pass rate",
           value: "94%",
           tone: "success",
-          href: "/app/qa",
+          href: mockOrgPath("qa"),
         },
       ],
     };
