@@ -18,6 +18,20 @@ export const AGENT_NAMES = {
 
 export type AgentNavId = "virin" | "ananta" | "neel";
 
+/** Dashboard / health panel labels with role suffix. */
+export const AGENT_DASHBOARD_LABELS: Record<AgentNavId, string> = {
+  virin: `${AGENT_NAMES.VIRIN} (-PM)`,
+  ananta: `${AGENT_NAMES.ANANTA} (-Engg)`,
+  neel: `${AGENT_NAMES.NEEL} (-QA)`,
+};
+
+export function getAgentDashboardLabel(id: string): string {
+  if (id in AGENT_DASHBOARD_LABELS) {
+    return AGENT_DASHBOARD_LABELS[id as AgentNavId];
+  }
+  return id;
+}
+
 export type NavSubItem = {
   label: string;
   to: string;

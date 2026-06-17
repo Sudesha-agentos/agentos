@@ -937,7 +937,7 @@ const MOCK_AGENT_HEALTH = {
   agents: [
     {
       id: "virin",
-      name: "Virin",
+      name: "Virin (-PM)",
       primaryMetric: "Avg confidence",
       primaryValue: "84%",
       secondaryMetric: "22 PRDs today",
@@ -946,7 +946,7 @@ const MOCK_AGENT_HEALTH = {
     },
     {
       id: "ananta",
-      name: "Ananta",
+      name: "Ananta (-Engg)",
       primaryMetric: "Avg criteria hit",
       primaryValue: "97%",
       secondaryMetric: "18 PRs created",
@@ -955,7 +955,7 @@ const MOCK_AGENT_HEALTH = {
     },
     {
       id: "neel",
-      name: "Neel",
+      name: "Neel (-QA)",
       primaryMetric: "Pass rate",
       primaryValue: "83%",
       secondaryMetric: "47 tests run",
