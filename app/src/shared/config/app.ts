@@ -69,7 +69,10 @@ export function buildAgentNav(slug: string): Array<{
       to: orgPath(slug, "ananta"),
       label: AGENT_NAMES.ANANTA,
       breadcrumb: AGENT_NAMES.ANANTA,
-      subNav: [{ label: "Workspace", to: orgPath(slug, "ananta") }],
+      subNav: [
+        { label: "Workspace", to: orgPath(slug, "ananta") },
+        { label: "Codebase", to: orgPath(slug, "codebase") },
+      ],
     },
     {
       id: "neel",

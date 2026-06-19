@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { analyzeCodebaseImpact } from "../../entities/codebase";
+import { useOrg } from "../../shared/providers/OrgRouteProvider";
 import Spinner from "../../app/components/Spinner";
 import { Panel, PanelHeader } from "../../shared/ui/Panel";
 
@@ -37,6 +38,7 @@ function ImpactList({ title, items, empty }) {
 }
 
 export default function CodebaseImpactPanel({ branch = "main" }) {
+  const { orgPath } = useOrg();
   const [pathsInput, setPathsInput] = useState("");
   const [changeDescription, setChangeDescription] = useState("");
   const [report, setReport] = useState(null);
@@ -84,7 +86,7 @@ export default function CodebaseImpactPanel({ branch = "main" }) {
     sessionStorage.setItem("codebase-map-highlights", JSON.stringify([...new Set(all)]));
     const next = new URLSearchParams(params);
     next.set("tab", "map");
-    navigate(`/app/codebase?${next.toString()}`);
+    navigate(`${orgPath("codebase")}?${next.toString()}`);
   }
 
   const riskClass = report?.risk?.level

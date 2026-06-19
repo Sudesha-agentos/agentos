@@ -7,6 +7,7 @@ import {
 import {
   explorerUrl,
 } from "../codebase-search/codebaseSearchUtils";
+import { useOrg } from "../../shared/providers/OrgRouteProvider";
 import Spinner from "../../app/components/Spinner";
 import { Panel, PanelHeader } from "../../shared/ui/Panel";
 
@@ -16,6 +17,8 @@ const CodebaseVisualization = lazy(
 
 export default function CodebaseTourExperience({ branch = "main" }) {
   const navigate = useNavigate();
+  const { orgPath } = useOrg();
+  const codebaseBase = orgPath("codebase");
   const { data: tour, loading, error, refetch } = useCodebaseTour({ branch });
   const [generating, setGenerating] = useState(false);
   const [tourOpen, setTourOpen] = useState(false);
@@ -44,9 +47,9 @@ export default function CodebaseTourExperience({ branch = "main" }) {
 
   const handleOpenFile = useCallback(
     (filePath) => {
-      navigate(explorerUrl(filePath, { tab: "explorer" }));
+      navigate(explorerUrl(filePath, { tab: "explorer", basePath: codebaseBase }));
     },
-    [navigate]
+    [navigate, codebaseBase]
   );
 
   const handleQuizAttempt = useCallback(
@@ -97,7 +100,8 @@ export default function CodebaseTourExperience({ branch = "main" }) {
       <Panel>
         <PanelHeader
           kicker="Guided tour"
-          title="Learn this codebase step by step"
+          title="Learn this codebase step by step"
+
         />
         <div className="mt-4 flex flex-wrap gap-2">
           <button
@@ -215,7 +219,9 @@ export default function CodebaseTourExperience({ branch = "main" }) {
                     <button
                       type="button"
                       className="ml-2 font-mono text-[10px] text-ink-mute hover:text-indigo"
-                      onClick={() => navigate(explorerUrl(item.pathPrefix, { tab: "explorer" }))}
+                      onClick={() =>
+                        navigate(explorerUrl(item.pathPrefix, { tab: "explorer", basePath: codebaseBase }))
+                      }
                     >
                       Open in explorer →
                     </button>

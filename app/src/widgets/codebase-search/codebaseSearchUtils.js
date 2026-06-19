@@ -67,7 +67,7 @@ export function splitAnswerWithPaths(text, knownPaths = []) {
   return parts.length ? parts : [{ type: "text", value: text }];
 }
 
-export function explorerUrl(filePath, { tab = "explorer" } = {}) {
+export function explorerUrl(filePath, { tab = "explorer", basePath = "/app/codebase" } = {}) {
   const params = new URLSearchParams();
   params.set("tab", tab);
   if (filePath) {
@@ -75,11 +75,11 @@ export function explorerUrl(filePath, { tab = "explorer" } = {}) {
     const dir = parentDir(filePath);
     if (dir) params.set("dir", dir);
   }
-  return `/app/codebase?${params.toString()}`;
+  return `${basePath}?${params.toString()}`;
 }
 
-export function mapHighlightUrl(paths) {
+export function mapHighlightUrl(paths, { basePath = "/app/codebase" } = {}) {
   setMapHighlights(paths);
   const params = new URLSearchParams({ tab: "map" });
-  return `/app/codebase?${params.toString()}`;
+  return `${basePath}?${params.toString()}`;
 }
