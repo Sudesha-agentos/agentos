@@ -4,6 +4,7 @@ import {
   generateCodebaseKnowledge,
   useCodebaseKnowledge,
 } from "../../entities/codebase";
+import { useOrg } from "../../shared/providers/OrgRouteProvider";
 import Spinner from "../../app/components/Spinner";
 import { Panel, PanelHeader } from "../../shared/ui/Panel";
 
@@ -142,6 +143,7 @@ function RunbooksView({ runbooks, onOpenFile }) {
 }
 
 export default function CodebaseKnowledgePanel({ branch = "main" }) {
+  const { orgPath } = useOrg();
   const { data, loading, error, refetch } = useCodebaseKnowledge({ branch });
   const [section, setSection] = useState("architecture");
   const [generating, setGenerating] = useState(false);
@@ -155,7 +157,7 @@ export default function CodebaseKnowledgePanel({ branch = "main" }) {
     next.set("file", filePath);
     if (parent) next.set("dir", parent);
     else next.delete("dir");
-    navigate(`/app/codebase?${next.toString()}`);
+    navigate(`${orgPath("codebase")}?${next.toString()}`);
   }
 
   async function handleGenerate() {
@@ -191,7 +193,8 @@ export default function CodebaseKnowledgePanel({ branch = "main" }) {
     <Panel>
       <PanelHeader
         kicker="Knowledge base"
-        title="Living documentation"
+        title="Living documentation"
+
         right={
           <button
             type="button"

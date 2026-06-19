@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Spinner from "../../app/components/Spinner";
 import { askCodebase } from "../../entities/codebase";
+import { useOrg } from "../../shared/providers/OrgRouteProvider";
 import {
   ASK_PLACEHOLDERS,
   SEARCH_PLACEHOLDERS,
@@ -187,6 +188,8 @@ export default function CodebaseSearchCore({
   initialMode = "search",
 }) {
   const navigate = useNavigate();
+  const { orgPath } = useOrg();
+  const codebaseBase = orgPath("codebase");
   const [mode, setMode] = useState(initialMode);
   const [input, setInput] = useState("");
   const [askResult, setAskResult] = useState(null);
@@ -199,12 +202,12 @@ export default function CodebaseSearchCore({
   });
 
   function openFile(path) {
-    navigate(explorerUrl(path));
+    navigate(explorerUrl(path, { basePath: codebaseBase }));
     onNavigateAway?.();
   }
 
   function highlightMap(paths) {
-    navigate(mapHighlightUrl(paths));
+    navigate(mapHighlightUrl(paths, { basePath: codebaseBase }));
     onNavigateAway?.();
   }
 

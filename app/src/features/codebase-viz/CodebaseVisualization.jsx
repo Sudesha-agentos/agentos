@@ -174,6 +174,14 @@ export default function CodebaseVisualization({
     }
   }
 
+  const handleSelectModule = useCallback((mod) => {
+    setFileView(false);
+    setSelectedFile(null);
+    setManualHighlights(null);
+    setFocusPath(mod);
+    setView("map");
+  }, []);
+
   const handleSelectNode = useCallback(
     (node) => {
       const parts = node.path.split("/").filter(Boolean);
@@ -449,7 +457,7 @@ export default function CodebaseVisualization({
             nodes={fileNodes}
             edges={activeLayout?.edges}
             highlightPaths={highlights}
-            onSelectModule={(mod) => setFocusPath(mod)}
+            onSelectModule={handleSelectModule}
           />
         )}
 
