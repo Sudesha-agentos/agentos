@@ -317,7 +317,7 @@ function GitIntegrationContent({ setup, refetch, embedded = false }) {
             </p>
           </div>
         </div>
-      )}
+      ) : null}
 
       {connected ? (
         <p className="text-[13px] text-ink-dim">
