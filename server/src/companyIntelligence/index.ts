@@ -30,7 +30,10 @@ export function toPromptBlock(profile: CompanyProfile): string {
     : "none listed";
 
   return [
-    `COMPANY: ${profile.companyName || "Unknown"}`,
+    profile.companyName
+      ? `OFFICIAL COMPANY NAME (always use exactly this in questions and answer options): ${profile.companyName}`
+      : "COMPANY: Unknown — ask the stakeholder for the company name",
+    profile.companyName ? `COMPANY: ${profile.companyName}` : "",
     profile.businessContext
       ? `BUSINESS CONTEXT:\n${profile.businessContext}`
       : `PRODUCT: ${profile.productSummary}`,
@@ -75,7 +78,8 @@ export const companyIntelligence = {
   },
 
   async generateContext(
-    input: CompanyProfileInput
+    input: CompanyProfileInput,
+    organizationId?: string
   ): Promise<{
     profile: CompanyProfile;
     costUsd: number;
@@ -84,7 +88,7 @@ export const companyIntelligence = {
     codebaseFilesIndexed: number;
     repoLabel: string | null;
   }> {
-    const current = await getCompanyProfile();
+    const current = await getCompanyProfile(organizationId);
     const merged: CompanyProfile = {
       ...current,
       ...input,
@@ -100,10 +104,13 @@ export const companyIntelligence = {
       codebaseFilesIndexed,
       repoLabel,
     } = await generateBusinessContext(merged);
-    const profile = await saveCompanyProfile({
-      ...input,
-      businessContext,
-    });
+    const profile = await saveCompanyProfile(
+      {
+        ...input,
+        businessContext,
+      },
+      organizationId
+    );
     await this.syncEmbeddings(profile);
 
     try {
@@ -137,6 +144,7 @@ export const companyIntelligence = {
   async fetchFromWeb(input: {
     website: string;
     companyName?: string;
+    organizationId?: string;
     mergeWithProfile?: CompanyProfileInput;
   }): Promise<{
     suggested: CompanyProfileInput;
@@ -147,7 +155,7 @@ export const companyIntelligence = {
     model: string;
   }> {
     const bundle = await fetchCompanyWebContext(input.website);
-    const current = input.mergeWithProfile ?? (await getCompanyProfile());
+    const current = input.mergeWithProfile ?? (await getCompanyProfile(input.organizationId));
     const hints = { companyName: input.companyName ?? current.companyName };
 
     let fields;
@@ -186,6 +194,7 @@ export const companyIntelligence = {
     website: string;
     companyName?: string;
     productSummary?: string;
+    organizationId?: string;
     mergeWithProfile?: CompanyProfileInput;
   }): Promise<{
     suggested: CompanyProfileInput;
@@ -195,7 +204,7 @@ export const companyIntelligence = {
     model: string;
   }> {
     const { competitors, usage, model, sources } = await discoverCompetitorsFromWeb(input);
-    const current = input.mergeWithProfile ?? (await getCompanyProfile());
+    const current = input.mergeWithProfile ?? (await getCompanyProfile(input.organizationId));
     return {
       suggested: { ...current, competitors },
       competitors,

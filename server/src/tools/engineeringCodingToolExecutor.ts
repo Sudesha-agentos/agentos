@@ -2,8 +2,10 @@ import { formatToolResult } from "../agenticLoop/toolResultFormatter";
 import { auditRepo } from "../db/repositories/auditRepo";
 import { buildEnrichedCodebaseContext } from "../codebaseIntelligence/enrichedContextService";
 import {
+  cacheReadSourceFile,
   getCodingArtifacts,
 } from "../engineering/codingArtifactStore";
+import { emitEngineeringCodingEvent } from "../engineering/codingEventsHub";
 import { githubClient } from "../integrations/githubClient";
 import { logger } from "../utils/logger";
 import type { ToolCallInput, ToolCallResult } from "./executor";
@@ -38,6 +40,14 @@ export async function executeEngineeringCodingToolCall(
     input: toolCall.input,
   });
 
+  emitEngineeringCodingEvent({
+    type: "tool_started",
+    pipelineId,
+    tool: toolCall.name,
+    input: toolCall.input as Record<string, unknown>,
+    timestamp: new Date().toISOString(),
+  });
+
   try {
     let result: unknown;
     let metaQuery = toolCall.name;
@@ -55,6 +65,7 @@ export async function executeEngineeringCodingToolCall(
             size: file.size,
             content: file.content,
           };
+          cacheReadSourceFile(pipelineId, filePath, file.content);
           resultsFound = 1;
         } catch (error) {
           result = {
@@ -103,6 +114,15 @@ export async function executeEngineeringCodingToolCall(
           action,
           summary,
         });
+        emitEngineeringCodingEvent({
+          type: "file_staged",
+          pipelineId,
+          filePath,
+          action,
+          summary,
+          contentLength: content.length,
+          timestamp: new Date().toISOString(),
+        });
         result = {
           staged: true,
           filePath,
@@ -125,6 +145,24 @@ export async function executeEngineeringCodingToolCall(
       tool: toolCall.name,
       durationMs,
       resultsFound,
+      filePath:
+        toolCall.name === "write_source_file"
+          ? stringValue(toolCall.input.file_path)
+          : toolCall.name === "read_source_file"
+            ? stringValue(toolCall.input.file_path)
+            : undefined,
+    });
+
+    emitEngineeringCodingEvent({
+      type: "tool_completed",
+      pipelineId,
+      tool: toolCall.name,
+      durationMs,
+      filePath:
+        toolCall.name === "write_source_file" || toolCall.name === "read_source_file"
+          ? stringValue(toolCall.input.file_path)
+          : undefined,
+      timestamp: new Date().toISOString(),
     });
 
     return {

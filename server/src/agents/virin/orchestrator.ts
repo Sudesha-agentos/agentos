@@ -123,6 +123,11 @@ function formatCodebaseIntelligenceBlock(
 
 function questionPromptContext(ctx: Awaited<ReturnType<typeof gatherPmContext>>) {
   return {
+    company_name: ctx.companyName || "Unknown — ask stakeholder",
+    company_website: ctx.companyWebsite || "not provided",
+    company_product: ctx.companyProductSummary || "see business context",
+    company_icp: ctx.companyIcp || "see business context",
+    company_revenue_model: ctx.companyRevenueModel || "see business context",
     company_context: ctx.companyContextBlock,
     business_context: ctx.companyContextBlock,
     strategic_goals: ctx.okrList,
@@ -243,10 +248,8 @@ function buildNextQuestionPrompt(
     last_answer_block: formatLastAnswerBlock(state),
     turn_number: String(state.conversation.length + 1),
     max_turns: String(VIRIN_BEHAVIOR.maxDiscoveryTurns),
-    company_context: companyContextFromRecord(record, ctx),
-    business_context: qctx.business_context,
-    strategic_goals: qctx.strategic_goals,
-    codebase_intelligence: qctx.codebase_intelligence,
+    ...qctx,
+    company_context: ctx.companyContextBlock,
     ...formatTicketPromptFields(ticket),
   });
 }
@@ -495,10 +498,8 @@ async function runIntake(
   const qctx = questionPromptContext(ctx);
   const prompt = renderTemplate(PROMPT_INTAKE, {
     ...formatTicketPromptFields(ticket),
-    company_context: companyContextFromRecord(record, ctx),
-    business_context: qctx.business_context,
-    strategic_goals: qctx.strategic_goals,
-    codebase_intelligence: qctx.codebase_intelligence,
+    ...qctx,
+    company_context: ctx.companyContextBlock,
     prior_clarification_block: priorAnswer
       ? `Prior clarifying answer: ${priorAnswer}`
       : "",
@@ -883,12 +884,14 @@ async function runPrdGeneration(
   ctx: Awaited<ReturnType<typeof gatherPmContext>>,
   record: PmAnalysisRecord
 ): Promise<void> {
+  const qctx = questionPromptContext(ctx);
   const prompt = renderTemplate(PROMPT_PRD, {
     company_context: companyContextFromRecord(record, ctx),
     solution_summary: record.solutioning?.summaryMarkdown ?? "",
     discovery_summary: normalizeDiscoverySummary(record.questionMode?.discoverySummary),
     competitor_analysis: competitorBlock(record),
     codebase_analysis_json: JSON.stringify(record.codebaseAnalysis ?? {}, null, 2),
+    codebase_intelligence: qctx.codebase_intelligence,
     jira_key: jiraKey,
     ticket_summary: ticket.summary,
     today_iso: new Date().toISOString(),

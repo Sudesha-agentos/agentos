@@ -100,6 +100,8 @@ ${tasks?.length ? `Task breakdown:\n${tasks.map((t) => `- ${t.id}: ${t.title} ($
 
 ${input.pmContext?.generatedPrd ? `Full PM-generated PRD (authoritative — implement every feature, user story, and requirement described here):\n${JSON.stringify(input.pmContext.generatedPrd, null, 2)}` : ""}
 
+${input.pmContext?.generatedPrd?.implementationDeltaSummary ? `CODEBASE DELTA (build only net-new work):\nSummary: ${input.pmContext.generatedPrd.implementationDeltaSummary}\nAlready exists:\n${(input.pmContext.generatedPrd.existingCapabilities ?? []).map((c) => `- ${c}`).join("\n")}\nNet-new work:\n${(input.pmContext.generatedPrd.netNewWork ?? []).map((c) => `- ${c}`).join("\n")}\nReuse from codebase:\n${(input.pmContext.generatedPrd.reuseFromCodebase ?? []).map((c) => `- ${c}`).join("\n")}` : ""}
+
 ${input.compileFeedback ? `SANDBOX COMPILE/TEST FEEDBACK — fix these errors before finishing:\n${input.compileFeedback}` : ""}
 
 Begin PHASE 1: read and search the codebase on branch "${input.branchName}",

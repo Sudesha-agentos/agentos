@@ -5,7 +5,9 @@ import { runEngineeringCodingAgentic } from "../engineeringCodingAgent";
 import {
   clearCodingArtifacts,
   getCodingArtifacts,
+  snapshotCodingArtifacts,
 } from "../engineering/codingArtifactStore";
+import { emitEngineeringCodingEvent } from "../engineering/codingEventsHub";
 import {
   MAX_COMPILE_ATTEMPTS,
   runEngineeringSandboxCompile,
@@ -821,6 +823,12 @@ export class PipelineOrchestrator {
       jiraKey: ticket.jiraKey,
       hasPmContext: Boolean(ticket.pmContext),
     });
+    emitEngineeringCodingEvent({
+      type: "coding_started",
+      pipelineId,
+      jiraKey: ticket.jiraKey,
+      timestamp: new Date().toISOString(),
+    });
 
     const branchName = resolveCodingBranchName();
     let compileFeedback: string | undefined;
@@ -904,6 +912,7 @@ export class PipelineOrchestrator {
       }
     }
 
+    snapshotCodingArtifacts(pipelineId);
     clearCodingArtifacts(pipelineId);
 
     if (!codingResult) {
@@ -951,6 +960,12 @@ export class PipelineOrchestrator {
       jiraKey: ticket.jiraKey,
       filesChanged: codingResult.codeChanges.length,
       toolCalls: codingResult.toolCallLog.length,
+    });
+    emitEngineeringCodingEvent({
+      type: "coding_completed",
+      pipelineId,
+      jiraKey: ticket.jiraKey,
+      timestamp: new Date().toISOString(),
     });
 
     await writeEngineeringToTicket(ticket.jiraKey, merged);
