@@ -153,12 +153,68 @@ function EngineeringProgress({ jiraKey }) {
   );
 }
 
+function gateStageForAnalysis(analysis) {
+  if (analysis?.status === "AWAITING_CONFIRMATION") return "SOLUTIONING";
+  if (analysis?.status === "AWAITING_INPUT") {
+    return analysis.pendingQuestionStage ?? analysis.currentStage ?? "QUESTION_MODE";
+  }
+  return analysis?.currentStage ?? "INTAKE";
+}
+
+function AwaitingInputBanner({ analysis, handlers }) {
+  if (
+    analysis.status !== "AWAITING_INPUT" &&
+    analysis.status !== "AWAITING_CONFIRMATION"
+  ) {
+    return null;
+  }
+
+  return (
+    <Panel className="border-warning/30 bg-warning/5">
+      <PanelHeader
+        kicker="Your turn"
+        title={
+          analysis.status === "AWAITING_CONFIRMATION"
+            ? "Confirm solution direction"
+            : "Virin needs your input to continue"
+        }
+        subtitle={
+          analysis.status === "AWAITING_INPUT"
+            ? `${PM_STAGE_LABELS[gateStageForAnalysis(analysis)] ?? "Next stage"} is waiting on an answer.`
+            : "Review the recommended approach and confirm or revise."
+        }
+      />
+      <div className="px-5 py-4 sm:px-6">
+        <VirinConversationPanel
+          analysis={analysis}
+          onAnswer={handlers.onAnswer}
+          onConfirm={handlers.onConfirm}
+          busy={handlers.interactionBusy}
+          prominent
+        />
+      </div>
+    </Panel>
+  );
+}
+
 function renderStageContent(stageId, analysis, handlers) {
   switch (stageId) {
     case "INTAKE":
       return (
         <StagePanel stageId={stageId} analysis={analysis} pendingLabel="Waiting for intake…">
-          {analysis.neelIntake ? <VirinIntakeSection intake={analysis.neelIntake} /> : null}
+          <div className="space-y-4">
+            {analysis.status === "AWAITING_INPUT" &&
+            analysis.pendingQuestionStage === "INTAKE" ? (
+              <VirinConversationPanel
+                analysis={analysis}
+                onAnswer={handlers.onAnswer}
+                onConfirm={handlers.onConfirm}
+                busy={handlers.interactionBusy}
+                prominent
+              />
+            ) : null}
+            {analysis.neelIntake ? <VirinIntakeSection intake={analysis.neelIntake} /> : null}
+          </div>
         </StagePanel>
       );
     case "QUESTION_MODE":
@@ -183,12 +239,24 @@ function renderStageContent(stageId, analysis, handlers) {
     case "COMPETITOR_ANALYSIS":
       return (
         <StagePanel stageId={stageId} analysis={analysis}>
-          {analysis.competitorAnalysis ? (
-            <CompetitorAnalysisSection
-              competitorAnalysis={analysis.competitorAnalysis}
-              expanded
-            />
-          ) : null}
+          <div className="space-y-4">
+            {analysis.status === "AWAITING_INPUT" &&
+            analysis.pendingQuestionStage === "COMPETITOR_ANALYSIS" ? (
+              <VirinConversationPanel
+                analysis={analysis}
+                onAnswer={handlers.onAnswer}
+                onConfirm={handlers.onConfirm}
+                busy={handlers.interactionBusy}
+                prominent
+              />
+            ) : null}
+            {analysis.competitorAnalysis ? (
+              <CompetitorAnalysisSection
+                competitorAnalysis={analysis.competitorAnalysis}
+                expanded
+              />
+            ) : null}
+          </div>
         </StagePanel>
       );
     case "CODEBASE_ANALYSIS":
@@ -272,21 +340,13 @@ export function VirinTicketWorkspace({
   embedded = false,
   isValidating = false,
 }) {
-  const initialStage =
-    analysis?.currentStage ??
-    (analysis?.status === "AWAITING_INPUT"
-      ? "QUESTION_MODE"
-      : analysis?.status === "AWAITING_CONFIRMATION"
-        ? "SOLUTIONING"
-        : "INTAKE");
+  const initialStage = gateStageForAnalysis(analysis);
   const [activeStage, setActiveStage] = useState(initialStage);
   const prevStatusRef = useRef(analysis?.status);
 
   useEffect(() => {
     if (!analysis) return;
-    if (analysis.currentStage) {
-      setActiveStage(analysis.currentStage);
-    }
+    setActiveStage(gateStageForAnalysis(analysis));
   }, [analysis?.jiraKey]);
 
   useEffect(() => {
@@ -294,9 +354,10 @@ export function VirinTicketWorkspace({
     const prev = prevStatusRef.current;
     prevStatusRef.current = analysis.status;
     if (prev === analysis.status) return;
-    if (analysis.status === "AWAITING_INPUT") setActiveStage("QUESTION_MODE");
-    if (analysis.status === "AWAITING_CONFIRMATION") setActiveStage("SOLUTIONING");
-  }, [analysis?.status, analysis?.jiraKey]);
+    if (analysis.status === "AWAITING_INPUT" || analysis.status === "AWAITING_CONFIRMATION") {
+      setActiveStage(gateStageForAnalysis(analysis));
+    }
+  }, [analysis?.status, analysis?.pendingQuestionStage, analysis?.jiraKey]);
 
   if (!analysis) {
     return (
@@ -406,6 +467,14 @@ export function VirinTicketWorkspace({
         {intakeRunning ? (
           <StageSkeleton label={`${VIRIN_NAME} is reading the ticket (Stage 1)…`} />
         ) : null}
+
+        {analysis.status === "RUNNING" &&
+        analysis.currentStage === "QUESTION_MODE" &&
+        !analysis.questionMode?.conversation?.length ? (
+          <StageSkeleton label={`${VIRIN_NAME} is preparing the first discovery question…`} />
+        ) : null}
+
+        <AwaitingInputBanner analysis={analysis} handlers={handlers} />
 
         {analysis.status === "FAILED" && analysis.error ? (
           <Panel>
