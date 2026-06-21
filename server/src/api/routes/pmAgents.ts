@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { Router, type Request } from "express";
 import { getTechAgentHandoff } from "../../agents/pm/handoff";
 import { buildPmPipelineContext } from "../../agents/pm/pmPipelineContext";
 import {
@@ -29,6 +29,10 @@ import {
 } from "../../agents/pm/backgroundRunner";
 
 const router = Router();
+
+function backgroundOrgFromRequest(req: Request): string | undefined {
+  return resolveUserFromAuthHeader(req)?.organizationId ?? undefined;
+}
 
 router.get("/analysis/:ticketId/export", (req, res, next) => {
   try {
@@ -102,8 +106,10 @@ router.post("/analyze/:ticketId/resume", async (req, res, next) => {
       throw new ValidationError("Could not determine which stage to resume from");
     }
 
-    startPmAnalysisInBackground(jiraKey, () =>
-      runPmAnalysisPipeline({ jiraKey, resumeFrom })
+    startPmAnalysisInBackground(
+      jiraKey,
+      () => runPmAnalysisPipeline({ jiraKey, resumeFrom }),
+      { organizationId: backgroundOrgFromRequest(req) }
     );
 
     res.status(202).json({
@@ -123,7 +129,11 @@ router.post("/analyze/:ticketId/answer", async (req, res, next) => {
     const answer = String(req.body?.answer ?? "").trim();
     if (!answer) throw new ValidationError("answer is required");
 
-    startPmAnalysisInBackground(jiraKey, () => submitVirinAnswer(jiraKey, answer));
+    startPmAnalysisInBackground(
+      jiraKey,
+      () => submitVirinAnswer(jiraKey, answer),
+      { organizationId: backgroundOrgFromRequest(req) }
+    );
 
     res.status(202).json({
       jiraKey,
@@ -141,8 +151,10 @@ router.post("/analyze/:ticketId/confirm", async (req, res, next) => {
     const confirmed = req.body?.confirmed !== false;
     const feedback = req.body?.feedback ? String(req.body.feedback) : undefined;
 
-    startPmAnalysisInBackground(jiraKey, () =>
-      confirmVirinSolution(jiraKey, confirmed, feedback)
+    startPmAnalysisInBackground(
+      jiraKey,
+      () => confirmVirinSolution(jiraKey, confirmed, feedback),
+      { organizationId: backgroundOrgFromRequest(req) }
     );
 
     res.status(202).json({
@@ -177,12 +189,15 @@ router.post("/analyze/:ticketId", async (req, res, next) => {
       ticket?: Partial<PmTicketInput>;
       mode?: "interactive" | "auto";
     } | undefined;
-    startPmAnalysisInBackground(jiraKey, () =>
-      runPmAnalysisPipeline({
-        jiraKey,
-        ticket: body?.ticket,
-        mode: body?.mode ?? "interactive",
-      })
+    startPmAnalysisInBackground(
+      jiraKey,
+      () =>
+        runPmAnalysisPipeline({
+          jiraKey,
+          ticket: body?.ticket,
+          mode: body?.mode ?? "interactive",
+        }),
+      { organizationId: backgroundOrgFromRequest(req) }
     );
 
     res.status(202).json({

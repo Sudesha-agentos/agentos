@@ -139,7 +139,12 @@ export async function tryIntakeEnqueue(
       (rootIssue.fields as { status?: { name?: string } }).status?.name ?? "";
     const configuredStatuses = await getAiWorkerIntakeStatusesLive();
     const liveColumnStatuses = await getLiveAiWorkerColumnStatuses();
-    if (!(await isIssueInAiWorkerIntake(rootStatus))) {
+    const engineeringIntake = Boolean(pmContext);
+
+    if (
+      !engineeringIntake &&
+      !(await isIssueInAiWorkerIntake(rootStatus))
+    ) {
       await recordSkip(
         jiraKey,
         source,
@@ -181,8 +186,6 @@ export async function tryIntakeEnqueue(
     const batchItems: Array<{ ticketId: string; jiraKey: string }> = [];
     let skipped = 0;
     let virinStarted = 0;
-
-    const engineeringIntake = Boolean(pmContext);
 
     logger.info(
       {
@@ -227,7 +230,10 @@ export async function tryIntakeEnqueue(
 
         const issueStatus =
           (issue.fields as { status?: { name?: string } }).status?.name ?? "";
-        if (!(await isIssueInAiWorkerIntake(issueStatus))) {
+        if (
+          !engineeringIntake &&
+          !(await isIssueInAiWorkerIntake(issueStatus))
+        ) {
           skipped += 1;
           await recordSkip(
             taskKey,
@@ -289,18 +295,21 @@ export async function tryIntakeEnqueue(
               isPmAnalysisRunning(normalized.jiraKey));
 
           if (!virinActive && existingVirin?.status !== "COMPLETED") {
-            startPmAnalysisInBackground(normalized.jiraKey, () =>
-              runPmAnalysisPipeline({
-                jiraKey: normalized.jiraKey,
-                mode: "interactive",
-                ticket: {
+            startPmAnalysisInBackground(
+              normalized.jiraKey,
+              () =>
+                runPmAnalysisPipeline({
                   jiraKey: normalized.jiraKey,
-                  summary: normalized.summary,
-                  description: normalized.description,
-                  components: normalized.components ?? [],
-                  issueType: normalized.issueType,
-                },
-              })
+                  mode: "interactive",
+                  ticket: {
+                    jiraKey: normalized.jiraKey,
+                    summary: normalized.summary,
+                    description: normalized.description,
+                    components: normalized.components ?? [],
+                    issueType: normalized.issueType,
+                  },
+                }),
+              { organizationId: getActiveOrganizationId() ?? undefined }
             );
             virinStarted += 1;
             await recordIntakeEvent({

@@ -1,11 +1,18 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { PM_STAGE_LABELS, PM_STAGE_ORDER, VIRIN_NAME } from "../../entities/pm-agents";
+import {
+  PM_STAGE_LABELS,
+  PM_STAGE_ORDER,
+  VIRIN_NAME,
+  getDiscoveryQuestionProgress,
+  getIntakeClarifyingProgress,
+} from "../../entities/pm-agents";
 import { usePipelineList } from "../../entities/pipeline";
 import { Panel, PanelHeader } from "../../shared/ui/Panel";
 import { VirinStatusBadge, VirinTicketTypeBadge } from "./VirinStatusBadge";
 import { VirinStageStepper } from "./VirinStageStepper";
 import {
+  DiscoveryQuestionProgress,
   VirinCodebaseSection,
   VirinConversationPanel,
   VirinDiscoverySection,
@@ -108,7 +115,7 @@ function TaskStageContent({ taskBreakdown }) {
 
 function SolutionStageContent({ analysis }) {
   const sol = analysis.solutioning;
-  if (!sol) return null;
+  if (!sol || analysis.status === "AWAITING_CONFIRMATION") return null;
   return (
     <Panel>
       <PanelHeader kicker="Stage 7" title="Solution direction" />
@@ -180,10 +187,18 @@ function AwaitingInputBanner({ analysis, handlers }) {
         }
         subtitle={
           analysis.status === "AWAITING_INPUT"
-            ? `${PM_STAGE_LABELS[gateStageForAnalysis(analysis)] ?? "Next stage"} is waiting on an answer.`
+            ? getIntakeClarifyingProgress(analysis)?.label ??
+              getDiscoveryQuestionProgress(analysis)?.label ??
+              `${PM_STAGE_LABELS[gateStageForAnalysis(analysis)] ?? "Next stage"} is waiting on an answer.`
             : "Review the recommended approach and confirm or revise."
         }
       />
+      {analysis.status === "AWAITING_INPUT" &&
+      (getDiscoveryQuestionProgress(analysis) || getIntakeClarifyingProgress(analysis)) ? (
+        <div className="border-b border-app-border px-5 py-3 sm:px-6">
+          <DiscoveryQuestionProgress analysis={analysis} />
+        </div>
+      ) : null}
       <div className="px-5 py-4 sm:px-6">
         <VirinConversationPanel
           analysis={analysis}
@@ -203,16 +218,6 @@ function renderStageContent(stageId, analysis, handlers) {
       return (
         <StagePanel stageId={stageId} analysis={analysis} pendingLabel="Waiting for intake…">
           <div className="space-y-4">
-            {analysis.status === "AWAITING_INPUT" &&
-            analysis.pendingQuestionStage === "INTAKE" ? (
-              <VirinConversationPanel
-                analysis={analysis}
-                onAnswer={handlers.onAnswer}
-                onConfirm={handlers.onConfirm}
-                busy={handlers.interactionBusy}
-                prominent
-              />
-            ) : null}
             {analysis.neelIntake ? <VirinIntakeSection intake={analysis.neelIntake} /> : null}
           </div>
         </StagePanel>
@@ -222,16 +227,11 @@ function renderStageContent(stageId, analysis, handlers) {
         <StagePanel stageId={stageId} analysis={analysis} pendingLabel="Discovery conversation pending…">
           {(analysis.questionMode || analysis.status === "AWAITING_INPUT") && (
             <div className="space-y-4">
-              {analysis.status === "AWAITING_INPUT" ? (
-                <VirinConversationPanel
-                  analysis={analysis}
-                  onAnswer={handlers.onAnswer}
-                  onConfirm={handlers.onConfirm}
-                  busy={handlers.interactionBusy}
-                  prominent
-                />
-              ) : null}
-              <VirinDiscoverySection questionMode={analysis.questionMode} expanded />
+              <VirinDiscoverySection
+                questionMode={analysis.questionMode}
+                analysis={analysis}
+                expanded
+              />
             </div>
           )}
         </StagePanel>
@@ -240,16 +240,6 @@ function renderStageContent(stageId, analysis, handlers) {
       return (
         <StagePanel stageId={stageId} analysis={analysis}>
           <div className="space-y-4">
-            {analysis.status === "AWAITING_INPUT" &&
-            analysis.pendingQuestionStage === "COMPETITOR_ANALYSIS" ? (
-              <VirinConversationPanel
-                analysis={analysis}
-                onAnswer={handlers.onAnswer}
-                onConfirm={handlers.onConfirm}
-                busy={handlers.interactionBusy}
-                prominent
-              />
-            ) : null}
             {analysis.competitorAnalysis ? (
               <CompetitorAnalysisSection
                 competitorAnalysis={analysis.competitorAnalysis}
@@ -282,18 +272,14 @@ function renderStageContent(stageId, analysis, handlers) {
     case "SOLUTIONING":
       return (
         <StagePanel stageId={stageId} analysis={analysis}>
-          <div className="space-y-4">
-            {analysis.status === "AWAITING_CONFIRMATION" ? (
-              <VirinConversationPanel
-                analysis={analysis}
-                onAnswer={handlers.onAnswer}
-                onConfirm={handlers.onConfirm}
-                busy={handlers.interactionBusy}
-                prominent
-              />
-            ) : null}
+          {analysis.status === "AWAITING_CONFIRMATION" ? (
+            <p className="text-[13px] text-app-ink-dim">
+              Use the confirmation panel above to approve or revise this direction before PRD
+              generation.
+            </p>
+          ) : (
             <SolutionStageContent analysis={analysis} />
-          </div>
+          )}
         </StagePanel>
       );
     case "PRD":
@@ -502,7 +488,25 @@ export function VirinTicketWorkspace({
           <PanelHeader
             kicker={`Stage ${stageIndex(activeStage) + 1}`}
             title={PM_STAGE_LABELS[activeStage]}
+            subtitle={
+              activeStage === "QUESTION_MODE"
+                ? getDiscoveryQuestionProgress(analysis)?.label
+                : undefined
+            }
+            right={
+              activeStage === "QUESTION_MODE" &&
+              getDiscoveryQuestionProgress(analysis)?.shortLabel ? (
+                <span className="font-mono text-[11px] text-app-ink-mute">
+                  {getDiscoveryQuestionProgress(analysis).shortLabel}
+                </span>
+              ) : null
+            }
           />
+          {activeStage === "QUESTION_MODE" ? (
+            <div className="border-b border-app-border px-5 py-3 sm:px-6">
+              <DiscoveryQuestionProgress analysis={analysis} />
+            </div>
+          ) : null}
           <div className="px-5 py-5 sm:px-6">
             {renderStageContent(activeStage, analysis, handlers)}
           </div>

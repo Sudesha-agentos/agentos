@@ -1,4 +1,4 @@
-import { PM_STAGE_LABELS, PM_STAGE_ORDER } from "../../entities/pm-agents";
+import { PM_STAGE_LABELS, PM_STAGE_ORDER, getDiscoveryQuestionProgress } from "../../entities/pm-agents";
 
 export function VirinStageStepper({
   analysis,
@@ -20,6 +20,8 @@ export function VirinStageStepper({
     if (meta.some((m) => m.stage === stage && m.status === "COMPLETED")) return "done";
     return "pending";
   };
+
+  const discoveryProgress = getDiscoveryQuestionProgress(analysis);
 
   if (compact) {
     const idx = current ? PM_STAGE_ORDER.indexOf(current) : -1;
@@ -90,15 +92,17 @@ export function VirinStageStepper({
                   {PM_STAGE_LABELS[stage]}
                 </p>
                 <p className="mt-0.5 font-mono text-[10px] text-app-ink-mute">
-                  {state === "active"
-                    ? "In progress"
-                    : state === "waiting"
-                      ? "Needs you"
-                      : state === "done"
-                        ? "Done"
-                        : state === "failed"
-                          ? "Failed"
-                          : "—"}
+                  {stage === "QUESTION_MODE" && discoveryProgress?.shortLabel
+                    ? `${discoveryProgress.shortLabel} questions`
+                    : state === "active"
+                      ? "In progress"
+                      : state === "waiting"
+                        ? "Needs you"
+                        : state === "done"
+                          ? "Done"
+                          : state === "failed"
+                            ? "Failed"
+                            : "—"}
                 </p>
               </div>
             </button>

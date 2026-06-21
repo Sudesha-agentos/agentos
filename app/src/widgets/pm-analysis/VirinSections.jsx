@@ -1,24 +1,75 @@
 import { useState } from "react";
 import { Panel, PanelHeader } from "../../shared/ui/Panel";
-import { VIRIN_NAME } from "../../entities/pm-agents";
+import {
+  VIRIN_NAME,
+  getDiscoveryQuestionProgress,
+  getIntakeClarifyingProgress,
+  VIRIN_MAX_DISCOVERY_TURNS,
+} from "../../entities/pm-agents";
+
+export function DiscoveryQuestionProgress({ analysis, compact = false }) {
+  const discovery = getDiscoveryQuestionProgress(analysis);
+  const intake = getIntakeClarifyingProgress(analysis);
+  const progress = intake ?? discovery;
+  if (!progress) return null;
+
+  const pct = progress.max
+    ? Math.min(100, Math.round((progress.current / progress.max) * 100))
+    : 0;
+
+  if (compact) {
+    return (
+      <span className="font-mono text-[10px] text-app-ink-mute">{progress.shortLabel}</span>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between gap-2 text-[11px]">
+        <span className="text-app-ink-dim">{progress.label}</span>
+        <span className="font-mono text-app-ink-mute">{progress.shortLabel}</span>
+      </div>
+      <div className="h-1.5 overflow-hidden rounded-full bg-app-surface-muted">
+        <div
+          className="h-full rounded-full bg-indigo transition-all duration-300"
+          style={{ width: `${Math.max(pct, progress.current > 0 ? 8 : 4)}%` }}
+        />
+      </div>
+    </div>
+  );
+}
 
 export function VirinConversationPanel({ analysis, onAnswer, onConfirm, busy, prominent = false }) {
   const status = analysis?.status;
   const pendingQuestion = analysis?.pendingQuestion;
+  const intakeProgress = getIntakeClarifyingProgress(analysis);
+  const discoveryProgress = getDiscoveryQuestionProgress(analysis);
 
   if (status === "AWAITING_INPUT" && pendingQuestion) {
+    const isIntake = analysis.pendingQuestionStage === "INTAKE";
+    const turnNumber = isIntake
+      ? 1
+      : (analysis?.questionMode?.conversation?.length ?? 0) + 1;
+    const maxTurns = isIntake ? intakeProgress?.max ?? 1 : VIRIN_MAX_DISCOVERY_TURNS;
+
     return (
       <VirinInputPanel
         prominent={prominent}
         kicker={`${VIRIN_NAME} asks`}
-        title="One question at a time"
+        title={isIntake ? "Clarify ticket type" : "Discovery question"}
+        subtitle={
+          isIntake
+            ? intakeProgress?.label
+            : discoveryProgress?.label ?? `Question ${turnNumber} of up to ${maxTurns}`
+        }
         prompt={pendingQuestion}
         options={analysis?.pendingQuestionOptions}
         placeholder="Type your answer…"
         submitLabel="Send answer"
         onSubmit={onAnswer}
         busy={busy}
-        turnNumber={(analysis?.questionMode?.conversation?.length ?? 0) + 1}
+        turnNumber={turnNumber}
+        maxTurns={maxTurns}
       />
     );
   }
@@ -28,7 +79,7 @@ export function VirinConversationPanel({ analysis, onAnswer, onConfirm, busy, pr
     return (
       <Panel className={prominent ? "border-warning/25 shadow-lg" : ""}>
         <PanelHeader
-          kicker="Gate · Stage 4"
+          kicker="Gate · Stage 7"
           title="Confirm solution direction"
           subtitle={`${VIRIN_NAME} won't write the full PRD until you align on this approach.`}
         />
@@ -41,7 +92,7 @@ export function VirinConversationPanel({ analysis, onAnswer, onConfirm, busy, pr
           <div className="rounded-app-sm border border-app-border bg-app-surface-muted/30 p-4">
             <p className="type-kicker mb-2">Recommended approach</p>
             <div className="whitespace-pre-wrap text-[14px] leading-relaxed text-app-ink-dim">
-              {sol.recommendedApproach}
+              {sol.summaryMarkdown ?? sol.recommendedApproach}
             </div>
           </div>
           {(sol.businessFit || sol.revenueImpact) && (
@@ -131,6 +182,7 @@ const OTHER_OPTION_ID = "__other__";
 function VirinInputPanel({
   kicker,
   title,
+  subtitle,
   prompt,
   options = [],
   placeholder,
@@ -139,6 +191,7 @@ function VirinInputPanel({
   busy,
   prominent,
   turnNumber,
+  maxTurns,
 }) {
   const [selectedId, setSelectedId] = useState(null);
   const [otherValue, setOtherValue] = useState("");
@@ -165,8 +218,13 @@ function VirinInputPanel({
       <PanelHeader
         kicker={kicker}
         title={title}
+        subtitle={subtitle}
         right={
-          turnNumber ? (
+          turnNumber && maxTurns ? (
+            <span className="font-mono text-[11px] text-app-ink-mute">
+              {turnNumber}/{maxTurns}
+            </span>
+          ) : turnNumber ? (
             <span className="font-mono text-[11px] text-app-ink-mute">Turn {turnNumber}</span>
           ) : null
         }
@@ -272,11 +330,17 @@ function VirinInputPanel({
   );
 }
 
-export function VirinDiscoverySection({ questionMode, expanded = false }) {
+export function VirinDiscoverySection({ questionMode, analysis, expanded = false }) {
+  const discoveryProgress = analysis ? getDiscoveryQuestionProgress(analysis) : null;
+
   if (!questionMode?.conversation?.length && !questionMode?.discoverySummary) {
     return (
       <Panel>
-        <PanelHeader kicker="Stage 2" title="Discovery" />
+        <PanelHeader
+          kicker="Stage 2"
+          title="Discovery"
+          subtitle={`Up to ${VIRIN_MAX_DISCOVERY_TURNS} questions, one at a time`}
+        />
         <p className="px-5 py-8 text-center text-[13px] text-app-ink-dim sm:px-6">
           Discovery conversation will appear here as {VIRIN_NAME} asks questions.
         </p>
@@ -293,13 +357,22 @@ export function VirinDiscoverySection({ questionMode, expanded = false }) {
       <PanelHeader
         kicker="Stage 2"
         title="Discovery conversation"
+        subtitle={
+          discoveryProgress?.label ??
+          `${questionMode.conversation.length} of up to ${VIRIN_MAX_DISCOVERY_TURNS} questions`
+        }
         right={
           <span className="font-mono text-[11px] text-app-ink-mute">
-            {questionMode.conversation.length} turn
-            {questionMode.conversation.length === 1 ? "" : "s"}
+            {discoveryProgress?.shortLabel ??
+              `${questionMode.conversation.length}/${VIRIN_MAX_DISCOVERY_TURNS}`}
           </span>
         }
       />
+      {analysis ? (
+        <div className="border-b border-app-border px-5 py-3 sm:px-6">
+          <DiscoveryQuestionProgress analysis={analysis} />
+        </div>
+      ) : null}
       <ol className="divide-y divide-app-border">
         {visibleTurns.map((turn, i) => {
           const globalIdx = expanded

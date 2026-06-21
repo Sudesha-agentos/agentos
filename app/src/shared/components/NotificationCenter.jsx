@@ -1,12 +1,29 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { usePipelineList, usePipelineLive } from "../../entities/pipeline";
-import { useActivityEvents } from "../../entities/workspace";
+import {
+  clearActivityEvents,
+  dismissActivityEvent,
+  useActivityEvents,
+} from "../../entities/workspace";
 import { deriveReviewQueueItems } from "../../shared/lib/pipelineCounts";
 import { useOrgPathBuilder } from "../providers/OrgRouteProvider";
 import { formatRelativeTime } from "../lib/format";
 import StageRail from "./StageRail";
 import StatusPill from "../../app/components/StatusPill";
+
+function NotificationDismissButton({ onDismiss, className = "" }) {
+  return (
+    <button
+      type="button"
+      onClick={onDismiss}
+      className={`shrink-0 rounded-full p-1 text-app-ink-mute opacity-0 transition hover:bg-app-surface-muted hover:text-app-ink group-hover:opacity-100 focus:opacity-100 ${className}`}
+      aria-label="Clear notification"
+    >
+      ×
+    </button>
+  );
+}
 
 /**
  * Top-bar notifications — review queue items plus recent pipeline activity.
@@ -14,18 +31,21 @@ import StatusPill from "../../app/components/StatusPill";
 export default function NotificationCenter() {
   const orgPath = useOrgPathBuilder();
   const [open, setOpen] = useState(false);
+  const [clearing, setClearing] = useState(false);
+  const [dismissedLocal, setDismissedLocal] = useState(() => new Set());
   const panelRef = useRef(null);
   const { items: pipelines } = usePipelineList(undefined, { pollMs: 30_000 });
   const { active: liveActive } = usePipelineLive({ pollMs: 3000 });
-  const { data: eventsData } = useActivityEvents({ pollMs: 12_000 });
+  const { data: eventsData, refetch } = useActivityEvents({ pollMs: 12_000 });
   const reviewItems = deriveReviewQueueItems(pipelines);
-  const events = eventsData?.events ?? [];
+  const events = (eventsData?.events ?? []).filter((event) => !dismissedLocal.has(event.id));
   const intakeEvents = events.filter(
     (e) => e.outcome != null || e.tone === "intake" || e.source
   );
   const pipelineEvents = events.filter(
     (e) => !(e.outcome != null || e.source) && e.tone !== "intake"
   );
+  const dismissableIds = [...intakeEvents, ...pipelineEvents].map((event) => event.id);
   const totalCount =
     reviewItems.length +
     intakeEvents.length +
@@ -49,6 +69,40 @@ export default function NotificationCenter() {
       document.removeEventListener("keydown", onKey);
     };
   }, [open]);
+
+  async function handleDismiss(id, e) {
+    e.preventDefault();
+    e.stopPropagation();
+    setDismissedLocal((prev) => new Set([...prev, id]));
+    try {
+      await dismissActivityEvent(id);
+      await refetch();
+    } catch {
+      setDismissedLocal((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+    }
+  }
+
+  async function handleClearAll() {
+    if (!dismissableIds.length || clearing) return;
+    setClearing(true);
+    setDismissedLocal((prev) => new Set([...prev, ...dismissableIds]));
+    try {
+      await clearActivityEvents(dismissableIds);
+      await refetch();
+    } catch {
+      setDismissedLocal((prev) => {
+        const next = new Set(prev);
+        for (const id of dismissableIds) next.delete(id);
+        return next;
+      });
+    } finally {
+      setClearing(false);
+    }
+  }
 
   return (
     <div className="relative" ref={panelRef}>
@@ -75,9 +129,21 @@ export default function NotificationCenter() {
 
       {open ? (
         <div className="absolute right-0 top-full z-50 mt-2 w-[min(22rem,calc(100vw-2rem))] overflow-hidden rounded-app border border-app-border bg-app-surface shadow-app-float">
-          <div className="border-b border-app-border px-4 py-3">
-            <p className="text-sm font-semibold text-app-ink">Notifications</p>
-            <p className="mt-0.5 text-xs text-app-ink-mute">Review queue and recent activity</p>
+          <div className="flex items-start justify-between gap-3 border-b border-app-border px-4 py-3">
+            <div>
+              <p className="text-sm font-semibold text-app-ink">Notifications</p>
+              <p className="mt-0.5 text-xs text-app-ink-mute">Review queue and recent activity</p>
+            </div>
+            {dismissableIds.length > 0 ? (
+              <button
+                type="button"
+                onClick={() => void handleClearAll()}
+                disabled={clearing}
+                className="shrink-0 text-[11px] font-medium text-app-ink-dim hover:text-app-ink disabled:opacity-50"
+              >
+                {clearing ? "Clearing…" : "Clear all"}
+              </button>
+            ) : null}
           </div>
 
           <div className="max-h-[min(24rem,60vh)] overflow-y-auto">
@@ -191,11 +257,11 @@ export default function NotificationCenter() {
               ) : (
                 <ul className="space-y-1.5">
                   {intakeEvents.slice(0, 8).map((event) => (
-                    <li key={event.id}>
+                    <li key={event.id} className="group flex items-start gap-1">
                       <Link
                         to={orgPath("pipelines")}
                         onClick={() => setOpen(false)}
-                        className="flex items-start gap-2 rounded-app-sm px-2 py-1.5 transition hover:bg-app-surface-muted"
+                        className="flex min-w-0 flex-1 items-start gap-2 rounded-app-sm px-2 py-1.5 transition hover:bg-app-surface-muted"
                       >
                         <span
                           className={`mt-1.5 size-2 shrink-0 rounded-full ${
@@ -225,6 +291,9 @@ export default function NotificationCenter() {
                           </p>
                         </div>
                       </Link>
+                      <NotificationDismissButton
+                        onDismiss={(e) => void handleDismiss(event.id, e)}
+                      />
                     </li>
                   ))}
                 </ul>
@@ -240,7 +309,7 @@ export default function NotificationCenter() {
               ) : (
                 <ul className="space-y-1.5">
                   {pipelineEvents.slice(0, 6).map((event) => (
-                    <li key={event.id}>
+                    <li key={event.id} className="group flex items-start gap-1">
                       <Link
                         to={
                           event.pipelineId
@@ -248,7 +317,7 @@ export default function NotificationCenter() {
                             : orgPath("pipelines")
                         }
                         onClick={() => setOpen(false)}
-                        className="flex items-start gap-2 rounded-app-sm px-2 py-1.5 transition hover:bg-app-surface-muted"
+                        className="flex min-w-0 flex-1 items-start gap-2 rounded-app-sm px-2 py-1.5 transition hover:bg-app-surface-muted"
                       >
                         <span
                           className={`mt-1.5 size-2 shrink-0 rounded-full ${
@@ -266,6 +335,9 @@ export default function NotificationCenter() {
                           </p>
                         </div>
                       </Link>
+                      <NotificationDismissButton
+                        onDismiss={(e) => void handleDismiss(event.id, e)}
+                      />
                     </li>
                   ))}
                 </ul>

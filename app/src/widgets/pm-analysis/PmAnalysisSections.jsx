@@ -617,7 +617,7 @@ export function PmAnalysisOutputs({
       busy={interactionBusy}
     />,
     <VirinIntakeSection key="intake" intake={analysis.neelIntake} />,
-    <VirinDiscoverySection key="discovery" questionMode={analysis.questionMode} />,
+    <VirinDiscoverySection key="discovery" questionMode={analysis.questionMode} analysis={analysis} />,
     <CompetitorAnalysisSection key="competitors" competitorAnalysis={analysis.competitorAnalysis} />,
     <VirinCodebaseSection key="codebase" analysis={analysis.codebaseAnalysis} />,
     analysis.solutioning?.humanConfirmed || analysis.status === "COMPLETED" ? (

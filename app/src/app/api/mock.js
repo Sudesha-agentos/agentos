@@ -14,6 +14,8 @@ function markUsed() {
   used = true;
 }
 
+const mockDismissedActivityIds = new Set();
+
 const now = Date.now();
 const minutes = (n) => new Date(now - n * 60 * 1000).toISOString();
 
@@ -1469,7 +1471,23 @@ export const mockApi = {
   async activityEvents() {
     markUsed();
     await delay(80);
-    return MOCK_ACTIVITY;
+    return {
+      events: MOCK_ACTIVITY.events.filter((event) => !mockDismissedActivityIds.has(event.id)),
+    };
+  },
+  async dismissActivityEvent(id) {
+    markUsed();
+    await delay(40);
+    if (id) mockDismissedActivityIds.add(id);
+    return { ok: true, id };
+  },
+  async clearActivityEvents(ids = []) {
+    markUsed();
+    await delay(40);
+    for (const id of ids) {
+      if (id) mockDismissedActivityIds.add(id);
+    }
+    return { ok: true, dismissed: ids.length };
   },
   async cycleTrend() {
     markUsed();
