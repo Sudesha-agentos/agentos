@@ -21,10 +21,18 @@ import {
   runProductValidation,
   type ComputedDiscoveryScores,
 } from "./scoring";
+import {
+  buildPersistedRetrievalContext,
+  type DiscoveryPauseSnapshot,
+  type DiscoveryQuestion,
+  type PersistedContextItem,
+} from "./persistedContext";
 
 const BLOCKING_GAP_THRESHOLD = Number(
-  process.env.DISCOVERY_BLOCKING_GAP_THRESHOLD ?? "5"
+  process.env.DISCOVERY_BLOCKING_GAP_THRESHOLD ?? "2"
 );
+const PAUSE_ON_AMBIGUITIES =
+  process.env.DISCOVERY_PAUSE_ON_AMBIGUITIES !== "false";
 
 export interface DiscoveryResult {
   ticketAnalysis: TicketAnalysis;
@@ -39,6 +47,7 @@ export interface DiscoveryResult {
     query: string;
     resultsFound: number;
   }>;
+  retrievalContext: PersistedContextItem[];
   totalTokensUsed: number;
   totalCostUsd: number;
   durationMs: number;
@@ -47,11 +56,34 @@ export interface DiscoveryResult {
 export class DiscoveryPausedError extends Error {
   constructor(
     message: string,
-    public readonly blockingGaps: number
+    public readonly blockingGaps: number,
+    public readonly snapshot?: DiscoveryPauseSnapshot
   ) {
     super(message);
     this.name = "DiscoveryPausedError";
   }
+}
+
+function buildDiscoveryQuestions(
+  ticketAnalysis: TicketAnalysis
+): DiscoveryQuestion[] {
+  return ticketAnalysis.ambiguities
+    .filter((a) => a.impact === "blocking" || a.impact === "high")
+    .map((a) => ({
+      question: a.question,
+      description: a.description,
+      impact: a.impact,
+    }));
+}
+
+async function pauseDiscovery(
+  pipelineId: string,
+  message: string,
+  blockingGaps: number,
+  snapshot: DiscoveryPauseSnapshot
+): Promise<never> {
+  await stateManager.pauseForHuman(pipelineId, "PRODUCT_AGENT", message);
+  throw new DiscoveryPausedError(message, blockingGaps, snapshot);
 }
 
 export async function runDiscovery(
@@ -85,6 +117,7 @@ export async function runDiscovery(
   });
 
   const historicalContext = unified.retrievedContext;
+  const retrievalContext = buildPersistedRetrievalContext(unified);
   await auditRepo.log(pipelineId, "CONTEXT_RETRIEVED", {
     chunksFound: historicalContext.length,
     codebaseHits: unified.items.filter((i) => i.kind === "codebase").length,
@@ -104,6 +137,21 @@ export async function runDiscovery(
     requirementsFound: ticketAnalysis.atomicRequirements.length,
     ambiguities: ticketAnalysis.ambiguities.length,
   });
+
+  const discoveryQuestions = buildDiscoveryQuestions(ticketAnalysis);
+  if (PAUSE_ON_AMBIGUITIES && discoveryQuestions.length > 0) {
+    await pauseDiscovery(
+      pipelineId,
+      `Discovery needs clarification (${discoveryQuestions.length} question${discoveryQuestions.length === 1 ? "" : "s"}).`,
+      discoveryQuestions.length,
+      {
+        ticketAnalysis,
+        retrievalContext,
+        discoveryQuestions,
+        pauseReason: "ambiguities",
+      }
+    );
+  }
 
   await auditRepo.log(pipelineId, "DISCOVERY_STEP_STARTED", {
     step: "historical_intelligence",
@@ -139,15 +187,36 @@ export async function runDiscovery(
     readiness: gapAnalysis.readinessForPRD,
   });
 
-  if (gapAnalysis.blockingGaps > BLOCKING_GAP_THRESHOLD) {
-    await stateManager.pauseForHuman(
+  if (
+    gapAnalysis.readinessForPRD === "needs-clarification" &&
+    gapAnalysis.blockingGaps > 0
+  ) {
+    await pauseDiscovery(
       pipelineId,
-      "PRODUCT_AGENT",
-      `Too many blocking gaps (${gapAnalysis.blockingGaps}). Human clarification required.`
+      `PRD needs clarification (${gapAnalysis.blockingGaps} blocking gap${gapAnalysis.blockingGaps === 1 ? "" : "s"}).`,
+      gapAnalysis.blockingGaps,
+      {
+        ticketAnalysis,
+        historicalIntelligence,
+        gapAnalysis,
+        retrievalContext,
+        pauseReason: "needs_clarification",
+      }
     );
-    throw new DiscoveryPausedError(
+  }
+
+  if (gapAnalysis.blockingGaps > BLOCKING_GAP_THRESHOLD) {
+    await pauseDiscovery(
+      pipelineId,
       `Too many blocking gaps (${gapAnalysis.blockingGaps}). Human clarification required.`,
-      gapAnalysis.blockingGaps
+      gapAnalysis.blockingGaps,
+      {
+        ticketAnalysis,
+        historicalIntelligence,
+        gapAnalysis,
+        retrievalContext,
+        pauseReason: "blocking_gaps",
+      }
     );
   }
 
@@ -253,6 +322,7 @@ export async function runDiscovery(
     prdOutput,
     scores,
     toolCallLog,
+    retrievalContext,
     totalTokensUsed: merged.inputTokens + merged.outputTokens,
     totalCostUsd: merged.costUsd,
     durationMs,

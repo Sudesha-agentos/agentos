@@ -19,7 +19,6 @@ import {
 import { useJiraSyncIssues } from "../../entities/jira-sync";
 import { usePipelineIntakeTickets } from "../../entities/pipeline-jira";
 import { VirinWorkspace } from "../../widgets/pm-analysis/VirinWorkspace";
-import { VirinStageStepper } from "../../widgets/pm-analysis/VirinStageStepper";
 import { AgentPageWithChat } from "../../widgets/agent-chat/AgentPageWithChat";
 import { AgentPageHeader } from "../../widgets/agent-chat/AgentPageHeader";
 import VirinPipelineLivePanel from "../../widgets/pm-analysis/VirinPipelineLivePanel";
@@ -43,8 +42,8 @@ export default function PmAgents() {
   const companyConfigured =
     Boolean(companyProfile?.businessContext?.trim()) ||
     Boolean(companyProfile?.companyName?.trim() && companyProfile?.revenueModel?.trim());
-  const { data: analysis, refetch: refetchAnalysis } = usePmAnalysis(activeKey, {
-    pollMs: analyzing ? 2500 : 0,
+  const { data: analysis, refetch: refetchAnalysis, isValidating } = usePmAnalysis(activeKey, {
+    pollMs: analyzing || activeKey ? 2500 : 0,
   });
   const { data: intake } = usePipelineIntakeTickets(true, { pollMs: 30000 });
   const { data: syncedIssues } = useJiraSyncIssues({ limit: 20 });
@@ -182,9 +181,6 @@ export default function PmAgents() {
     setTicketInput(key);
   }
 
-  const showEmptyLoader =
-    isRunning && analysis?.status === "RUNNING" && !analysis?.neelIntake && !needsAttention;
-
   return (
     <AnimatedAppPage wide>
       <AgentPageWithChat domain="virin" contextKey={activeKey ?? ""}>
@@ -284,20 +280,7 @@ export default function PmAgents() {
         )}
       </Panel>
 
-      {showEmptyLoader && (
-        <div className="flex flex-col items-center justify-center gap-4 rounded-app border border-dashed border-app-border py-16">
-          <Spinner />
-          <div className="text-center">
-            <p className="text-sm font-medium text-app-ink">{VIRIN_NAME} is reading the ticket</p>
-            <p className="mt-1 text-[13px] text-app-ink-dim">Stage 1 — intake & classification</p>
-          </div>
-          <div className="w-full max-w-xs px-6">
-            <VirinStageStepper analysis={analysis} compact />
-          </div>
-        </div>
-      )}
-
-      {analysis && !showEmptyLoader && (
+      {(analysis || (isRunning && activeKey)) && (
         <VirinWorkspace
           analysis={analysis}
           historyItems={listData?.items}
@@ -308,19 +291,20 @@ export default function PmAgents() {
           interactionBusy={interactionBusy}
           onRetrospective={handleRetrospective}
           retroRunning={retroRunning}
-          onResume={analysis.status === "FAILED" ? handleResume : undefined}
+          onResume={analysis?.status === "FAILED" ? handleResume : undefined}
           resuming={analyzing}
           onExportPackage={handleExportPackage}
           exportBusy={exportBusy}
           resumeStageLabel={
-            analysis.status === "FAILED"
+            analysis?.status === "FAILED"
               ? PM_STAGE_LABELS[getPmResumeStage(analysis)] ?? null
               : null
           }
+          isValidating={isValidating && Boolean(analysis)}
         />
       )}
 
-      {!analysis && !showEmptyLoader && (
+      {!analysis && !isRunning && (
         <div className="rounded-app border border-dashed border-app-border px-6 py-20 text-center">
           <div className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-indigo/10 font-display text-2xl text-indigo">
             V

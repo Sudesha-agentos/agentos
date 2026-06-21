@@ -23,8 +23,12 @@ import { resolveUserFromAuthHeader } from "./authSession";
 import { withOrganizationContext } from "../orgRequestContext";
 import { NotFoundError, ValidationError } from "../../utils/errors";
 
+import {
+  isPmAnalysisRunning,
+  startPmAnalysisInBackground,
+} from "../../agents/pm/backgroundRunner";
+
 const router = Router();
-const running = new Set<string>();
 
 router.get("/analysis/:ticketId/export", (req, res, next) => {
   try {
@@ -71,20 +75,6 @@ router.get("/analysis/:ticketId", (req, res, next) => {
   }
 });
 
-function startPmAnalysisBackground(
-  jiraKey: string,
-  run: () => Promise<unknown>
-): void {
-  running.add(jiraKey);
-  void run()
-    .catch(() => {
-      /* errors stored on record */
-    })
-    .finally(() => {
-      running.delete(jiraKey);
-    });
-}
-
 router.post("/analyze/:ticketId/resume", async (req, res, next) => {
   try {
     const jiraKey = req.params.ticketId.trim().toUpperCase();
@@ -94,7 +84,7 @@ router.post("/analyze/:ticketId/resume", async (req, res, next) => {
     if (!existing) {
       throw new NotFoundError("PM analysis not found");
     }
-    if (existing.status === "RUNNING" || running.has(jiraKey)) {
+    if (existing.status === "RUNNING" || isPmAnalysisRunning(jiraKey)) {
       res.status(202).json({
         jiraKey,
         status: "RUNNING",
@@ -112,7 +102,7 @@ router.post("/analyze/:ticketId/resume", async (req, res, next) => {
       throw new ValidationError("Could not determine which stage to resume from");
     }
 
-    startPmAnalysisBackground(jiraKey, () =>
+    startPmAnalysisInBackground(jiraKey, () =>
       runPmAnalysisPipeline({ jiraKey, resumeFrom })
     );
 
@@ -133,7 +123,7 @@ router.post("/analyze/:ticketId/answer", async (req, res, next) => {
     const answer = String(req.body?.answer ?? "").trim();
     if (!answer) throw new ValidationError("answer is required");
 
-    startPmAnalysisBackground(jiraKey, () => submitVirinAnswer(jiraKey, answer));
+    startPmAnalysisInBackground(jiraKey, () => submitVirinAnswer(jiraKey, answer));
 
     res.status(202).json({
       jiraKey,
@@ -151,7 +141,7 @@ router.post("/analyze/:ticketId/confirm", async (req, res, next) => {
     const confirmed = req.body?.confirmed !== false;
     const feedback = req.body?.feedback ? String(req.body.feedback) : undefined;
 
-    startPmAnalysisBackground(jiraKey, () =>
+    startPmAnalysisInBackground(jiraKey, () =>
       confirmVirinSolution(jiraKey, confirmed, feedback)
     );
 
@@ -173,7 +163,7 @@ router.post("/analyze/:ticketId", async (req, res, next) => {
     if (!jiraKey) throw new ValidationError("ticketId is required");
 
     const existing = pmAnalysisStore.get(jiraKey);
-    if (existing?.status === "RUNNING" || running.has(jiraKey)) {
+    if (existing?.status === "RUNNING" || isPmAnalysisRunning(jiraKey)) {
       res.status(202).json({
         jiraKey,
         status: "RUNNING",
@@ -187,7 +177,7 @@ router.post("/analyze/:ticketId", async (req, res, next) => {
       ticket?: Partial<PmTicketInput>;
       mode?: "interactive" | "auto";
     } | undefined;
-    startPmAnalysisBackground(jiraKey, () =>
+    startPmAnalysisInBackground(jiraKey, () =>
       runPmAnalysisPipeline({
         jiraKey,
         ticket: body?.ticket,

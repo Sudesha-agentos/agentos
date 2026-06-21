@@ -2,6 +2,11 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { AGENT_NAMES } from "../../shared/config/app";
 import {
+  answerVirinQuestion,
+  confirmVirinDirection,
+  exportProductPackage,
+  getPmResumeStage,
+  resumePmAnalysis,
   runPmRetrospective,
   usePmAnalysis,
   PM_STAGE_LABELS,
@@ -11,7 +16,7 @@ import Spinner from "../../app/components/Spinner";
 import StatusPill from "../../app/components/StatusPill";
 import PmStageRail from "./PmStageRail";
 import { jiraKeyFromPmPipelineId } from "./pipelineIds";
-import { PmAnalysisOutputs } from "./PmAnalysisSections";
+import { VirinTicketWorkspace } from "./VirinTicketWorkspace";
 import { Panel, PanelHeader } from "../../shared/ui/Panel";
 import { useOrgPathBuilder } from "../../shared/providers/OrgRouteProvider";
 
@@ -19,23 +24,71 @@ export default function PmPipelineDetailPanel({ pipelineId, onClose }) {
   const orgPath = useOrgPathBuilder();
   const jiraKey = jiraKeyFromPmPipelineId(pipelineId);
   const [retroRunning, setRetroRunning] = useState(false);
+  const [interactionBusy, setInteractionBusy] = useState(false);
+  const [exportBusy, setExportBusy] = useState(false);
+  const [resuming, setResuming] = useState(false);
 
-  const { data: analysis, loading, refetch } = usePmAnalysis(jiraKey, {
+  const { data: analysis, loading, isValidating, refetch } = usePmAnalysis(jiraKey, {
     pollMs: 2500,
   });
 
   const isRunning = analysis?.status === "RUNNING";
 
+  async function handleAnswer(answer) {
+    setInteractionBusy(true);
+    try {
+      await answerVirinQuestion(jiraKey, answer);
+      await refetch();
+    } finally {
+      setInteractionBusy(false);
+    }
+  }
+
+  async function handleConfirm(body) {
+    setInteractionBusy(true);
+    try {
+      await confirmVirinDirection(jiraKey, body);
+      await refetch();
+    } finally {
+      setInteractionBusy(false);
+    }
+  }
+
+  async function handleResume() {
+    const resumeFrom = getPmResumeStage(analysis);
+    if (!resumeFrom) return;
+    setResuming(true);
+    try {
+      await resumePmAnalysis(jiraKey, { resumeFrom });
+      await refetch();
+    } finally {
+      setResuming(false);
+    }
+  }
+
   async function handleRetrospective() {
     setRetroRunning(true);
     try {
-      await runPmRetrospective(jiraKey, {
-        humanDecision: analysis?.prioritization?.recommendation,
-        actualPoints: analysis?.effortEstimate?.storyPoints,
-      });
+      await runPmRetrospective(jiraKey, {});
       await refetch();
     } finally {
       setRetroRunning(false);
+    }
+  }
+
+  async function handleExportPackage() {
+    setExportBusy(true);
+    try {
+      const pkg = await exportProductPackage(jiraKey);
+      const blob = new Blob([JSON.stringify(pkg, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${jiraKey}-product-package.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } finally {
+      setExportBusy(false);
     }
   }
 
@@ -104,19 +157,12 @@ export default function PmPipelineDetailPanel({ pipelineId, onClose }) {
           />
           <p className="mt-2 font-mono text-[10.5px] text-ink-mute">
             Current: {currentLabel}
-            {isRunning ? " · updating live" : ""}
+            {isRunning || isValidating ? " · updating live" : ""}
           </p>
         </div>
       </header>
 
       <div className="flex-1 overflow-y-auto px-5 py-5">
-        {isRunning && !analysis.enrichment && (
-          <div className="mb-5 flex items-center gap-3 rounded-xl border border-indigo/30 bg-indigo/5 px-4 py-3">
-            <Spinner />
-            <p className="font-mono text-[12px] text-ink-dim">{VIRIN_NAME} pipeline running — outputs appear as each stage completes.</p>
-          </div>
-        )}
-
         {analysis.classification?.requiresHumanEscalation && (
           <Panel className="mb-5 border-warning/30">
             <PanelHeader
@@ -135,10 +181,25 @@ export default function PmPipelineDetailPanel({ pipelineId, onClose }) {
           </Panel>
         )}
 
-        <PmAnalysisOutputs
+        <VirinTicketWorkspace
           analysis={analysis}
+          activeKey={jiraKey}
+          onAnswer={handleAnswer}
+          onConfirm={handleConfirm}
+          interactionBusy={interactionBusy}
           onRetrospective={analysis.status === "COMPLETED" ? handleRetrospective : undefined}
           retroRunning={retroRunning}
+          onResume={analysis.status === "FAILED" ? handleResume : undefined}
+          resuming={resuming}
+          resumeStageLabel={
+            analysis.status === "FAILED"
+              ? PM_STAGE_LABELS[getPmResumeStage(analysis)] ?? null
+              : null
+          }
+          onExportPackage={handleExportPackage}
+          exportBusy={exportBusy}
+          showHistory={false}
+          isValidating={isValidating}
         />
       </div>
     </div>

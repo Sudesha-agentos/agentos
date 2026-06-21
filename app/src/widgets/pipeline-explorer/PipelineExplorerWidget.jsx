@@ -1,17 +1,23 @@
-import { useMemo } from "react";
-import { motion } from "framer-motion";
+import { useEffect, useMemo, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import { usePipelineList, usePipelineLive } from "../../entities/pipeline";
 import { usePmAnalyses } from "../../entities/pm-agents";
-import { mapPmAnalysisToPipelineSummary } from "../pm-analysis/pipelineIds";
+import {
+  mapPmAnalysisToPipelineSummary,
+  mergePipelineExplorerItems,
+  resolveQueuedSelection,
+} from "../pm-analysis/pipelineIds";
 import PipelineCard from "./PipelineCard";
 import PipelineDetailPanel from "./PipelineDetailPanel";
 import Spinner from "../../app/components/Spinner";
 import EmptyState from "../../app/components/EmptyState";
-import { motionSafe, pageStagger, sectionFadeUp } from "../../lib/motion";
 
 const TABS = [
-  { id: "active", label: "Active", statuses: ["RUNNING", "QUEUED"] },
+  {
+    id: "active",
+    label: "Active",
+    statuses: ["RUNNING", "QUEUED", "PAUSED"],
+  },
   { id: "review", label: "Review queue", statuses: ["PAUSED"] },
   { id: "history", label: "History", statuses: ["COMPLETED", "FAILED"] },
 ];
@@ -21,11 +27,12 @@ export default function PipelineExplorerWidget() {
   const tab = params.get("tab") ?? "active";
   const selectedId = params.get("selected");
   const query = params.get("q") ?? "";
+  const migratedRef = useRef(new Set());
 
   const { items: pipelineItems, loading: pipelinesLoading } = usePipelineList(undefined, {
     pollMs: 10_000,
   });
-  const { active: liveActive, queue: liveQueue } = usePipelineLive({ pollMs: 4000 });
+  const { queue: liveQueue } = usePipelineLive({ pollMs: 4000 });
   const { data: pmListData, loading: pmLoading } = usePmAnalyses({
     pollMs: 3000,
   });
@@ -34,26 +41,29 @@ export default function PipelineExplorerWidget() {
     const pmSummaries = (pmListData?.items ?? []).map(mapPmAnalysisToPipelineSummary);
     const classic = pipelineItems.map((p) => ({ ...p, kind: "pipeline" }));
 
-    const runningKeys = new Set(classic.filter((p) => p.status === "RUNNING").map((p) => p.jiraKey));
+    const runningKeys = new Set(
+      [...classic.filter((p) => p.status === "RUNNING"), ...pmSummaries.filter((p) => p.status === "RUNNING")].map(
+        (p) => p.jiraKey
+      )
+    );
     const queuedKeys = liveQueue?.queuedJiraKeys ?? [];
     const queuedItems = queuedKeys
       .filter((key) => key && !runningKeys.has(key))
+      .filter((key) => !pmSummaries.some((p) => p.jiraKey === key))
       .map((jiraKey) => ({
         id: `queued-${jiraKey}`,
         jiraKey,
         summary: jiraKey,
         status: "QUEUED",
-        currentStage: "INGESTION",
+        currentStage: "INTAKE",
         startedAt: new Date().toISOString(),
         kind: "queued",
       }));
 
-    return [...pmSummaries, ...queuedItems, ...classic].sort((a, b) =>
-      (b.startedAt ?? "").localeCompare(a.startedAt ?? "")
-    );
+    return mergePipelineExplorerItems(pmSummaries, classic, queuedItems);
   }, [pmListData, pipelineItems, liveQueue?.queuedJiraKeys]);
 
-  const loading = pipelinesLoading && pmLoading && items.length === 0;
+  const loading = (pipelinesLoading || pmLoading) && items.length === 0;
 
   const activeTab = TABS.find((t) => t.id === tab) ?? TABS[0];
 
@@ -72,6 +82,26 @@ export default function PipelineExplorerWidget() {
 
   const reviewCount = items.filter((p) => p.status === "PAUSED").length;
 
+  const detailPipelineId = useMemo(() => {
+    if (selectedId) return resolveQueuedSelection(selectedId, items);
+    return null;
+  }, [selectedId, items]);
+
+  useEffect(() => {
+    if (!selectedId?.startsWith("queued-")) return;
+    const jiraKey = selectedId.slice("queued-".length);
+    const migrationKey = `${jiraKey}`;
+    if (migratedRef.current.has(migrationKey)) return;
+
+    const pmItem = items.find((p) => p.jiraKey === jiraKey && p.kind === "pm");
+    if (pmItem) {
+      migratedRef.current.add(migrationKey);
+      const next = new URLSearchParams(params);
+      next.set("selected", pmItem.id);
+      setParams(next, { replace: true });
+    }
+  }, [selectedId, items, params, setParams]);
+
   function setTab(id) {
     const next = new URLSearchParams(params);
     next.set("tab", id);
@@ -81,6 +111,12 @@ export default function PipelineExplorerWidget() {
   function selectPipeline(id) {
     const next = new URLSearchParams(params);
     next.set("selected", id);
+    setParams(next, { replace: true });
+  }
+
+  function closeDetail() {
+    const next = new URLSearchParams(params);
+    next.delete("selected");
     setParams(next, { replace: true });
   }
 
@@ -122,49 +158,30 @@ export default function PipelineExplorerWidget() {
           />
         </div>
 
-        <motion.div
-          className="flex-1 space-y-1.5 overflow-y-auto p-2.5"
-          variants={motionSafe(pageStagger(0.04))}
-          initial="hidden"
-          animate="show"
-          key={tab}
-        >
+        <div className="flex-1 space-y-1.5 overflow-y-auto p-2.5">
           {loading && filtered.length === 0 ? (
             <Spinner label="Loading pipelines" />
           ) : filtered.length === 0 ? (
             <EmptyState title="No pipelines" />
           ) : (
             filtered.map((pipeline) => (
-              <motion.div key={pipeline.id} variants={motionSafe(sectionFadeUp)}>
+              <div key={pipeline.id}>
                 <PipelineCard
                   pipeline={pipeline}
                   selected={selectedId === pipeline.id}
                   onSelect={selectPipeline}
                   showAction={tab === "review"}
                 />
-              </motion.div>
+              </div>
             ))
           )}
-        </motion.div>
+        </div>
       </div>
 
       <div className="hidden min-w-0 flex-1 md:block">
         <PipelineDetailPanel
-          pipelineId={
-            selectedId && !selectedId.startsWith("queued-")
-              ? selectedId
-              : filtered.find((p) => p.kind !== "queued")?.id ??
-                liveActive?.pipelineId
-          }
-          onClose={
-            selectedId
-              ? () => {
-                  const next = new URLSearchParams(params);
-                  next.delete("selected");
-                  setParams(next, { replace: true });
-                }
-              : undefined
-          }
+          pipelineId={detailPipelineId}
+          onClose={selectedId ? closeDetail : undefined}
         />
       </div>
     </div>

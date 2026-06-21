@@ -23,6 +23,9 @@ import { classifyAiWorkerIntake } from "../../integrations/intentClassifier";
 import { getActiveOrganizationId } from "../../organization/context";
 import { logger } from "../../utils/logger";
 import type { PmPipelineContext } from "../../agents/pm/pmPipelineContext";
+import { runPmAnalysisPipeline } from "../../agents/pm/orchestrator";
+import { startPmAnalysisInBackground, isPmAnalysisRunning } from "../../agents/pm/backgroundRunner";
+import { pmAnalysisStore } from "../../agents/pm/store";
 import { JIRA_ISSUE_FETCH_FIELDS, mapJiraApiIssue } from "../../jira-sync/issueFetcher";
 import { upsertJiraIssueRecord } from "../../jira-sync/issueRepository";
 import { aiWorkerEligibleTypeLabel } from "./aiWorkerIssueTypes";
@@ -177,6 +180,9 @@ export async function tryIntakeEnqueue(
 
     const batchItems: Array<{ ticketId: string; jiraKey: string }> = [];
     let skipped = 0;
+    let virinStarted = 0;
+
+    const engineeringIntake = Boolean(pmContext);
 
     logger.info(
       {
@@ -201,7 +207,10 @@ export async function tryIntakeEnqueue(
           continue;
         }
 
-        const dedup = await shouldEnqueueJiraKey(taskKey);
+        const dedup = await shouldEnqueueJiraKey(taskKey, {
+          source,
+          engineeringOnly: engineeringIntake,
+        });
         if (!dedup.enqueue) {
           skipped += 1;
           await recordSkip(
@@ -268,7 +277,59 @@ export async function tryIntakeEnqueue(
           status: "RECEIVED",
         });
 
-        batchItems.push({ ticketId: ticket.id, jiraKey: normalized.jiraKey });
+        if (engineeringIntake) {
+          batchItems.push({ ticketId: ticket.id, jiraKey: normalized.jiraKey });
+        } else {
+          const existingVirin = pmAnalysisStore.get(normalized.jiraKey);
+          const virinActive =
+            existingVirin &&
+            (existingVirin.status === "RUNNING" ||
+              existingVirin.status === "AWAITING_INPUT" ||
+              existingVirin.status === "AWAITING_CONFIRMATION" ||
+              isPmAnalysisRunning(normalized.jiraKey));
+
+          if (!virinActive && existingVirin?.status !== "COMPLETED") {
+            startPmAnalysisInBackground(normalized.jiraKey, () =>
+              runPmAnalysisPipeline({
+                jiraKey: normalized.jiraKey,
+                mode: "interactive",
+                ticket: {
+                  jiraKey: normalized.jiraKey,
+                  summary: normalized.summary,
+                  description: normalized.description,
+                  components: normalized.components ?? [],
+                  issueType: normalized.issueType,
+                },
+              })
+            );
+            virinStarted += 1;
+            await recordIntakeEvent({
+              organizationId: getActiveOrganizationId()!,
+              jiraKey: normalized.jiraKey,
+              source: normalizeSource(source),
+              outcome: "enqueued",
+              message: "Virin product analysis started (interactive)",
+              summary: normalized.summary,
+              issueType: normalized.issueType,
+            }).catch(() => undefined);
+          } else if (virinActive) {
+            skipped += 1;
+            await recordSkip(
+              taskKey,
+              source,
+              "virin_active",
+              `${taskKey} Virin analysis already active`
+            );
+          } else {
+            skipped += 1;
+            await recordSkip(
+              taskKey,
+              source,
+              "virin_completed",
+              `${taskKey} Virin analysis already completed`
+            );
+          }
+        }
       }
     }
 
@@ -280,7 +341,9 @@ export async function tryIntakeEnqueue(
           )
         : { started: false, enqueued: 0 };
 
-    if (batchResult.enqueued > 0) {
+    const totalEnqueued = batchResult.enqueued + virinStarted;
+
+    if (totalEnqueued > 0) {
       const rootSummary =
         decomposed.groups[0]?.storySummary ??
         (rootIssue.fields as { summary?: string }).summary ??
@@ -288,7 +351,7 @@ export async function tryIntakeEnqueue(
       await recordEnqueue(decomposed.sourceKey, source, {
         summary: rootSummary,
         issueType: decomposed.sourceIssueType,
-        pipelineStarted: batchResult.started,
+        pipelineStarted: batchResult.started || virinStarted > 0,
       });
     } else if (skipped > 0) {
       await recordSkip(
@@ -301,9 +364,9 @@ export async function tryIntakeEnqueue(
 
     return {
       sourceKey: decomposed.sourceKey,
-      enqueued: batchResult.enqueued,
+      enqueued: totalEnqueued,
       skipped,
-      started: batchResult.started,
+      started: batchResult.started || virinStarted > 0,
       groups: decomposed.groups.map((g) => ({
         storyKey: g.storyKey,
         taskKeys: g.taskKeys,

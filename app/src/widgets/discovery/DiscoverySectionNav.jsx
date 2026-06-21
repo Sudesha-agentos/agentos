@@ -1,7 +1,9 @@
 const SECTIONS = [
   { id: "overview", label: "Overview" },
+  { id: "questions", label: "Questions" },
   { id: "analysis", label: "Ticket analysis" },
-  { id: "history", label: "History" },
+  { id: "context", label: "Similar & codebase" },
+  { id: "history", label: "Org intelligence" },
   { id: "gaps", label: "Gaps" },
   { id: "prd", label: "PRD" },
 ];

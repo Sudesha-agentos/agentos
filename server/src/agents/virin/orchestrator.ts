@@ -7,6 +7,7 @@ import { logger } from "../../utils/logger";
 import { gatherPmContext, resolveTicketInput } from "../pm/contextGatherer";
 import { runPmStage } from "../pm/runStage";
 import { pmAnalysisStore } from "../pm/store";
+import { autoStartEngineeringFromVirin } from "../pm/autoStartEngineering";
 import type { PmAnalysisRecord, PmTicketInput } from "../pm/types";
 import { VIRIN_BEHAVIOR, VIRIN_SYSTEM_PROMPT } from "./persona";
 import {
@@ -330,7 +331,9 @@ export async function runVirinPipeline(input: {
 
     pmAnalysisStore.setStatus(jiraKey, "COMPLETED");
     pmAnalysisStore.setCurrentStage(jiraKey, null);
-    return pmAnalysisStore.get(jiraKey)!;
+    const completed = pmAnalysisStore.get(jiraKey)!;
+    void autoStartEngineeringFromVirin(jiraKey);
+    return completed;
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     logger.error({ err, jiraKey }, "Virin pipeline failed");

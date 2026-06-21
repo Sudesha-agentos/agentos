@@ -1,60 +1,127 @@
 import { randomUUID } from "crypto";
 import { getDb } from "../../jira-intake/sqliteStore";
+import { upsertPmAnalysisRecord, loadAllPmAnalysisRecords } from "../../db/repositories/pmAnalysisRepo";
+import { getActiveOrganizationId } from "../../organization/context";
 import { logger } from "../../utils/logger";
 import type { PmAnalysisRecord, PmAnalysisStatus, PmStageId, PmStageMeta } from "./types";
 
+/** Composite cache key when org is known; falls back to jiraKey-only for legacy rows. */
 const analyses = new Map<string, PmAnalysisRecord>();
 
 function normalizeKey(jiraKey: string): string {
   return jiraKey.trim().toUpperCase();
 }
 
-function persistRecord(record: PmAnalysisRecord): void {
-  const key = normalizeKey(record.jiraKey);
-  analyses.set(key, record);
-  try {
-    getDb()
-      .prepare(
-        `INSERT INTO pm_analysis_records (jira_key, record_json, updated_at)
-         VALUES (?, ?, ?)
-         ON CONFLICT(jira_key) DO UPDATE SET
-           record_json = excluded.record_json,
-           updated_at = excluded.updated_at`
-      )
-      .run(key, JSON.stringify(record), record.updatedAt);
-  } catch (err) {
-    logger.warn({ err, jiraKey: key }, "pm analysis sqlite persist failed");
-  }
+function cacheKey(jiraKey: string, organizationId?: string | null): string {
+  const key = normalizeKey(jiraKey);
+  return organizationId ? `${organizationId}:${key}` : key;
 }
 
-export function loadPmAnalysesFromStore(): number {
+function resolveOrganizationId(record?: PmAnalysisRecord): string | null {
+  return getActiveOrganizationId() ?? record?.organizationId ?? null;
+}
+
+function putInCache(record: PmAnalysisRecord): void {
+  const jiraKey = normalizeKey(record.jiraKey);
+  const orgId = record.organizationId ?? null;
+  if (orgId) {
+    analyses.set(cacheKey(jiraKey, orgId), record);
+  }
+  analyses.set(cacheKey(jiraKey), record);
+}
+
+function getFromCache(jiraKey: string, organizationId?: string | null): PmAnalysisRecord | null {
+  const key = normalizeKey(jiraKey);
+  const orgId = organizationId ?? getActiveOrganizationId();
+  if (orgId) {
+    const scoped = analyses.get(cacheKey(key, orgId));
+    if (scoped) return scoped;
+  }
+  return analyses.get(cacheKey(key)) ?? null;
+}
+
+function persistRecord(record: PmAnalysisRecord): void {
+  putInCache(record);
+  const orgId = resolveOrganizationId(record);
+  if (!orgId) {
+    logger.warn({ jiraKey: record.jiraKey }, "pm analysis persist skipped — no organization context");
+    return;
+  }
+  const withOrg: PmAnalysisRecord = { ...record, organizationId: orgId };
+  putInCache(withOrg);
+  void upsertPmAnalysisRecord(orgId, normalizeKey(record.jiraKey), withOrg).catch((err) => {
+    logger.warn({ err, jiraKey: record.jiraKey }, "pm analysis postgres persist failed");
+  });
+}
+
+function loadPmAnalysesFromSqlite(): number {
   try {
     const rows = getDb()
       .prepare(`SELECT jira_key, record_json FROM pm_analysis_records`)
       .all() as Array<{ jira_key: string; record_json: string }>;
 
-    analyses.clear();
+    let loaded = 0;
     for (const row of rows) {
       try {
         const record = JSON.parse(row.record_json) as PmAnalysisRecord;
-        analyses.set(normalizeKey(row.jira_key), record);
+        putInCache(record);
+        loaded += 1;
       } catch (err) {
         logger.warn({ err, jiraKey: row.jira_key }, "pm analysis sqlite row parse failed");
       }
     }
-    return analyses.size;
+    return loaded;
   } catch (err) {
     logger.warn({ err }, "pm analysis sqlite load failed");
     return 0;
   }
 }
 
+export async function loadPmAnalysesFromStore(): Promise<number> {
+  analyses.clear();
+
+  try {
+    const rows = await loadAllPmAnalysisRecords();
+    for (const { record } of rows) {
+      putInCache(record);
+    }
+    if (rows.length > 0) {
+      return new Set(rows.map((r) => r.record.id)).size;
+    }
+  } catch (err) {
+    logger.warn({ err }, "pm analysis postgres load failed — falling back to sqlite");
+  }
+
+  const sqliteCount = loadPmAnalysesFromSqlite();
+  if (sqliteCount > 0) {
+    logger.info({ count: sqliteCount }, "hydrated PM analyses from sqlite — migrating to postgres");
+    const migrated = new Set<string>();
+    for (const record of analyses.values()) {
+      if (migrated.has(record.id)) continue;
+      migrated.add(record.id);
+      const orgId = record.organizationId ?? getActiveOrganizationId();
+      if (orgId) {
+        void upsertPmAnalysisRecord(orgId, normalizeKey(record.jiraKey), {
+          ...record,
+          organizationId: orgId,
+        }).catch((err) => {
+          logger.warn({ err, jiraKey: record.jiraKey }, "pm analysis sqlite migration failed");
+        });
+      }
+    }
+    return migrated.size;
+  }
+  return 0;
+}
+
 export const pmAnalysisStore = {
   create(record: Omit<PmAnalysisRecord, "id" | "updatedAt">): PmAnalysisRecord {
     const now = new Date().toISOString();
+    const organizationId = record.organizationId ?? getActiveOrganizationId() ?? undefined;
     const full: PmAnalysisRecord = {
       agentName: "Virin",
       ...record,
+      organizationId,
       id: randomUUID(),
       updatedAt: now,
     };
@@ -63,11 +130,19 @@ export const pmAnalysisStore = {
   },
 
   get(jiraKey: string): PmAnalysisRecord | null {
-    return analyses.get(normalizeKey(jiraKey)) ?? null;
+    return getFromCache(jiraKey);
   },
 
   list(limit = 50): PmAnalysisRecord[] {
-    return [...analyses.values()]
+    const orgId = getActiveOrganizationId();
+    const byId = new Map<string, PmAnalysisRecord>();
+
+    for (const record of analyses.values()) {
+      if (orgId && record.organizationId && record.organizationId !== orgId) continue;
+      byId.set(record.id, record);
+    }
+
+    return [...byId.values()]
       .sort((a, b) => b.startedAt.localeCompare(a.startedAt))
       .slice(0, limit);
   },
@@ -76,12 +151,12 @@ export const pmAnalysisStore = {
     jiraKey: string,
     patch: Partial<PmAnalysisRecord>
   ): PmAnalysisRecord | null {
-    const key = normalizeKey(jiraKey);
-    const existing = analyses.get(key);
+    const existing = getFromCache(jiraKey);
     if (!existing) return null;
     const updated: PmAnalysisRecord = {
       ...existing,
       ...patch,
+      organizationId: patch.organizationId ?? existing.organizationId ?? getActiveOrganizationId() ?? undefined,
       updatedAt: new Date().toISOString(),
     };
     persistRecord(updated);
@@ -89,7 +164,7 @@ export const pmAnalysisStore = {
   },
 
   setStatus(jiraKey: string, status: PmAnalysisStatus, error?: string): void {
-    const existing = analyses.get(normalizeKey(jiraKey));
+    const existing = getFromCache(jiraKey);
     if (!existing) return;
     pmAnalysisStore.update(jiraKey, {
       status,
@@ -106,7 +181,7 @@ export const pmAnalysisStore = {
   },
 
   appendStageMeta(jiraKey: string, meta: PmStageMeta): void {
-    const existing = analyses.get(normalizeKey(jiraKey));
+    const existing = getFromCache(jiraKey);
     if (!existing) return;
     pmAnalysisStore.update(jiraKey, {
       stageMeta: [...existing.stageMeta, meta],

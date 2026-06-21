@@ -1,9 +1,15 @@
 import { PM_STAGE_LABELS, PM_STAGE_ORDER } from "../../entities/pm-agents";
 
-export function VirinStageStepper({ analysis, compact = false }) {
+export function VirinStageStepper({
+  analysis,
+  compact = false,
+  activeStage,
+  onSelectStage,
+}) {
   const current = analysis?.currentStage;
   const meta = analysis?.stageMeta ?? [];
   const status = analysis?.status;
+  const selected = activeStage ?? current;
 
   const stageState = (stage) => {
     if (meta.some((m) => m.stage === stage && m.status === "FAILED")) return "failed";
@@ -51,41 +57,51 @@ export function VirinStageStepper({ analysis, compact = false }) {
                 }`}
               />
             )}
-            <span
-              className={`relative z-10 flex size-6 shrink-0 items-center justify-center rounded-full border text-[10px] font-bold ${
-                state === "active"
-                  ? "border-indigo bg-indigo text-white shadow-[0_0_0_3px_rgba(99,102,241,0.2)]"
-                  : state === "waiting"
-                    ? "border-warning bg-warning/20 text-warning"
-                    : state === "done"
-                      ? "border-success/50 bg-success/15 text-success"
-                      : state === "failed"
-                        ? "border-danger bg-danger/15 text-danger"
-                        : "border-app-border bg-app-surface text-app-ink-mute"
-              }`}
+            <button
+              type="button"
+              onClick={() => onSelectStage?.(stage)}
+              className={`relative z-10 flex w-full gap-3 text-left ${onSelectStage ? "cursor-pointer rounded-app-sm hover:bg-app-surface-muted/40" : ""}`}
             >
-              {state === "done" ? "✓" : i + 1}
-            </span>
-            <div className="min-w-0 pt-0.5">
-              <p
-                className={`text-[12px] font-medium leading-tight ${
-                  state === "active" || state === "waiting" ? "text-app-ink" : "text-app-ink-dim"
+              <span
+                className={`relative z-10 flex size-6 shrink-0 items-center justify-center rounded-full border text-[10px] font-bold ${
+                  selected === stage
+                    ? "border-indigo bg-indigo/15 text-indigo ring-2 ring-indigo/30"
+                    : state === "active"
+                      ? "border-indigo bg-indigo text-white shadow-[0_0_0_3px_rgba(99,102,241,0.2)]"
+                      : state === "waiting"
+                        ? "border-warning bg-warning/20 text-warning"
+                        : state === "done"
+                          ? "border-success/50 bg-success/15 text-success"
+                          : state === "failed"
+                            ? "border-danger bg-danger/15 text-danger"
+                            : "border-app-border bg-app-surface text-app-ink-mute"
                 }`}
               >
-                {PM_STAGE_LABELS[stage]}
-              </p>
-              <p className="mt-0.5 font-mono text-[10px] text-app-ink-mute">
-                {state === "active"
-                  ? "In progress"
-                  : state === "waiting"
-                    ? "Needs you"
-                    : state === "done"
-                      ? "Done"
-                      : state === "failed"
-                        ? "Failed"
-                        : "—"}
-              </p>
-            </div>
+                {state === "done" ? "✓" : i + 1}
+              </span>
+              <div className="min-w-0 pt-0.5">
+                <p
+                  className={`text-[12px] font-medium leading-tight ${
+                    state === "active" || state === "waiting" || selected === stage
+                      ? "text-app-ink"
+                      : "text-app-ink-dim"
+                  }`}
+                >
+                  {PM_STAGE_LABELS[stage]}
+                </p>
+                <p className="mt-0.5 font-mono text-[10px] text-app-ink-mute">
+                  {state === "active"
+                    ? "In progress"
+                    : state === "waiting"
+                      ? "Needs you"
+                      : state === "done"
+                        ? "Done"
+                        : state === "failed"
+                          ? "Failed"
+                          : "—"}
+                </p>
+              </div>
+            </button>
           </li>
         );
       })}
