@@ -1,8 +1,10 @@
 import { execSync } from "child_process";
+import { Pool } from "pg";
 import { logger } from "../utils/logger";
-import { migrationDatabaseUrl } from "./pgPool";
+import { migrationDatabaseUrl, pgPoolConfig } from "./pgPool";
 
-const FAILED_MIGRATION_PATTERN = /Migration name:\s*(\S+)/;
+const FAILED_MIGRATION_P3018 = /Migration name:\s*(\S+)/;
+const FAILED_MIGRATION_P3009 = /The `([^`]+)` migration started at/i;
 
 function migrationEnv(migrateUrl: string): NodeJS.ProcessEnv {
   return {
@@ -30,12 +32,20 @@ function formatExecError(err: unknown): string {
 }
 
 function extractFailedMigrationName(message: string): string | null {
-  const match = message.match(FAILED_MIGRATION_PATTERN);
-  return match?.[1] ?? null;
+  return (
+    message.match(FAILED_MIGRATION_P3018)?.[1] ??
+    message.match(FAILED_MIGRATION_P3009)?.[1] ??
+    null
+  );
 }
 
 function isFailedMigrationError(message: string): boolean {
-  return message.includes("P3018") || message.includes("A migration failed to apply");
+  return (
+    message.includes("P3018") ||
+    message.includes("P3009") ||
+    message.includes("A migration failed to apply") ||
+    message.includes("failed migrations in the target database")
+  );
 }
 
 function resolveRolledBack(migrationName: string, migrateUrl: string): void {
@@ -43,8 +53,46 @@ function resolveRolledBack(migrationName: string, migrateUrl: string): void {
   execPrisma(`npx prisma migrate resolve --rolled-back "${migrationName}"`, migrateUrl);
 }
 
+async function listFailedMigrationNames(migrateUrl: string): Promise<string[]> {
+  const pool = new Pool(pgPoolConfig(migrateUrl));
+  try {
+    const result = await pool.query<{ migration_name: string }>(
+      `SELECT migration_name
+       FROM "_prisma_migrations"
+       WHERE started_at IS NOT NULL
+         AND finished_at IS NULL
+         AND rolled_back_at IS NULL`
+    );
+    return result.rows.map((row) => row.migration_name);
+  } catch (err) {
+    logger.warn({ err }, "could not query failed migrations — continuing with migrate deploy");
+    return [];
+  } finally {
+    await pool.end();
+  }
+}
+
+async function recoverFailedMigrations(migrateUrl: string): Promise<void> {
+  const failed = await listFailedMigrationNames(migrateUrl);
+  if (!failed.length) return;
+
+  logger.warn({ failed }, "found failed prisma migrations — resolving as rolled back");
+  for (const migrationName of failed) {
+    resolveRolledBack(migrationName, migrateUrl);
+  }
+}
+
+function runMigrateDeploy(migrateUrl: string): void {
+  logger.info("running prisma migrate deploy");
+  const output = execPrisma("npx prisma migrate deploy", migrateUrl);
+  if (output.trim()) {
+    logger.info({ output: output.trim() }, "prisma migrate deploy output");
+  }
+  logger.info("prisma migrate deploy complete");
+}
+
 /** Apply pending Prisma migrations before the API accepts traffic. */
-export function runMigrationsOnStartup(): void {
+export async function runMigrationsOnStartup(): Promise<void> {
   const migrateUrl = migrationDatabaseUrl();
   if (!migrateUrl) {
     logger.warn("DATABASE_URL not set — skipping prisma migrate deploy");
@@ -55,13 +103,10 @@ export function runMigrationsOnStartup(): void {
     return;
   }
 
+  await recoverFailedMigrations(migrateUrl);
+
   try {
-    logger.info("running prisma migrate deploy");
-    const output = execPrisma("npx prisma migrate deploy", migrateUrl);
-    if (output.trim()) {
-      logger.info({ output: output.trim() }, "prisma migrate deploy output");
-    }
-    logger.info("prisma migrate deploy complete");
+    runMigrateDeploy(migrateUrl);
   } catch (err) {
     const message = formatExecError(err);
     if (isFailedMigrationError(message)) {
@@ -69,10 +114,7 @@ export function runMigrationsOnStartup(): void {
       if (migrationName) {
         try {
           resolveRolledBack(migrationName, migrateUrl);
-          const retryOutput = execPrisma("npx prisma migrate deploy", migrateUrl);
-          if (retryOutput.trim()) {
-            logger.info({ output: retryOutput.trim() }, "prisma migrate deploy retry output");
-          }
+          runMigrateDeploy(migrateUrl);
           logger.info("prisma migrate deploy complete after failed-migration recovery");
           return;
         } catch (retryErr) {
