@@ -17,6 +17,11 @@ export interface PmContextBundle {
   componentBugCount: string;
   okrList: string;
   companyContextBlock: string;
+  companyName: string;
+  companyWebsite: string;
+  companyProductSummary: string;
+  companyIcp: string;
+  companyRevenueModel: string;
   linkedPrs: string;
   candidateFilesList: string;
   relevantCommitHistory: string;
@@ -352,6 +357,11 @@ export async function gatherPmContext(
     componentBugCount,
     okrList,
     companyContextBlock,
+    companyName: companyProfile?.companyName?.trim() ?? "",
+    companyWebsite: companyProfile?.website?.trim() ?? "",
+    companyProductSummary: companyProfile?.productSummary?.trim() ?? "",
+    companyIcp: companyProfile?.icp?.trim() ?? "",
+    companyRevenueModel: companyProfile?.revenueModel?.trim() ?? "",
     linkedPrs,
     candidateFilesList,
     relevantCommitHistory,

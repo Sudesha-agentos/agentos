@@ -91,35 +91,40 @@ router.put("/", async (req, res, next) => {
 
 router.post("/generate-context", async (req, res, next) => {
   try {
-    const hasInput =
-      req.body?.companyName ||
-      req.body?.productSummary ||
-      req.body?.revenueModel ||
-      req.body?.businessContext;
-    if (!hasInput) {
-      throw new ValidationError(
-        "Provide at least company name, product summary, or revenue model before generating context."
-      );
-    }
-    const { profile, costUsd, model, vectorHitsUsed, codebaseFilesIndexed, repoLabel } =
-      await companyIntelligence.generateContext({
-      companyName: req.body?.companyName,
-      website: req.body?.website,
-      productSummary: req.body?.productSummary,
-      icp: req.body?.icp,
-      revenueModel: req.body?.revenueModel,
-      pricingSummary: req.body?.pricingSummary,
-      strategicGoals: req.body?.strategicGoals,
-      nonGoals: req.body?.nonGoals,
-      updatedBy: req.body?.updatedBy ?? "user",
+    await withOrganizationContext(req, async (organizationId) => {
+      const hasInput =
+        req.body?.companyName ||
+        req.body?.productSummary ||
+        req.body?.revenueModel ||
+        req.body?.businessContext;
+      if (!hasInput) {
+        throw new ValidationError(
+          "Provide at least company name, product summary, or revenue model before generating context."
+        );
+      }
+      const { profile, costUsd, model, vectorHitsUsed, codebaseFilesIndexed, repoLabel } =
+        await companyIntelligence.generateContext(
+          {
+            companyName: req.body?.companyName,
+            website: req.body?.website,
+            productSummary: req.body?.productSummary,
+            icp: req.body?.icp,
+            revenueModel: req.body?.revenueModel,
+            pricingSummary: req.body?.pricingSummary,
+            strategicGoals: req.body?.strategicGoals,
+            nonGoals: req.body?.nonGoals,
+            updatedBy: req.body?.updatedBy ?? "user",
+          },
+          organizationId
+        );
+      res.json({
+        profile,
+        costUsd,
+        model,
+        vectorHitsUsed,
+        codebaseFilesIndexed,
+        repoLabel,
       });
-    res.json({
-      profile,
-      costUsd,
-      model,
-      vectorHitsUsed,
-      codebaseFilesIndexed,
-      repoLabel,
     });
   } catch (err) {
     next(err);
@@ -128,14 +133,16 @@ router.post("/generate-context", async (req, res, next) => {
 
 router.post("/fetch-from-web", async (req, res, next) => {
   try {
-    const website = String(req.body?.website ?? "").trim();
-    if (!website) {
-      throw new ValidationError("Website URL is required to auto-fetch company details.");
-    }
-    const result = await companyIntelligence.fetchFromWeb({
-      website,
-      companyName: req.body?.companyName,
-      mergeWithProfile: {
+    await withOrganizationContext(req, async (organizationId) => {
+      const website = String(req.body?.website ?? "").trim();
+      if (!website) {
+        throw new ValidationError("Website URL is required to auto-fetch company details.");
+      }
+      const result = await companyIntelligence.fetchFromWeb({
+        website,
+        companyName: req.body?.companyName,
+        organizationId,
+        mergeWithProfile: {
         companyName: req.body?.companyName,
         website: req.body?.website,
         productSummary: req.body?.productSummary,
@@ -146,7 +153,8 @@ router.post("/fetch-from-web", async (req, res, next) => {
         nonGoals: req.body?.nonGoals,
       },
     });
-    res.json(result);
+      res.json(result);
+    });
   } catch (err) {
     next(mapCompanyRouteError(err));
   }
@@ -154,22 +162,25 @@ router.post("/fetch-from-web", async (req, res, next) => {
 
 router.post("/fetch-competitors", async (req, res, next) => {
   try {
-    const website = String(req.body?.website ?? "").trim();
-    if (!website) {
-      throw new ValidationError("Website URL is required to discover competitors.");
-    }
-    const result = await companyIntelligence.fetchCompetitors({
-      website,
-      companyName: req.body?.companyName,
-      productSummary: req.body?.productSummary,
-      mergeWithProfile: {
+    await withOrganizationContext(req, async (organizationId) => {
+      const website = String(req.body?.website ?? "").trim();
+      if (!website) {
+        throw new ValidationError("Website URL is required to discover competitors.");
+      }
+      const result = await companyIntelligence.fetchCompetitors({
+        website,
+        companyName: req.body?.companyName,
+        productSummary: req.body?.productSummary,
+        organizationId,
+        mergeWithProfile: {
         companyName: req.body?.companyName,
         website: req.body?.website,
         productSummary: req.body?.productSummary,
         competitors: req.body?.competitors,
       },
     });
-    res.json(result);
+      res.json(result);
+    });
   } catch (err) {
     next(err);
   }

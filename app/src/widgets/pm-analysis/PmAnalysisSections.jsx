@@ -279,6 +279,38 @@ export function PmPrdSection({ prd }) {
           <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-ink-mute">Proposed solution</p>
           <p className="mt-1">{prd.proposedSolution}</p>
         </div>
+        {prd.implementationDeltaSummary ? (
+          <div>
+            <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-ink-mute">
+              Codebase delta
+            </p>
+            <p className="mt-1">{prd.implementationDeltaSummary}</p>
+          </div>
+        ) : null}
+        {prd.existingCapabilities?.length > 0 ? (
+          <div>
+            <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-ink-mute">
+              Already built
+            </p>
+            <ul className="mt-1 list-inside list-disc">
+              {prd.existingCapabilities.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+        {prd.netNewWork?.length > 0 ? (
+          <div>
+            <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-ink-mute">
+              Net-new work
+            </p>
+            <ul className="mt-1 list-inside list-disc">
+              {prd.netNewWork.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
         {prd.userStories?.length > 0 && (
           <div>
             <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-ink-mute">

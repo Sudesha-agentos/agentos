@@ -29,6 +29,7 @@ import agentChatRouter from "./api/routes/agentChat";
 import costsRouter from "./api/routes/costs";
 import eventsRouter from "./api/routes/events";
 import metricsRouter from "./api/routes/metrics";
+import engineeringRouter from "./api/routes/engineering";
 import searchRouter from "./api/routes/search";
 import webhooksRouter from "./api/routes/webhooks";
 import { isAppError } from "./utils/errors";
@@ -124,6 +125,7 @@ export function createApp(): express.Express {
   app.use("/api/costs", costsRouter);
   app.use("/api/events", eventsRouter);
   app.use("/api/metrics", metricsRouter);
+  app.use("/api/engineering", engineeringRouter);
   app.use("/api/search", searchRouter);
 
   app.use((_req, res) => {

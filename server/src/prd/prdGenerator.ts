@@ -78,6 +78,14 @@ export interface GeneratedPRD {
     effortPessimistic: string;
     keyComplexityDrivers: string[];
   };
+  /** Capabilities already present in the codebase relevant to this ticket. */
+  existingCapabilities?: string[];
+  /** Net-new work that must be built or changed for this ticket. */
+  netNewWork?: string[];
+  /** Modules/patterns from the repo to extend rather than rewrite. */
+  reuseFromCodebase?: string[];
+  /** Short prose tying PRD scope to what exists vs what is new. */
+  implementationDeltaSummary?: string;
   prdConfidence: number;
   confidenceNotes: string;
 }

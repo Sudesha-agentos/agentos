@@ -1,5 +1,6 @@
 import { prisma } from "../db/client";
 import type { Prisma } from "../generated/prisma/client";
+import { getActiveOrganizationId } from "../organization/context";
 import type { CompanyProfile, CompanyProfileInput, CompetitorEntry } from "./types";
 
 const DEFAULT_ID = "default";
@@ -81,10 +82,15 @@ export const EMPTY_PROFILE: CompanyProfile = {
   updatedBy: null,
 };
 
+function resolveOrganizationId(organizationId?: string): string | undefined {
+  return organizationId ?? getActiveOrganizationId() ?? undefined;
+}
+
 export async function getCompanyProfile(
   organizationId?: string
 ): Promise<CompanyProfile> {
-  if (organizationId) {
+  const orgId = resolveOrganizationId(organizationId);
+  if (orgId) {
     const row = await prisma.companyProfile.findUnique({
       where: { organizationId },
     });
@@ -103,6 +109,7 @@ export async function saveCompanyProfile(
   input: CompanyProfileInput,
   organizationId?: string
 ): Promise<CompanyProfile> {
+  const orgId = resolveOrganizationId(organizationId);
   const data = {
     companyName: input.companyName !== undefined ? String(input.companyName) : undefined,
     website: input.website !== undefined ? String(input.website) : undefined,
@@ -125,11 +132,11 @@ export async function saveCompanyProfile(
     updatedBy: input.updatedBy !== undefined ? input.updatedBy : undefined,
   };
 
-  const row = organizationId
+  const row = orgId
     ? await prisma.companyProfile.upsert({
-        where: { organizationId },
+        where: { organizationId: orgId },
         create: {
-          organizationId,
+          organizationId: orgId,
           companyName: data.companyName ?? "",
           website: data.website ?? "",
           productSummary: data.productSummary ?? "",

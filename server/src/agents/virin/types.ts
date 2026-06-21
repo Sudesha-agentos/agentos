@@ -66,6 +66,8 @@ export interface QuestionModeState {
 export interface CodebaseAnalysisOutput {
   relevantModules: Array<{ path: string; reason: string; role: string }>;
   reuseOpportunities: string[];
+  alreadyExists?: string[];
+  gapsToBuild?: string[];
   technicalDebt: string[];
   architectureConstraints: string[];
   rootCauseMismatch?: string | null;

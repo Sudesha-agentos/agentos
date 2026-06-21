@@ -16,6 +16,7 @@ Rules:
 - If unclear, produce exactly ONE clarifying question to establish type. Not a list.
 - With the clarifying question, provide 3–4 concise answer options grounded in company context, business context, ticket details, and codebase intelligence below (do NOT include "Other" — the UI adds that).
 - Options must reflect realistic answers given who this company is, how they make money, what the ticket says, and what the codebase suggests — not generic placeholders.
+- Use the OFFICIAL COMPANY NAME from company context exactly — do not substitute repo names, product codenames, or competitor names.
 - Identify symptom vs likely root cause in one sentence each.
 - Do not start discovery yet.
 
@@ -37,6 +38,12 @@ TICKET ATTACHMENTS (read these — they are part of the ticket):
 {{ticket_attachments}}
 
 COMPANY CONTEXT:
+Official company name: {{company_name}}
+Website: {{company_website}}
+Product: {{company_product}}
+ICP: {{company_icp}}
+Revenue model: {{company_revenue_model}}
+
 {{company_context}}
 
 BUSINESS CONTEXT (revenue model, ICP, priorities):
@@ -90,6 +97,12 @@ FULL DISCOVERY TRANSCRIPT:
 {{conversation_history}}
 
 COMPANY CONTEXT:
+Official company name: {{company_name}}
+Website: {{company_website}}
+Product: {{company_product}}
+ICP: {{company_icp}}
+Revenue model: {{company_revenue_model}}
+
 {{company_context}}
 
 BUSINESS CONTEXT (revenue model, ICP, what the company is building toward):
@@ -117,6 +130,7 @@ Relevance & non-overlap rules (mandatory):
 - Do NOT ask about: timeline/ priority / stakeholders / "why now" if already covered; do NOT ask generic questions like "who are the users" if user segment was already stated.
 - Do NOT ask multi-part questions. One interrogative, one unknown.
 - Options MUST be grounded in company, business, and codebase context — mutually distinct realistic answers (no "Other").
+- Use {{company_name}} as the company name in questions and options when referring to the customer company — never substitute repo or product codenames.
 
 When to stop early:
 - If you can write a clear problem statement, success definition, and MVP scope for THIS feature → action "ready" with discoverySummary (do not pad with extra questions).
@@ -196,11 +210,14 @@ Tasks:
 4. Does the code suggest the reported problem has a different root cause than stakeholders think?
 5. Pressure-test the proposed direction with technical risks
 6. Draft testable acceptance criteria (precise enough for engineers to write tests)
+7. Separate what ALREADY EXISTS in the repo vs what GAPS must be built for this ticket
 
 Output JSON:
 {
   "relevantModules": [{"path": "...", "reason": "...", "role": "primary|secondary|config|test"}],
   "reuseOpportunities": ["..."],
+  "alreadyExists": ["concrete capability already in codebase — cite file paths"],
+  "gapsToBuild": ["concrete net-new work required — cite what's missing"],
   "technicalDebt": ["..."],
   "architectureConstraints": ["..."],
   "rootCauseMismatch": "null or explanation if code suggests different root cause",
@@ -275,6 +292,9 @@ Competitor landscape:
 Codebase constraints:
 {{codebase_analysis_json}}
 
+Codebase intelligence (modules, similar work, candidate files):
+{{codebase_intelligence}}
+
 Jira: {{jira_key}}
 Title: {{ticket_summary}}
 
@@ -282,7 +302,11 @@ Quality bar:
 - Every requirement is testable (no "feel better" — rewrite to binary/measurable)
 - Non-goals are specific
 - Success metrics tie to stated goals
-- Technical considerations include codebase findings
+- Technical considerations include codebase findings with file paths
+- existingCapabilities MUST list what the repo already provides for this ticket
+- netNewWork MUST list only what must be built/changed (delta work)
+- reuseFromCodebase MUST cite modules/patterns to extend
+- implementationDeltaSummary MUST explain already-built vs net-new in 2-4 sentences
 - Open questions are real and named with owner
 - effortEstimate and complexitySummary use AgentOS agent pipeline wall-clock hours (Virin → Ananta → Neel), NOT human developer sprint days. Typical ranges: XS 30–90 min, S 1–3 h, M 3–8 h, L 8–16 h, XL 16–40 h.
 
@@ -319,6 +343,10 @@ Use GeneratedPRD schema:
     "effortPessimistic": "agent pipeline hours (e.g. 8h)",
     "keyComplexityDrivers": []
   },
+  "existingCapabilities": ["what the codebase already provides — cite paths"],
+  "netNewWork": ["what must be built or changed — delta only"],
+  "reuseFromCodebase": ["modules/patterns to extend"],
+  "implementationDeltaSummary": "2-4 sentences: already built vs net-new for this ticket",
   "prdConfidence": 0.0,
   "confidenceNotes": "honest uncertainty notes"
 }${JSON_ONLY}`;

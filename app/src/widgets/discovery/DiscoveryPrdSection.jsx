@@ -22,6 +22,18 @@ export default function DiscoveryPrdSection({ parsed, scores }) {
 
       <ProseBlock label="Problem" text={prd.problemStatement} />
       <ProseBlock label="Solution" text={prd.proposedSolution} />
+      {prd.implementationDeltaSummary ? (
+        <ProseBlock label="Codebase delta" text={prd.implementationDeltaSummary} />
+      ) : null}
+      {prd.existingCapabilities?.length > 0 ? (
+        <BulletList label="Already built in codebase" items={prd.existingCapabilities} />
+      ) : null}
+      {prd.netNewWork?.length > 0 ? (
+        <BulletList label="Net-new work to build" items={prd.netNewWork} />
+      ) : null}
+      {prd.reuseFromCodebase?.length > 0 ? (
+        <BulletList label="Reuse from codebase" items={prd.reuseFromCodebase} />
+      ) : null}
       {prd.successDefinition ? (
         <ProseBlock label="Definition of done" text={prd.successDefinition} />
       ) : null}

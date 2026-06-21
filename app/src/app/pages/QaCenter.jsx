@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import {
   useQaCoverage,
   useQaHeatmap,
@@ -14,7 +15,6 @@ import {
 import { useSettings } from "../../entities/settings";
 import { Panel, PanelHeader } from "../../shared/ui/Panel";
 import { AppTabButton } from "../../shared/ui/AppChrome";
-import { Link } from "react-router-dom";
 import { AnimatedAppPage } from "../../shared/ui/AnimatedAppPage";
 import { AgentPageWithChat } from "../../widgets/agent-chat/AgentPageWithChat";
 import { AgentPageHeader } from "../../widgets/agent-chat/AgentPageHeader";
@@ -45,11 +45,19 @@ function formatWhen(iso) {
 }
 
 export default function QaCenter() {
+  const [searchParams] = useSearchParams();
   const [tab, setTab] = useState("overview");
   const [triggering, setTriggering] = useState(false);
   const [triggerMsg, setTriggerMsg] = useState(null);
   const [selectedRunId, setSelectedRunId] = useState(null);
-  const [selectedPipelineId, setSelectedPipelineId] = useState(null);
+  const [selectedPipelineId, setSelectedPipelineId] = useState(
+    () => searchParams.get("pipeline")?.trim() || null
+  );
+
+  useEffect(() => {
+    const pipeline = searchParams.get("pipeline")?.trim();
+    if (pipeline) setSelectedPipelineId(pipeline);
+  }, [searchParams]);
 
   const { data: coverage } = useQaCoverage();
   const { data: heatmap } = useQaHeatmap();

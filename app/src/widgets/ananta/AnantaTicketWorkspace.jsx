@@ -1,6 +1,9 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { useEngineeringRun } from "../../entities/engineering-agent";
+import {
+  useEngineeringCodingEvents,
+  useEngineeringRun,
+} from "../../entities/engineering-agent";
 import { AGENT_NAMES } from "../../shared/config/app";
 import { useOrgPathBuilder } from "../../shared/providers/OrgRouteProvider";
 import { Panel } from "../../shared/ui/Panel";
@@ -19,7 +22,22 @@ export default function AnantaTicketWorkspace({
   handoffPending = false,
 }) {
   const orgPath = useOrgPathBuilder();
-  const { run, loading } = useEngineeringRun(pipelineId, { pollMs: 8_000 });
+  const { run, loading, refresh } = useEngineeringRun(pipelineId, {
+    pollMs: 2_500,
+    live: true,
+  });
+  useEngineeringCodingEvents(pipelineId, {
+    enabled: run?.status === "RUNNING",
+    onEvent: (event) => {
+      if (
+        event?.type === "file_staged" ||
+        event?.type === "tool_completed" ||
+        event?.type === "coding_completed"
+      ) {
+        refresh();
+      }
+    },
+  });
   const [section, setSection] = useState("plan");
   const [selectedFile, setSelectedFile] = useState(null);
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -35,6 +53,23 @@ export default function AnantaTicketWorkspace({
   }, [run]);
 
   const coverageOk = run && run.criteriaMapped >= run.criteriaTotal;
+
+  useEffect(() => {
+    if (!run?.files?.length || run.status !== "RUNNING") return;
+    const latest = run.files[run.files.length - 1]?.path;
+    if (latest) {
+      setSelectedFile(latest);
+      setSection("files");
+    }
+  }, [run?.files, run?.status]);
+
+  const activeFile = useMemo(() => {
+    if (!run?.files?.length) return null;
+    return (
+      run.files.find((f) => f.path === selectedFile) ??
+      run.files[run.files.length - 1]
+    );
+  }, [run?.files, selectedFile]);
 
   if (!pipelineId && handoffPending) {
     return (
@@ -86,10 +121,28 @@ export default function AnantaTicketWorkspace({
     );
   }
 
-  const isLive = run.status === "RUNNING" && run.liveSteps?.length;
+  const isLive = run.status === "RUNNING" && (run.liveSteps?.length || run.files?.length);
 
   return (
     <div className="flex min-h-[calc(100vh-12rem)] flex-col">
+      {run.qaPhase ? (
+        <div className="mb-4 rounded-app-sm border border-indigo/30 bg-indigo/5 px-5 py-4 sm:px-6">
+          <p className="text-sm font-medium text-app-ink">
+            Implementation complete — {AGENT_NAMES.NEEL} is running QA
+          </p>
+          <p className="mt-1 text-[13px] text-app-ink-dim">
+            Ananta finished coding for this ticket. Review the QA report as tests are written and
+            executed.
+          </p>
+          <Link
+            to={`${orgPath("qa")}?pipeline=${encodeURIComponent(run.pipelineId)}`}
+            className="mt-3 inline-flex text-sm font-medium text-indigo hover:underline"
+          >
+            Open {AGENT_NAMES.NEEL} QA report →
+          </Link>
+        </div>
+      ) : null}
+
       <header className="app-card border border-app-border px-5 py-4 sm:px-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
@@ -153,7 +206,7 @@ export default function AnantaTicketWorkspace({
               View PRD
             </Link>
             <Link
-              to={orgPath("qa")}
+              to={`${orgPath("qa")}?pipeline=${encodeURIComponent(run.pipelineId)}`}
               className="rounded-full border border-app-border px-3 py-1.5 text-xs font-medium text-app-ink"
             >
               View QA Report
@@ -222,7 +275,16 @@ export default function AnantaTicketWorkspace({
         <main className="min-w-0 flex-1">
           <Panel className="min-h-[420px] border border-app-border">
             {isLive ? (
-              <LiveRunPanel steps={run.liveSteps} />
+              <div className="grid gap-0 lg:grid-cols-2">
+                <LiveRunPanel steps={run.liveSteps} />
+                <FileContentView
+                  file={activeFile}
+                  fileTab={fileTab}
+                  onTabChange={setFileTab}
+                  defaultPlan={run.implementationPlan}
+                  live
+                />
+              </div>
             ) : section === "plan" && !selectedFile ? (
               <ImplementationPlanView plan={run.implementationPlan} />
             ) : section === "files" || selectedFile ? (
@@ -311,6 +373,7 @@ export default function AnantaTicketWorkspace({
 }
 
 function AnantaEmptyState() {
+  const orgPath = useOrgPathBuilder();
   return (
     <Panel className="flex flex-col items-center px-8 py-16 text-center">
       <div className="flex size-16 items-center justify-center rounded-full bg-indigo/10 font-display text-2xl text-indigo">
@@ -334,11 +397,12 @@ function AnantaEmptyState() {
 }
 
 function LiveRunPanel({ steps }) {
+  const items = steps ?? [];
   return (
-    <div className="px-5 py-6 sm:px-6">
+    <div className="border-b border-app-border px-5 py-6 sm:border-b-0 sm:border-r lg:px-6">
       <p className="type-kicker">{AGENT_NAMES.ANANTA} — Live</p>
       <ul className="mt-4 space-y-2">
-        {steps.map((step) => (
+        {items.map((step) => (
           <li key={step.id} className="flex items-start gap-3 text-sm">
             <span
               className={`mt-1 size-2 shrink-0 rounded-full ${
@@ -415,13 +479,28 @@ function ImplementationPlanView({ plan }) {
   );
 }
 
-function FileContentView({ file, fileTab, onTabChange, defaultPlan }) {
+function FileContentView({ file, fileTab, onTabChange, defaultPlan, live = false }) {
   if (!file) {
-    return <ImplementationPlanView plan={defaultPlan} />;
+    return (
+      <div className="px-5 py-8 sm:px-6">
+        {live ? (
+          <p className="text-sm text-app-ink-dim">
+            Waiting for {AGENT_NAMES.ANANTA} to stage the first file…
+          </p>
+        ) : (
+          <ImplementationPlanView plan={defaultPlan} />
+        )}
+      </div>
+    );
   }
   return (
     <div className="px-5 py-4 sm:px-6">
-      <p className="font-mono text-xs text-violet-700">{file.path}</p>
+      <div className="flex items-center gap-2">
+        {live ? (
+          <span className="size-2 animate-pulse rounded-full bg-indigo" />
+        ) : null}
+        <p className="font-mono text-xs text-violet-700">{file.path}</p>
+      </div>
       <p className="mt-2 text-sm text-app-ink-dim">{file.summary}</p>
       {file.humanModified ? (
         <p className="mt-2 rounded-app-sm border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning">

@@ -5,7 +5,10 @@ export interface PrdQualityResult {
   issues: string[];
 }
 
-export function validateGeneratedPrd(prd: GeneratedPRD): PrdQualityResult {
+export function validateGeneratedPrd(
+  prd: GeneratedPRD,
+  options?: { relevantModuleCount?: number }
+): PrdQualityResult {
   const issues: string[] = [];
 
   if (!prd.title?.trim()) issues.push("Missing title");
@@ -22,6 +25,18 @@ export function validateGeneratedPrd(prd: GeneratedPRD): PrdQualityResult {
   }
   if (prd.prdConfidence < 0.5) {
     issues.push(`PRD confidence ${prd.prdConfidence} is critically low`);
+  }
+  const moduleCount = options?.relevantModuleCount ?? 0;
+  if (moduleCount > 0) {
+    if (!prd.existingCapabilities?.length) {
+      issues.push("Missing existingCapabilities despite codebase modules found");
+    }
+    if (!prd.netNewWork?.length) {
+      issues.push("Missing netNewWork despite codebase modules found");
+    }
+  }
+  if (!prd.implementationDeltaSummary?.trim()) {
+    issues.push("Missing implementationDeltaSummary tying PRD to codebase reality");
   }
 
   return { passed: issues.length === 0, issues };
