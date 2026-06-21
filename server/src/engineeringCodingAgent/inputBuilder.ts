@@ -98,6 +98,8 @@ ${design ? `System design package:\n${JSON.stringify(design, null, 2)}` : ""}
 
 ${tasks?.length ? `Task breakdown:\n${tasks.map((t) => `- ${t.id}: ${t.title} (${t.files.join(", ")})`).join("\n")}` : ""}
 
+${input.pmContext?.generatedPrd ? `Full PM-generated PRD (authoritative — implement every feature, user story, and requirement described here):\n${JSON.stringify(input.pmContext.generatedPrd, null, 2)}` : ""}
+
 ${input.compileFeedback ? `SANDBOX COMPILE/TEST FEEDBACK — fix these errors before finishing:\n${input.compileFeedback}` : ""}
 
 Begin PHASE 1: read and search the codebase on branch "${input.branchName}",

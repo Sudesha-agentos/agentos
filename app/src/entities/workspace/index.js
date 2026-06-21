@@ -13,6 +13,18 @@ function authedGet(path) {
 const restWorkspaceAdapter = {
   metricsSummary: () => authedGet("/api/metrics/summary"),
   activityEvents: () => authedGet("/api/events/recent"),
+  dismissActivityEvent: (id) =>
+    fetchJson(apiPath("/api/events/dismiss"), {
+      method: "POST",
+      headers: { ...authHeaders(), "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    }),
+  clearActivityEvents: (ids) =>
+    fetchJson(apiPath("/api/events/clear"), {
+      method: "POST",
+      headers: { ...authHeaders(), "Content-Type": "application/json" },
+      body: JSON.stringify({ ids }),
+    }),
   cycleTrend: () => authedGet("/api/metrics/cycle-trend"),
   weeklyTrend: () => authedGet("/api/metrics/weekly-trend"),
   agentHealth: () => authedGet("/api/metrics/agent-health"),
@@ -27,6 +39,8 @@ const restWorkspaceAdapter = {
 const mockWorkspaceAdapter = {
   metricsSummary: () => mockApi.metricsSummary(),
   activityEvents: () => mockApi.activityEvents(),
+  dismissActivityEvent: (id) => mockApi.dismissActivityEvent(id),
+  clearActivityEvents: (ids) => mockApi.clearActivityEvents(ids),
   cycleTrend: () => mockApi.cycleTrend(),
   weeklyTrend: () => mockApi.weeklyTrend(),
   agentHealth: () => mockApi.agentHealth(),
@@ -47,6 +61,14 @@ export function useActivityEvents(options = {}) {
     pollMs: options.pollMs ?? 6000,
     skip: options.skip,
   });
+}
+
+export function dismissActivityEvent(id) {
+  return workspaceAdapter.dismissActivityEvent(id);
+}
+
+export function clearActivityEvents(ids) {
+  return workspaceAdapter.clearActivityEvents(ids);
 }
 
 export function useCycleTrend(options = {}) {

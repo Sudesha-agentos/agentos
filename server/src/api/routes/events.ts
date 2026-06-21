@@ -2,7 +2,17 @@ import { Router } from "express";
 import { prisma } from "../../db/client";
 import type { PipelineStage, PipelineStatus } from "../../generated/prisma/client";
 import { listRecentIntakeEvents } from "../../db/repositories/intakeEventRepo";
+import {
+  dismissNotification,
+  dismissNotifications,
+  filterUndismissedNotifications,
+} from "../../notifications/notificationDismissStore";
+import {
+  clearIntakeNotifications,
+  removeIntakeNotification,
+} from "../../pipeline/jira/intakeNotificationStore";
 import { requireOrganizationUser } from "../orgRequestContext";
+import { ValidationError } from "../../utils/errors";
 
 const router = Router();
 
@@ -91,11 +101,69 @@ router.get("/recent", async (req, res, next) => {
       timestamp: item.createdAt.toISOString(),
     }));
 
-    const merged = [...intakeEvents, ...events]
+    const merged = filterUndismissedNotifications(user.organizationId, [
+      ...intakeEvents,
+      ...events,
+    ])
       .sort((a, b) => Date.parse(b.timestamp) - Date.parse(a.timestamp))
       .slice(0, 30);
 
     res.json({ events: merged });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post("/dismiss", (req, res, next) => {
+  try {
+    const user = requireOrganizationUser(req, res);
+    if (!user?.organizationId) return;
+
+    const id = String(req.body?.id ?? "").trim();
+    if (!id) throw new ValidationError("id is required");
+
+    dismissNotification(user.organizationId, id);
+    if (id.startsWith("intake-")) {
+      removeIntakeNotification(user.organizationId, id);
+    }
+
+    res.json({ ok: true, id });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post("/clear", (req, res, next) => {
+  try {
+    const user = requireOrganizationUser(req, res);
+    if (!user?.organizationId) return;
+
+    const ids = Array.isArray(req.body?.ids)
+      ? req.body.ids.map((value: unknown) => String(value).trim()).filter(Boolean)
+      : [];
+
+    if (!ids.length) throw new ValidationError("ids is required");
+
+    const dismissed = dismissNotifications(user.organizationId, ids);
+    for (const id of ids) {
+      if (id.startsWith("intake-")) {
+        removeIntakeNotification(user.organizationId, id);
+      }
+    }
+
+    res.json({ ok: true, dismissed });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post("/clear-intake-memory", (req, res, next) => {
+  try {
+    const user = requireOrganizationUser(req, res);
+    if (!user?.organizationId) return;
+
+    const removed = clearIntakeNotifications(user.organizationId);
+    res.json({ ok: true, removed });
   } catch (err) {
     next(err);
   }

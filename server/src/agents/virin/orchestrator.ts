@@ -17,6 +17,7 @@ import {
   PROMPT_INFER_ANSWER,
   PROMPT_INTAKE,
   PROMPT_NEXT_QUESTION,
+  PROMPT_NEXT_QUESTION_RETRY,
   PROMPT_POST_SHIP,
   PROMPT_PRD,
   PROMPT_RETROSPECTIVE,
@@ -163,6 +164,90 @@ function formatConversation(state: QuestionModeState | undefined): string {
         `Q${i + 1}: ${t.question}\nA${i + 1}: ${t.answer}${t.flag ? `\nFLAG: ${t.flag}` : ""}`
     )
     .join("\n\n");
+}
+
+function formatPriorQuestionsList(state: QuestionModeState): string {
+  if (!state.conversation.length) return "(none yet — ask the highest-impact first question about this feature)";
+  return state.conversation.map((t, i) => `${i + 1}. ${t.question}`).join("\n");
+}
+
+function formatLastAnswerBlock(state: QuestionModeState): string {
+  const last = state.conversation[state.conversation.length - 1];
+  if (!last) {
+    return "LAST ANSWER: (none — this is the first discovery question; anchor it to the ticket summary and feature scope)";
+  }
+  return [
+    "LAST EXCHANGE (your next question MUST cross-examine this answer):",
+    `Q: ${last.question}`,
+    `A: ${last.answer}`,
+    last.flag ? `FLAG: ${last.flag}` : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+function tokenizeForOverlap(text: string): Set<string> {
+  const stop = new Set([
+    "what", "when", "where", "which", "who", "how", "does", "this", "that", "with", "from",
+    "have", "been", "will", "would", "should", "about", "your", "the", "and", "for", "are",
+  ]);
+  return new Set(
+    text
+      .toLowerCase()
+      .replace(/[^\w\s]/g, " ")
+      .split(/\s+/)
+      .filter((w) => w.length > 3 && !stop.has(w))
+  );
+}
+
+function questionOverlapScore(a: string, b: string): number {
+  const sa = tokenizeForOverlap(a);
+  const sb = tokenizeForOverlap(b);
+  if (!sa.size || !sb.size) return 0;
+  let inter = 0;
+  for (const t of sa) {
+    if (sb.has(t)) inter += 1;
+  }
+  return inter / Math.min(sa.size, sb.size);
+}
+
+function findOverlappingPriorQuestion(
+  question: string,
+  state: QuestionModeState
+): { index: number; score: number } | null {
+  let best: { index: number; score: number } | null = null;
+  state.conversation.forEach((turn, index) => {
+    const score = questionOverlapScore(question, turn.question);
+    if (score >= 0.55 && (!best || score > best.score)) {
+      best = { index, score };
+    }
+  });
+  return best;
+}
+
+function buildNextQuestionPrompt(
+  state: QuestionModeState,
+  intake: PmAnalysisRecord["neelIntake"],
+  ticket: PmTicketInput,
+  ctx: Awaited<ReturnType<typeof gatherPmContext>>,
+  record: PmAnalysisRecord
+): string {
+  const qctx = questionPromptContext(ctx);
+  return renderTemplate(PROMPT_NEXT_QUESTION, {
+    ticket_type: intake!.ticketType,
+    symptom_vs_root: intake!.symptomVsRootCause,
+    conversation_history: formatConversation(state),
+    prior_questions_list: formatPriorQuestionsList(state),
+    last_answer_block: formatLastAnswerBlock(state),
+    turn_number: String(state.conversation.length + 1),
+    max_turns: String(VIRIN_BEHAVIOR.maxDiscoveryTurns),
+    ticket_summary: ticket.summary,
+    ticket_description: ticket.description,
+    company_context: companyContextFromRecord(record, ctx),
+    business_context: qctx.business_context,
+    strategic_goals: qctx.strategic_goals,
+    codebase_intelligence: qctx.codebase_intelligence,
+  });
 }
 
 function syncLegacyFields(
@@ -338,7 +423,7 @@ export async function runVirinPipeline(input: {
     pmAnalysisStore.setStatus(jiraKey, "COMPLETED");
     pmAnalysisStore.setCurrentStage(jiraKey, null);
     const completed = pmAnalysisStore.get(jiraKey)!;
-    void autoStartEngineeringFromVirin(jiraKey);
+    await autoStartEngineeringFromVirin(jiraKey);
     return completed;
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
@@ -477,21 +562,31 @@ async function runQuestionMode(
   const qctx = questionPromptContext(ctx);
 
   while (!state.readyToProceed && state.conversation.length < VIRIN_BEHAVIOR.maxDiscoveryTurns) {
-    const next = await runVirinStage<VirinNextQuestionResult>(
+    const discoveryBody = buildNextQuestionPrompt(state, intake, ticket, ctx, record);
+    let next = await runVirinStage<VirinNextQuestionResult>(
       jiraKey,
       "QUESTION_MODE",
-      renderTemplate(PROMPT_NEXT_QUESTION, {
-        ticket_type: intake.ticketType,
-        symptom_vs_root: intake.symptomVsRootCause,
-        conversation_history: formatConversation(state),
-        ticket_summary: ticket.summary,
-        ticket_description: ticket.description,
-        company_context: companyContextFromRecord(record, ctx),
-        business_context: qctx.business_context,
-        strategic_goals: qctx.strategic_goals,
-        codebase_intelligence: qctx.codebase_intelligence,
-      })
+      discoveryBody
     );
+
+    if (next.action === "ask" && next.question) {
+      const overlap = findOverlappingPriorQuestion(next.question, state);
+      if (overlap) {
+        logger.info(
+          { jiraKey, overlap, rejected: next.question.slice(0, 120) },
+          "Virin discovery question overlapped — retrying"
+        );
+        next = await runVirinStage<VirinNextQuestionResult>(
+          jiraKey,
+          "QUESTION_MODE",
+          renderTemplate(PROMPT_NEXT_QUESTION_RETRY, {
+            rejected_question: next.question,
+            overlap_reason: `Too similar to prior question #${overlap.index + 1} (overlap score ${overlap.score.toFixed(2)})`,
+            discovery_prompt_body: discoveryBody,
+          })
+        );
+      }
+    }
 
     if (next.action === "flag" && next.flag) {
       state.flagsRaised.push(next.flag);

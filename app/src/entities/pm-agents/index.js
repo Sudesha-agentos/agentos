@@ -6,6 +6,69 @@ import { mockApi } from "../../app/api/mock";
 
 export const VIRIN_NAME = "Virin";
 
+/** Keep in sync with server/src/agents/virin/persona.ts VIRIN_BEHAVIOR.maxDiscoveryTurns */
+export const VIRIN_MAX_DISCOVERY_TURNS = 12;
+export const VIRIN_MAX_INTAKE_CLARIFYING = 1;
+
+/**
+ * Discovery Q&A progress for Stage 2 (QUESTION_MODE).
+ * @returns {{ answered: number, current: number, max: number, complete: boolean, label: string, shortLabel: string } | null}
+ */
+export function getDiscoveryQuestionProgress(analysis) {
+  if (!analysis) return null;
+
+  const max = VIRIN_MAX_DISCOVERY_TURNS;
+  const answered = analysis.questionMode?.conversation?.length ?? 0;
+  const complete = Boolean(
+    analysis.questionMode?.readyToProceed || analysis.questionMode?.discoverySummary
+  );
+  const inDiscovery =
+    analysis.currentStage === "QUESTION_MODE" ||
+    analysis.pendingQuestionStage === "QUESTION_MODE" ||
+    answered > 0 ||
+    (analysis.status === "AWAITING_INPUT" && !analysis.pendingQuestionStage);
+
+  if (!inDiscovery && !complete) return null;
+
+  const pendingNow =
+    analysis.status === "AWAITING_INPUT" &&
+    analysis.pendingQuestion &&
+    (analysis.pendingQuestionStage === "QUESTION_MODE" ||
+      (!analysis.pendingQuestionStage && analysis.currentStage === "QUESTION_MODE"));
+
+  const current = complete ? answered : pendingNow ? answered + 1 : answered;
+
+  const label = complete
+    ? `${answered} discovery question${answered === 1 ? "" : "s"} asked (max ${max})`
+    : pendingNow
+      ? `Question ${answered + 1} of up to ${max}`
+      : answered > 0
+        ? `${answered} of up to ${max} questions answered`
+        : `Up to ${max} discovery questions`;
+
+  const shortLabel = complete
+    ? `${answered}/${max}`
+    : `${Math.min(Math.max(current, pendingNow ? answered + 1 : answered), max)}/${max}`;
+
+  return { answered, current, max, complete, label, shortLabel, pendingNow };
+}
+
+export function getIntakeClarifyingProgress(analysis) {
+  if (
+    analysis?.status !== "AWAITING_INPUT" ||
+    analysis.pendingQuestionStage !== "INTAKE" ||
+    !analysis.pendingQuestion
+  ) {
+    return null;
+  }
+  return {
+    current: 1,
+    max: VIRIN_MAX_INTAKE_CLARIFYING,
+    label: `Clarifying question 1 of ${VIRIN_MAX_INTAKE_CLARIFYING}`,
+    shortLabel: `1/${VIRIN_MAX_INTAKE_CLARIFYING}`,
+  };
+}
+
 const pm = (path) => apiPath("/api", `/pm-agents${path}`);
 
 const restPmAdapter = {

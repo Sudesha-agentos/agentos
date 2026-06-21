@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { useActivityEvents } from "../../entities/workspace";
+import {
+  dismissActivityEvent,
+  useActivityEvents,
+} from "../../entities/workspace";
 import { useOrgPathBuilder } from "../providers/OrgRouteProvider";
 
 const SEEN_STORAGE_KEY = "agentos-intake-toast-seen";
@@ -56,6 +59,19 @@ export default function IntakeAssignmentListener() {
 
   if (!toast) return null;
 
+  async function dismissToast() {
+    if (toast?.id) {
+      seenIds.current.add(toast.id);
+      saveSeenIds(seenIds.current);
+      try {
+        await dismissActivityEvent(toast.id);
+      } catch {
+        /* best-effort — still hide locally */
+      }
+    }
+    setToast(null);
+  }
+
   return (
     <div
       className="fixed bottom-6 right-6 z-[100] w-[min(22rem,calc(100vw-2rem))] rounded-app border border-indigo/30 bg-app-surface p-4 shadow-app-float"
@@ -83,7 +99,7 @@ export default function IntakeAssignmentListener() {
         <button
           type="button"
           className="rounded-app-sm border border-app-border px-3 py-1.5 text-[12px] text-app-ink-dim hover:text-app-ink"
-          onClick={() => setToast(null)}
+          onClick={() => void dismissToast()}
         >
           Dismiss
         </button>

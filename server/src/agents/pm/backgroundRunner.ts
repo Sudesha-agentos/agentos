@@ -1,3 +1,5 @@
+import { withOrganizationContext } from "../../api/orgRequestContext";
+import { getActiveOrganizationId } from "../../organization/context";
 import { logger } from "../../utils/logger";
 import { pmAnalysisStore } from "./store";
 
@@ -10,12 +12,23 @@ export function isPmAnalysisRunning(jiraKey: string): boolean {
 /** Fire-and-forget Virin stage runner (shared by API routes and Jira intake). */
 export function startPmAnalysisInBackground(
   jiraKey: string,
-  run: () => Promise<unknown>
+  run: () => Promise<unknown>,
+  options?: { organizationId?: string }
 ): void {
   const key = jiraKey.trim().toUpperCase();
   if (running.has(key)) return;
   running.add(key);
-  void run()
+
+  const capturedOrgId = options?.organizationId ?? getActiveOrganizationId();
+
+  const execute = async () => {
+    if (capturedOrgId) {
+      return withOrganizationContext(capturedOrgId, run);
+    }
+    return run();
+  };
+
+  void execute()
     .catch((err) => {
       const message = err instanceof Error ? err.message : String(err);
       logger.error({ err, jiraKey: key }, "Virin background run failed");
