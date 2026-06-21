@@ -15,6 +15,7 @@ export type PmAnalysisStatus =
   | "RUNNING"
   | "COMPLETED"
   | "FAILED"
+  | "CANCELLED"
   | "AWAITING_INPUT"
   | "AWAITING_CONFIRMATION";
 
@@ -35,6 +36,12 @@ export interface PmTicketInput {
   components: string[];
   createdDate: string;
   priority: string;
+  status?: string;
+  assignee?: string;
+  /** Recent Jira comments (plain text). */
+  commentsText?: string;
+  /** Inlined attachment contents / metadata for LLM prompts. */
+  attachmentsText?: string;
 }
 
 /** @deprecated Legacy — synced from Virin outputs for pipeline compatibility */

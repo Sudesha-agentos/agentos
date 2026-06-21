@@ -5,6 +5,7 @@ import { AGENT_NAMES } from "../../shared/config/app";
 import {
   analyzePmTicket,
   answerVirinQuestion,
+  cancelPmAnalysis,
   confirmVirinDirection,
   exportProductPackage,
   getPmResumeStage,
@@ -37,6 +38,7 @@ export default function PmAgents() {
   const [analyzing, setAnalyzing] = useState(false);
   const [retroRunning, setRetroRunning] = useState(false);
   const [interactionBusy, setInteractionBusy] = useState(false);
+  const [cancelBusy, setCancelBusy] = useState(false);
   const [exportBusy, setExportBusy] = useState(false);
   const [error, setError] = useState(null);
 
@@ -102,7 +104,7 @@ export default function PmAgents() {
     ) {
       setAnalyzing(true);
     }
-    if (analysis?.status === "COMPLETED" || analysis?.status === "FAILED") {
+    if (analysis?.status === "COMPLETED" || analysis?.status === "FAILED" || analysis?.status === "CANCELLED") {
       setAnalyzing(false);
     }
     if (analysis?.status === "COMPLETED") {
@@ -171,6 +173,23 @@ export default function PmAgents() {
       setError(err.message ?? "Failed to confirm direction");
     } finally {
       setInteractionBusy(false);
+    }
+  }
+
+  async function handleCancel() {
+    const key = activeKey?.trim().toUpperCase();
+    if (!key) return;
+    setCancelBusy(true);
+    setError(null);
+    try {
+      await cancelPmAnalysis(key);
+      setAnalyzing(false);
+      await refetchAnalysis();
+      await refetchCatalogs();
+    } catch (err) {
+      setError(err.message ?? "Failed to stop Virin session");
+    } finally {
+      setCancelBusy(false);
     }
   }
 
@@ -297,6 +316,16 @@ export default function PmAgents() {
                 ? "Session in progress"
                 : `Analyze with ${VIRIN_NAME}`}
           </button>
+          {isRunning ? (
+            <button
+              type="button"
+              disabled={cancelBusy}
+              onClick={handleCancel}
+              className="shrink-0 rounded-app-sm border border-danger/40 bg-danger/5 px-4 py-2.5 text-sm font-medium text-danger transition hover:bg-danger/10 disabled:opacity-50"
+            >
+              {cancelBusy ? "Stopping…" : "Stop session"}
+            </button>
+          ) : null}
         </div>
 
         {(syncedTickets.length > 0 || intakeTickets.length > 0) && (

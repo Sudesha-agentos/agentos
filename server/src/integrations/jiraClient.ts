@@ -102,6 +102,74 @@ export class JiraClient {
     );
   }
 
+  async listIssueAttachments(
+    jiraKey: string
+  ): Promise<Array<{ id: string; filename: string; mimeType: string; size: number }>> {
+    const issue = (await this.getIssueWithFields<{
+      fields?: {
+        attachment?: Array<{
+          id?: string;
+          filename?: string;
+          mimeType?: string;
+          size?: number;
+        }>;
+      };
+    }>(jiraKey, ["attachment"])) as {
+      fields?: {
+        attachment?: Array<{
+          id?: string;
+          filename?: string;
+          mimeType?: string;
+          size?: number;
+        }>;
+      };
+    };
+
+    return (issue.fields?.attachment ?? [])
+      .filter((a) => a.id && a.filename)
+      .map((a) => ({
+        id: String(a.id),
+        filename: String(a.filename),
+        mimeType: String(a.mimeType ?? "application/octet-stream"),
+        size: Number(a.size ?? 0),
+      }));
+  }
+
+  async downloadAttachment(
+    attachmentId: string
+  ): Promise<{ buffer: Buffer; mimeType: string; filename?: string }> {
+    const { baseUrl, authHeader } = await this.resolveRequestAuth();
+    const meta = (await this.request<{
+      filename?: string;
+      mimeType?: string;
+    }>(`/rest/api/3/attachment/${encodeURIComponent(attachmentId)}`)) as {
+      filename?: string;
+      mimeType?: string;
+    };
+
+    const res = await fetch(
+      `${baseUrl}/rest/api/3/attachment/content/${encodeURIComponent(attachmentId)}`,
+      {
+        headers: {
+          Authorization: authHeader,
+          Accept: "*/*",
+        },
+      }
+    );
+
+    if (!res.ok) {
+      const body = await res.text();
+      throw new Error(`Jira attachment download ${attachmentId} ${res.status}: ${body}`);
+    }
+
+    const arrayBuffer = await res.arrayBuffer();
+    return {
+      buffer: Buffer.from(arrayBuffer),
+      mimeType: meta.mimeType ?? res.headers.get("content-type") ?? "application/octet-stream",
+      filename: meta.filename,
+    };
+  }
+
   searchIssues<TIssue = unknown>(
     jql: string,
     options: { fields?: string[]; maxResults?: number } = {}

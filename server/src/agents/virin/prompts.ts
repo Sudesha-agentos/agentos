@@ -6,14 +6,16 @@ const JSON_ONLY = "\n\nRespond with valid JSON only. No markdown fences or comme
 
 export const PROMPT_INTAKE = `Stage 1 — Intake
 
-Read the ticket carefully. Do NOT ask many questions yet.
+Read the ENTIRE ticket below — summary, description, comments, and attachments — before classifying.
+Do NOT claim that nothing is attached if attachments are listed below.
+Do NOT ask many questions yet.
 
 Classify the ticket as exactly one of: bug | task | small_feature | large_feature | unclear
 
 Rules:
 - If unclear, produce exactly ONE clarifying question to establish type. Not a list.
-- With the clarifying question, provide 3–4 concise answer options grounded in company context, business context, and codebase intelligence below (do NOT include "Other" — the UI adds that).
-- Options must reflect realistic answers given who this company is, how they make money, and what the codebase suggests — not generic placeholders.
+- With the clarifying question, provide 3–4 concise answer options grounded in company context, business context, ticket details, and codebase intelligence below (do NOT include "Other" — the UI adds that).
+- Options must reflect realistic answers given who this company is, how they make money, what the ticket says, and what the codebase suggests — not generic placeholders.
 - Identify symptom vs likely root cause in one sentence each.
 - Do not start discovery yet.
 
@@ -22,8 +24,17 @@ Summary: {{ticket_summary}}
 Description: {{ticket_description}}
 Type (Jira): {{ticket_type}}
 Priority: {{ticket_priority}}
+Status: {{ticket_status}}
+Reporter: {{ticket_reporter}}
+Assignee: {{ticket_assignee}}
 Components: {{ticket_components}}
 Labels: {{ticket_labels}}
+
+TICKET COMMENTS:
+{{ticket_comments}}
+
+TICKET ATTACHMENTS (read these — they are part of the ticket):
+{{ticket_attachments}}
 
 COMPANY CONTEXT:
 {{company_context}}
@@ -50,13 +61,23 @@ Output JSON:
 
 export const PROMPT_NEXT_QUESTION = `Stage 2 — Question mode (one turn)
 
-You are Virin doing PM discovery for ONE specific ticket/feature. Ask ONE question at a time.
+You are Virin doing PM discovery for ONE specific ticket/feature.
+
+MANDATORY: You have already been given the full ticket — summary, description, comments, attachments, company context, and codebase intelligence.
+Read ALL of it before asking. Never say nothing is attached if attachments appear below.
+Ask ONE question at a time only after you have absorbed the ticket materials.
 
 FEATURE IN SCOPE (stay anchored here — do not drift to adjacent features or generic process):
 Summary: {{ticket_summary}}
 Description: {{ticket_description}}
 Ticket type: {{ticket_type}}
 Symptom vs root cause: {{symptom_vs_root}}
+
+TICKET COMMENTS:
+{{ticket_comments}}
+
+TICKET ATTACHMENTS:
+{{ticket_attachments}}
 
 Turn {{turn_number}} of up to {{max_turns}} discovery questions.
 
@@ -131,6 +152,12 @@ If truly unknown, say "Unknown — needs stakeholder input" and note what to fin
 Question: {{question}}
 Ticket: {{ticket_summary}}
 {{ticket_description}}
+
+Ticket comments:
+{{ticket_comments}}
+
+Ticket attachments:
+{{ticket_attachments}}
 
 Business context:
 {{business_context}}
