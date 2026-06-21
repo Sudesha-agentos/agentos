@@ -44,7 +44,8 @@ export default function PipelineCard({
         {isPm ? (
           <PmStageRail
             currentStage={pipeline.currentStage}
-            status={pipeline.status}
+            status={pipeline.virinStatus ?? pipeline.status}
+            stageMeta={pipeline.raw?.stageMeta}
             compact
           />
         ) : pipeline.kind === "queued" ? (

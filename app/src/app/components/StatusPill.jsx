@@ -8,6 +8,8 @@ const STATUS = {
   PENDING: { dot: "bg-app-ink-mute", text: "text-app-ink-mute" },
   QUEUED: { dot: "bg-warning", text: "text-warning" },
   AWAITING_HUMAN: { dot: "bg-warning", text: "text-warning" },
+  AWAITING_INPUT: { dot: "bg-warning", text: "text-warning" },
+  AWAITING_CONFIRMATION: { dot: "bg-warning", text: "text-warning" },
 };
 
 export default function StatusPill({ status, className = "" }) {

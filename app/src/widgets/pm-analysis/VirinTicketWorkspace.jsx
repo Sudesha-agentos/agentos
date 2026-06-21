@@ -269,6 +269,7 @@ export function VirinTicketWorkspace({
   exportBusy,
   compact = false,
   showHistory = true,
+  embedded = false,
   isValidating = false,
 }) {
   const initialStage =
@@ -313,8 +314,8 @@ export function VirinTicketWorkspace({
 
   return (
     <div className="grid gap-6 xl:grid-cols-[240px_minmax(0,1fr)]">
-      {!compact && showHistory ? (
-        <aside className="space-y-4 xl:sticky xl:top-24 xl:self-start">
+      {!compact ? (
+        <aside className="space-y-4 xl:sticky xl:top-4 xl:self-start">
           <Panel>
             <PanelHeader kicker="Progress" title={`${VIRIN_NAME} · 9 stages`} />
             <div className="px-4 py-4 sm:px-5">
@@ -325,7 +326,7 @@ export function VirinTicketWorkspace({
               />
             </div>
           </Panel>
-          {historyItems?.length > 0 ? (
+          {showHistory && historyItems?.length > 0 ? (
             <Panel>
               <PanelHeader kicker="Sessions" title="Recent" />
               <ul className="max-h-[240px] overflow-y-auto px-2 py-2">
@@ -356,49 +357,51 @@ export function VirinTicketWorkspace({
       ) : null}
 
       <div className="min-w-0 space-y-5">
-        <div
-          className={`rounded-app border px-5 py-5 sm:px-6 ${
-            needsYou
-              ? "border-warning/30 bg-gradient-to-br from-warning/5 via-app-surface to-indigo/5"
-              : "border-app-border bg-app-surface shadow-app-card"
-          }`}
-        >
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <div className="flex flex-wrap items-center gap-2">
-                <h2 className="font-mono text-[13px] font-semibold text-indigo">
-                  {analysis.jiraKey}
-                </h2>
-                <VirinStatusBadge status={analysis.status} />
-                <VirinTicketTypeBadge type={analysis.neelIntake?.ticketType} />
-                {isValidating ? (
-                  <span className="font-mono text-[10px] text-app-ink-mute">Updating…</span>
-                ) : null}
+        {!embedded ? (
+          <div
+            className={`rounded-app border px-5 py-5 sm:px-6 ${
+              needsYou
+                ? "border-warning/30 bg-gradient-to-br from-warning/5 via-app-surface to-indigo/5"
+                : "border-app-border bg-app-surface shadow-app-card"
+            }`}
+          >
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="font-mono text-[13px] font-semibold text-indigo">
+                    {analysis.jiraKey}
+                  </h2>
+                  <VirinStatusBadge status={analysis.status} />
+                  <VirinTicketTypeBadge type={analysis.neelIntake?.ticketType} />
+                  {isValidating ? (
+                    <span className="font-mono text-[10px] text-app-ink-mute">Updating…</span>
+                  ) : null}
+                </div>
+                <p className="mt-1.5 text-[15px] font-medium text-app-ink">
+                  {analysis.ticketInput?.summary ?? "Ticket analysis"}
+                </p>
+                <p className="mt-2 text-[13px] text-app-ink-dim">
+                  {PM_STAGE_LABELS[activeStage] ?? "Starting"}
+                </p>
               </div>
-              <p className="mt-1.5 text-[15px] font-medium text-app-ink">
-                {analysis.ticketInput?.summary ?? "Ticket analysis"}
-              </p>
-              <p className="mt-2 text-[13px] text-app-ink-dim">
-                {PM_STAGE_LABELS[activeStage] ?? "Starting"}
-              </p>
+              {analysis.generatedPrd && onExportPackage ? (
+                <button
+                  type="button"
+                  disabled={exportBusy}
+                  onClick={onExportPackage}
+                  className="rounded-app-sm border border-app-border px-3 py-1.5 text-[12px] text-app-ink-dim hover:text-app-ink disabled:opacity-50"
+                >
+                  {exportBusy ? "Exporting…" : "Export package"}
+                </button>
+              ) : null}
             </div>
-            {analysis.generatedPrd && onExportPackage ? (
-              <button
-                type="button"
-                disabled={exportBusy}
-                onClick={onExportPackage}
-                className="rounded-app-sm border border-app-border px-3 py-1.5 text-[12px] text-app-ink-dim hover:text-app-ink disabled:opacity-50"
-              >
-                {exportBusy ? "Exporting…" : "Export package"}
-              </button>
+            {compact ? (
+              <div className="mt-4">
+                <VirinStageStepper analysis={analysis} compact />
+              </div>
             ) : null}
           </div>
-          {compact ? (
-            <div className="mt-4">
-              <VirinStageStepper analysis={analysis} compact />
-            </div>
-          ) : null}
-        </div>
+        ) : null}
 
         {intakeRunning ? (
           <StageSkeleton label={`${VIRIN_NAME} is reading the ticket (Stage 1)…`} />
