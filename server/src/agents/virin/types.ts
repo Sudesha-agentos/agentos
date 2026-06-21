@@ -76,7 +76,6 @@ export interface CodebaseAnalysisOutput {
   testableAcceptanceCriteria: string[];
   scopeAssessment: string;
   suggestedFirstFile: string;
-  suggestedImplementationMode?: "code" | "content";
 }
 
 export interface SystemDesignOutput {
