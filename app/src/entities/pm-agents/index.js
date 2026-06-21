@@ -138,6 +138,12 @@ const restPmAdapter = {
       headers: pmHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify({}),
     }),
+  cancelAnalysis: (ticketId) =>
+    fetchJson(pm(`/analyze/${encodeURIComponent(ticketId)}/cancel`), {
+      method: "POST",
+      headers: pmHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify({}),
+    }),
 };
 
 const mockPmAdapter = {
@@ -153,6 +159,7 @@ const mockPmAdapter = {
   getHandoff: (ticketId) => mockApi.getPmHandoff(ticketId),
   runHandoff: (ticketId) => mockApi.runPmHandoff(ticketId),
   startPipeline: (ticketId) => mockApi.startPmPipeline(ticketId),
+  cancelAnalysis: (ticketId) => mockApi.cancelPmAnalysis?.(ticketId) ?? Promise.resolve({ status: "CANCELLED" }),
 };
 
 const adapter = DATA_MODE === "rest" ? restPmAdapter : mockPmAdapter;
@@ -240,6 +247,10 @@ export function runPmHandoff(ticketId) {
 
 export function startPmCodingPipeline(ticketId) {
   return adapter.startPipeline(ticketId);
+}
+
+export function cancelPmAnalysis(ticketId) {
+  return adapter.cancelAnalysis(ticketId);
 }
 
 export function usePmAnalyses(options = {}) {

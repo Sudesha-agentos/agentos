@@ -2,6 +2,7 @@ const STATUS_STYLES = {
   RUNNING: "border-indigo/40 bg-indigo/10 text-indigo",
   COMPLETED: "border-success/40 bg-success/10 text-success",
   FAILED: "border-danger/40 bg-danger/10 text-danger",
+  CANCELLED: "border-app-border bg-app-surface-muted text-app-ink-dim",
   AWAITING_INPUT: "border-warning/40 bg-warning/10 text-warning",
   AWAITING_CONFIRMATION: "border-amber-500/40 bg-amber-500/10 text-amber-700",
 };
@@ -10,6 +11,7 @@ const STATUS_LABELS = {
   RUNNING: "Working",
   COMPLETED: "Complete",
   FAILED: "Failed",
+  CANCELLED: "Stopped",
   AWAITING_INPUT: "Your turn",
   AWAITING_CONFIRMATION: "Confirm direction",
 };

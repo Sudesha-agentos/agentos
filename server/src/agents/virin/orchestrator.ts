@@ -5,10 +5,11 @@ import type { GeneratedPRD } from "../../prd/prdGenerator";
 import { recordRetrospectiveLearning } from "../../rag/retrievalLearning";
 import { logger } from "../../utils/logger";
 import { gatherPmContext, resolveTicketInput } from "../pm/contextGatherer";
+import { formatTicketPromptFields } from "../pm/ticketEnrichment";
 import { runPmStage } from "../pm/runStage";
 import { pmAnalysisStore } from "../pm/store";
 import { autoStartEngineeringFromVirin } from "../pm/autoStartEngineering";
-import { isPmAnalysisRunning } from "../pm/backgroundRunner";
+import { isPmAnalysisRunning, assertPmAnalysisNotCancelled, PmAnalysisCancelledError } from "../pm/backgroundRunner";
 import type { PmAnalysisRecord, PmTicketInput } from "../pm/types";
 import { VIRIN_BEHAVIOR, VIRIN_SYSTEM_PROMPT } from "./persona";
 import {
@@ -241,12 +242,11 @@ function buildNextQuestionPrompt(
     last_answer_block: formatLastAnswerBlock(state),
     turn_number: String(state.conversation.length + 1),
     max_turns: String(VIRIN_BEHAVIOR.maxDiscoveryTurns),
-    ticket_summary: ticket.summary,
-    ticket_description: ticket.description,
     company_context: companyContextFromRecord(record, ctx),
     business_context: qctx.business_context,
     strategic_goals: qctx.strategic_goals,
     codebase_intelligence: qctx.codebase_intelligence,
+    ...formatTicketPromptFields(ticket),
   });
 }
 
@@ -382,7 +382,7 @@ export async function runVirinPipeline(input: {
   let ctx: Awaited<ReturnType<typeof gatherPmContext>>;
 
   if (resumeFrom && existing) {
-    ticket = existing.ticketInput;
+    ticket = await resolveTicketInput(jiraKey, existing.ticketInput);
     ctx = await gatherPmContext(ticket);
     const updated = pmAnalysisStore.update(jiraKey, {
       status: "RUNNING",
@@ -413,8 +413,10 @@ export async function runVirinPipeline(input: {
 
   try {
     for (const stage of VIRIN_STAGE_ORDER.slice(startIdx)) {
+      assertPmAnalysisNotCancelled(jiraKey);
       pmAnalysisStore.setCurrentStage(jiraKey, stage);
       const pause = await runVirinStageHandler(jiraKey, stage, ticket, ctx, record, mode);
+      assertPmAnalysisNotCancelled(jiraKey);
       const updated = pmAnalysisStore.get(jiraKey);
       if (updated) Object.assign(record, updated);
       if (pause) return record;
@@ -426,6 +428,11 @@ export async function runVirinPipeline(input: {
     await autoStartEngineeringFromVirin(jiraKey);
     return completed;
   } catch (err) {
+    if (err instanceof PmAnalysisCancelledError) {
+      pmAnalysisStore.setStatus(jiraKey, "CANCELLED", err.message);
+      pmAnalysisStore.setCurrentStage(jiraKey, null);
+      return pmAnalysisStore.get(jiraKey)!;
+    }
     const message = err instanceof Error ? err.message : String(err);
     logger.error({ err, jiraKey }, "Virin pipeline failed");
     pmAnalysisStore.setStatus(jiraKey, "FAILED", message);
@@ -477,15 +484,14 @@ async function runIntake(
   record: PmAnalysisRecord,
   mode: VirinRunMode
 ): Promise<boolean> {
+  ticket = await resolveTicketInput(jiraKey, ticket);
+  ctx = await gatherPmContext(ticket);
+  pmAnalysisStore.update(jiraKey, { context: { ...ctx, ticket }, ticketInput: ticket });
+
   const priorAnswer = record.pendingAnswer ?? "";
   const qctx = questionPromptContext(ctx);
   const prompt = renderTemplate(PROMPT_INTAKE, {
-    ticket_summary: ticket.summary,
-    ticket_description: ticket.description,
-    ticket_type: ticket.issueType,
-    ticket_priority: ticket.priority,
-    ticket_components: ticket.components.join(", ") || "none",
-    ticket_labels: ticket.labels.join(", ") || "none",
+    ...formatTicketPromptFields(ticket),
     company_context: companyContextFromRecord(record, ctx),
     business_context: qctx.business_context,
     strategic_goals: qctx.strategic_goals,
@@ -514,8 +520,7 @@ async function runIntake(
     }
     const inferred = await runVirinStage<{ answer: string }>(jiraKey, "INTAKE", renderTemplate(PROMPT_INFER_ANSWER, {
       question: intake.clarifyingQuestion,
-      ticket_summary: ticket.summary,
-      ticket_description: ticket.description,
+      ...formatTicketPromptFields(ticket),
       business_context: qctx.business_context,
       codebase_intelligence: qctx.codebase_intelligence,
       conversation_history: "",
@@ -534,6 +539,10 @@ async function runQuestionMode(
   record: PmAnalysisRecord,
   mode: VirinRunMode
 ): Promise<boolean> {
+  ticket = await resolveTicketInput(jiraKey, ticket);
+  ctx = await gatherPmContext(ticket);
+  pmAnalysisStore.update(jiraKey, { context: { ...ctx, ticket }, ticketInput: ticket });
+
   const intake = record.neelIntake!;
   let state: QuestionModeState = record.questionMode ?? {
     conversation: [],
@@ -562,6 +571,7 @@ async function runQuestionMode(
   const qctx = questionPromptContext(ctx);
 
   while (!state.readyToProceed && state.conversation.length < VIRIN_BEHAVIOR.maxDiscoveryTurns) {
+    assertPmAnalysisNotCancelled(jiraKey);
     const discoveryBody = buildNextQuestionPrompt(state, intake, ticket, ctx, record);
     let next = await runVirinStage<VirinNextQuestionResult>(
       jiraKey,
@@ -620,8 +630,7 @@ async function runQuestionMode(
       "QUESTION_MODE",
       renderTemplate(PROMPT_INFER_ANSWER, {
         question: next.question,
-        ticket_summary: ticket.summary,
-        ticket_description: ticket.description,
+        ...formatTicketPromptFields(ticket),
         business_context: qctx.business_context,
         codebase_intelligence: qctx.codebase_intelligence,
         conversation_history: formatConversation(state),

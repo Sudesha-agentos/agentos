@@ -24,6 +24,7 @@ import { NotFoundError, ValidationError } from "../../utils/errors";
 import {
   isPmAnalysisRunning,
   startPmAnalysisInBackground,
+  requestPmAnalysisCancel,
 } from "../../agents/pm/backgroundRunner";
 
 const router = Router();
@@ -221,6 +222,31 @@ router.post("/analyze/:ticketId", async (req, res, next) => {
       status: "RUNNING",
       message: "Virin started product discovery",
       agent: "Virin",
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post("/analyze/:ticketId/cancel", async (req, res, next) => {
+  try {
+    const jiraKey = req.params.ticketId.trim().toUpperCase();
+    if (!jiraKey) throw new ValidationError("ticketId is required");
+
+    const cancelled = requestPmAnalysisCancel(jiraKey);
+    if (!cancelled) {
+      res.status(409).json({
+        jiraKey,
+        error: "not_running",
+        message: "No active Virin session to cancel for this ticket",
+      });
+      return;
+    }
+
+    res.json({
+      jiraKey,
+      status: "CANCELLED",
+      message: "Virin session stopped",
     });
   } catch (err) {
     next(err);

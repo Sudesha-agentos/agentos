@@ -3,14 +3,13 @@ import {
   buildEnrichedCodebaseContext,
 } from "../../codebaseIntelligence/enrichedContextService";
 import { resolveRepoScope } from "../../codebaseIntelligence/repoScope";
-import { getJiraIssueByKey } from "../../jira-sync/issueRepository";
-import { getPipelineJiraClient } from "../../pipeline/jira/client";
 import { TICKET_RETRIEVAL_CONFIGS } from "../../codebaseIntelligence/retrievalConfig";
 import { retriever } from "../../rag/retriever";
 import { jiraTool } from "../../tools/jiraTool";
 import { logger } from "../../utils/logger";
 import { companyIntelligence } from "../../companyIntelligence";
 import type { PmTicketInput } from "./types";
+import { enrichTicketFromJira } from "./ticketEnrichment";
 
 export interface PmContextBundle {
   reporterTier: string;
@@ -36,74 +35,6 @@ function inferReporterTier(labels: string[], reporter: string): string {
   if (/paid|pro|team|business/.test(joined)) return "paid";
   if (/free|trial|hobby/.test(joined)) return "free";
   return "paid";
-}
-
-function syncedIssueToPmInput(
-  row: Awaited<ReturnType<typeof getJiraIssueByKey>>
-): PmTicketInput | null {
-  if (!row) return null;
-  const labels = Array.isArray(row.labels) ? (row.labels as string[]) : [];
-  const components = Array.isArray(row.components)
-    ? (row.components as string[])
-    : [];
-  return {
-    jiraKey: row.jiraKey,
-    summary: row.summary,
-    description: row.description,
-    issueType: row.issueType,
-    reporter: row.reporter ?? "Unknown",
-    labels,
-    components,
-    createdDate: row.jiraUpdatedAt?.toISOString() ?? row.createdAt.toISOString(),
-    priority: row.priority ?? "Medium",
-  };
-}
-
-async function fetchJiraIssue(jiraKey: string): Promise<PmTicketInput | null> {
-  try {
-    const synced = await getJiraIssueByKey(jiraKey);
-    const fromSync = syncedIssueToPmInput(synced);
-    if (fromSync) return fromSync;
-  } catch {
-    /* fall through to live Jira */
-  }
-
-  try {
-    const issue = (await getPipelineJiraClient().getIssue(jiraKey)) as {
-      key?: string;
-      fields?: Record<string, unknown>;
-    };
-    const fields = issue.fields ?? {};
-    const status = fields.status as { name?: string } | undefined;
-    const issuetype = fields.issuetype as { name?: string } | undefined;
-    const reporter = fields.reporter as { displayName?: string } | undefined;
-    const priority = fields.priority as { name?: string } | undefined;
-    const labels = (fields.labels as string[] | undefined) ?? [];
-    const components =
-      (fields.components as Array<{ name?: string }> | undefined)?.map(
-        (c) => c.name ?? ""
-      ) ?? [];
-    const created = fields.created as string | undefined;
-    const description =
-      typeof fields.description === "string"
-        ? fields.description
-        : JSON.stringify(fields.description ?? "");
-
-    return {
-      jiraKey: issue.key ?? jiraKey,
-      summary: String(fields.summary ?? ""),
-      description,
-      issueType: issuetype?.name ?? "Task",
-      reporter: reporter?.displayName ?? "Unknown",
-      labels,
-      components: components.filter(Boolean),
-      createdDate: created ?? new Date().toISOString(),
-      priority: priority?.name ?? "Medium",
-    };
-  } catch (err) {
-    logger.warn({ err, jiraKey }, "pm context: Jira fetch failed");
-    return null;
-  }
 }
 
 async function countComponentBugs(
@@ -195,7 +126,12 @@ async function buildCandidateFilesList(
   branchName: string
 ): Promise<{ list: string; paths: string[] }> {
   try {
-    const ticketText = [ticket.summary, ticket.description, ...ticket.components]
+    const ticketText = [
+      ticket.summary,
+      ticket.description,
+      ticket.attachmentsText,
+      ...ticket.components,
+    ]
       .filter(Boolean)
       .join(" ");
 
@@ -320,6 +256,27 @@ export async function resolveTicketInput(
   jiraKey: string,
   raw?: Partial<PmTicketInput>
 ): Promise<PmTicketInput> {
+  const fromJira = await enrichTicketFromJira(jiraKey);
+  if (fromJira) {
+    return {
+      ...fromJira,
+      ...raw,
+      jiraKey: raw?.jiraKey ?? fromJira.jiraKey,
+      summary: raw?.summary?.trim() ? raw.summary : fromJira.summary,
+      description: raw?.description?.trim() ? raw.description : fromJira.description,
+      issueType: raw?.issueType ?? fromJira.issueType,
+      reporter: raw?.reporter ?? fromJira.reporter,
+      labels: raw?.labels?.length ? raw.labels : fromJira.labels,
+      components: raw?.components?.length ? raw.components : fromJira.components,
+      createdDate: raw?.createdDate ?? fromJira.createdDate,
+      priority: raw?.priority ?? fromJira.priority,
+      commentsText: fromJira.commentsText,
+      attachmentsText: fromJira.attachmentsText,
+      status: fromJira.status,
+      assignee: fromJira.assignee,
+    };
+  }
+
   if (raw?.summary) {
     return {
       jiraKey: raw.jiraKey ?? jiraKey,
@@ -331,11 +288,12 @@ export async function resolveTicketInput(
       components: raw.components ?? [],
       createdDate: raw.createdDate ?? new Date().toISOString(),
       priority: raw.priority ?? "Medium",
+      commentsText: raw.commentsText ?? "No comments on ticket.",
+      attachmentsText: raw.attachmentsText ?? "No file attachments on this Jira ticket.",
+      status: raw.status,
+      assignee: raw.assignee,
     };
   }
-
-  const fromJira = await fetchJiraIssue(jiraKey);
-  if (fromJira) return fromJira;
 
   return {
     jiraKey,
@@ -347,6 +305,8 @@ export async function resolveTicketInput(
     components: [],
     createdDate: new Date().toISOString(),
     priority: "Medium",
+    commentsText: "No comments on ticket.",
+    attachmentsText: "No file attachments on this Jira ticket.",
   };
 }
 

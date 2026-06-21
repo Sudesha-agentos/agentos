@@ -2385,6 +2385,20 @@ export const mockApi = {
     }, 4000);
     return { jiraKey: key, status: "RUNNING", message: "PM analysis pipeline started (mock)" };
   },
+  async cancelPmAnalysis(ticketId) {
+    markUsed();
+    await delay(120);
+    const key = String(ticketId).toUpperCase();
+    const existing = MOCK_PM_ANALYSES[key] ?? MOCK_PM_ANALYSIS_FULL;
+    MOCK_PM_ANALYSES[key] = {
+      ...existing,
+      jiraKey: key,
+      status: "CANCELLED",
+      currentStage: null,
+      error: "Cancelled by user",
+    };
+    return { jiraKey: key, status: "CANCELLED", message: "Virin session stopped (mock)" };
+  },
   async resumePmTicket(ticketId) {
     markUsed();
     await delay(200);
