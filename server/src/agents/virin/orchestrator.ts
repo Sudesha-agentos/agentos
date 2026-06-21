@@ -8,6 +8,7 @@ import { gatherPmContext, resolveTicketInput } from "../pm/contextGatherer";
 import { runPmStage } from "../pm/runStage";
 import { pmAnalysisStore } from "../pm/store";
 import { autoStartEngineeringFromVirin } from "../pm/autoStartEngineering";
+import { isPmAnalysisRunning } from "../pm/backgroundRunner";
 import type { PmAnalysisRecord, PmTicketInput } from "../pm/types";
 import { VIRIN_BEHAVIOR, VIRIN_SYSTEM_PROMPT } from "./persona";
 import {
@@ -274,11 +275,16 @@ export async function runVirinPipeline(input: {
 
   if (
     existing &&
+    !input.resumeFrom &&
     (existing.status === "AWAITING_INPUT" || existing.status === "AWAITING_CONFIRMATION")
   ) {
     return existing;
   }
-  if (existing?.status === "RUNNING") {
+  if (
+    existing?.status === "RUNNING" &&
+    !input.resumeFrom &&
+    isPmAnalysisRunning(jiraKey)
+  ) {
     return existing;
   }
 

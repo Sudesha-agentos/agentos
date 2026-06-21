@@ -13,8 +13,8 @@ import {
   VIRIN_NAME,
 } from "../../entities/pm-agents";
 import Spinner from "../../app/components/Spinner";
-import StatusPill from "../../app/components/StatusPill";
 import PmStageRail from "./PmStageRail";
+import { VirinStatusBadge } from "./VirinStatusBadge";
 import { jiraKeyFromPmPipelineId } from "./pipelineIds";
 import { VirinTicketWorkspace } from "./VirinTicketWorkspace";
 import { Panel, PanelHeader } from "../../shared/ui/Panel";
@@ -136,7 +136,17 @@ export default function PmPipelineDetailPanel({ pipelineId, onClose }) {
             </h2>
           </div>
           <div className="flex items-center gap-2">
-            <StatusPill status={analysis.status} />
+            {analysis.generatedPrd ? (
+              <button
+                type="button"
+                disabled={exportBusy}
+                onClick={handleExportPackage}
+                className="rounded-full border border-hairline px-3 py-1 text-[11px] text-ink-dim hover:text-ink disabled:opacity-50"
+              >
+                {exportBusy ? "Exporting…" : "Export"}
+              </button>
+            ) : null}
+            <VirinStatusBadge status={analysis.status} />
             {onClose ? (
               <button
                 type="button"
@@ -162,7 +172,7 @@ export default function PmPipelineDetailPanel({ pipelineId, onClose }) {
         </div>
       </header>
 
-      <div className="flex-1 overflow-y-auto px-5 py-5">
+      <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5">
         {analysis.classification?.requiresHumanEscalation && (
           <Panel className="mb-5 border-warning/30">
             <PanelHeader
@@ -199,6 +209,7 @@ export default function PmPipelineDetailPanel({ pipelineId, onClose }) {
           onExportPackage={handleExportPackage}
           exportBusy={exportBusy}
           showHistory={false}
+          embedded
           isValidating={isValidating}
         />
       </div>

@@ -178,7 +178,7 @@ export default function PipelineExplorerWidget() {
         </div>
       </div>
 
-      <div className="hidden min-w-0 flex-1 md:block">
+      <div className="hidden h-full min-h-0 min-w-0 flex-1 flex-col md:flex">
         <PipelineDetailPanel
           pipelineId={detailPipelineId}
           onClose={selectedId ? closeDetail : undefined}

@@ -19,6 +19,10 @@ export default function PmStageRail({
 }) {
   const currentIndex = currentStage ? PM_STAGE_ORDER.indexOf(currentStage) : -1;
   const isFailed = status === "FAILED";
+  const isPaused =
+    status === "AWAITING_INPUT" ||
+    status === "AWAITING_CONFIRMATION" ||
+    status === "PAUSED";
   const completedCount =
     currentIndex < 0 && status === "COMPLETED"
       ? PM_STAGE_ORDER.length
@@ -35,6 +39,10 @@ export default function PmStageRail({
           stageMeta.some((m) => m.stage === stage && m.status === "COMPLETED") ||
           index < completedCount;
         const running = currentStage === stage && status === "RUNNING";
+        const waiting =
+          isPaused &&
+          currentStage === stage &&
+          (status === "AWAITING_INPUT" || status === "AWAITING_CONFIRMATION");
         const failed =
           isFailed &&
           (stageMeta.some((m) => m.stage === stage && m.status === "FAILED") ||
@@ -43,6 +51,7 @@ export default function PmStageRail({
         let tone = TONE.pending;
         if (failed) tone = TONE.failed;
         else if (done) tone = TONE.completed;
+        else if (waiting) tone = "border border-warning bg-warning/20 shadow-[0_0_6px_1px_rgba(245,158,11,0.35)]";
         else if (running) tone = TONE.active;
 
         return (
