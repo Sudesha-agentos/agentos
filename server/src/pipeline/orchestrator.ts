@@ -657,11 +657,23 @@ export class PipelineOrchestrator {
       discovery = await runDiscovery(ticket, pipelineId);
     } catch (err) {
       if (err instanceof DiscoveryPausedError) {
+        const snap = err.snapshot;
         await pipelineRepo.completeStage({
           stageLogId: stageLog.id,
           output: {
             paused: true,
             blockingGaps: err.blockingGaps,
+            pauseReason: snap?.pauseReason ?? "blocking_gaps",
+            discoveryQuestions: snap?.discoveryQuestions ?? [],
+            scores: null,
+            discovery: snap
+              ? {
+                  ticketAnalysis: snap.ticketAnalysis ?? null,
+                  historicalIntelligence: snap.historicalIntelligence ?? null,
+                  gapAnalysis: snap.gapAnalysis ?? null,
+                  retrievalContext: snap.retrievalContext ?? [],
+                }
+              : { retrievalContext: [] },
           } as unknown as Prisma.InputJsonValue,
           status: "AWAITING_HUMAN",
         });
@@ -712,6 +724,7 @@ export class PipelineOrchestrator {
           gapAnalysis: discovery.gapAnalysis,
           complexityAssessment: discovery.complexityAssessment,
           generatedPrd: discovery.prd,
+          retrievalContext: discovery.retrievalContext,
         },
       } as unknown as Prisma.InputJsonValue,
       confidenceScore: discovery.scores.prdQualityScore,

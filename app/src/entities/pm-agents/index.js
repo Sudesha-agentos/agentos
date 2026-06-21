@@ -178,10 +178,11 @@ export function usePmAnalysis(ticketId, options = {}) {
     options.pollMs ??
     (ticketId ? 2500 : 0);
   return useResource(
-    () => (ticketId ? getPmAnalysis(ticketId) : Promise.resolve(null)),
-    [ticketId],
+    () => (ticketId && !options.skip ? getPmAnalysis(ticketId) : Promise.resolve(null)),
+    [ticketId, options.skip],
     {
-      pollMs: ticketId ? poll : undefined,
+      pollMs: ticketId && poll && !options.skip ? poll : undefined,
+      skip: options.skip || !ticketId,
     }
   );
 }

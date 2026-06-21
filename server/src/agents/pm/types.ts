@@ -227,6 +227,7 @@ export interface PmAnalysisRecord {
   startedAt: string;
   completedAt?: string;
   updatedAt: string;
+  organizationId?: string;
 }
 
 export interface RetrospectiveInput {

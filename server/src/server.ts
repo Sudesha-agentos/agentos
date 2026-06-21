@@ -33,9 +33,9 @@ async function bootstrap(): Promise<void> {
   loadPipelineJiraCredentialsFromStore();
   loadCanarySettingsFromStore();
   loadPipelineSettingsFromStore();
-  const pmLoaded = loadPmAnalysesFromStore();
+  const pmLoaded = await loadPmAnalysesFromStore();
   if (pmLoaded > 0) {
-    logger.info({ count: pmLoaded }, "restored PM analyses from sqlite");
+    logger.info({ count: pmLoaded }, "restored PM analyses from store");
   }
   await restoreGitCredentialsFromPostgres().catch((err) => {
     logger.warn({ err }, "startup git credential restore failed");

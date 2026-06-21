@@ -17,18 +17,26 @@ import DiscoveryAnalysisSection from "./DiscoveryAnalysisSection";
 import DiscoveryHistorySection from "./DiscoveryHistorySection";
 import DiscoveryGapsSection from "./DiscoveryGapsSection";
 import DiscoveryPrdSection from "./DiscoveryPrdSection";
+import DiscoveryContextSection from "./DiscoveryContextSection";
+import DiscoveryQuestionsSection from "./DiscoveryQuestionsSection";
 
 export default function DiscoveryModuleWidget({ parsed, stage, rawOutput }) {
-  const [section, setSection] = useState("overview");
+  const [section, setSection] = useState(() =>
+    parsed.paused && parsed.discoveryQuestions?.length ? "questions" : "overview"
+  );
   const [showRaw, setShowRaw] = useState(false);
   const scores = useMemo(() => getDiscoveryScores(parsed), [parsed]);
 
   const availableSections = useMemo(() => {
     const ids = ["overview"];
+    if (parsed.discoveryQuestions?.length || parsed.paused) ids.push("questions");
     if (parsed.ticketAnalysis) ids.push("analysis");
+    if (parsed.retrievalContext?.length || parsed.historicalIntelligence) {
+      ids.push("context");
+    }
     if (parsed.historicalIntelligence) ids.push("history");
     if (parsed.gapAnalysis) ids.push("gaps");
-    ids.push("prd");
+    if (parsed.prd || parsed.generatedPrd) ids.push("prd");
     return ids;
   }, [parsed]);
 
@@ -70,6 +78,17 @@ export default function DiscoveryModuleWidget({ parsed, stage, rawOutput }) {
               <li key={r}>• {r}</li>
             ))}
           </ul>
+        </div>
+      ) : null}
+
+      {parsed.paused ? (
+        <div className="border-b border-warning/30 bg-warning/5 px-5 py-3 sm:px-6">
+          <p className="editorial-kicker text-warning">Discovery paused</p>
+          <p className="mt-1 text-[13px] text-ink-dim">
+            {parsed.discoveryQuestions?.length
+              ? `${parsed.discoveryQuestions.length} question(s) need answers before the pipeline continues.`
+              : "Human clarification is required before the pipeline continues."}
+          </p>
         </div>
       ) : null}
 
@@ -119,8 +138,17 @@ export default function DiscoveryModuleWidget({ parsed, stage, rawOutput }) {
         {section === "overview" ? (
           <DiscoveryOverviewSection parsed={parsed} scores={scores} />
         ) : null}
+        {section === "questions" ? (
+          <DiscoveryQuestionsSection questions={parsed.discoveryQuestions} />
+        ) : null}
         {section === "analysis" ? (
           <DiscoveryAnalysisSection ticketAnalysis={parsed.ticketAnalysis} />
+        ) : null}
+        {section === "context" ? (
+          <DiscoveryContextSection
+            retrievalContext={parsed.retrievalContext}
+            historicalIntelligence={parsed.historicalIntelligence}
+          />
         ) : null}
         {section === "history" ? (
           <DiscoveryHistorySection

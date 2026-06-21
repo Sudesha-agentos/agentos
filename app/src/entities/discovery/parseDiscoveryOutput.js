@@ -7,7 +7,7 @@ export function parseDiscoveryOutput(output) {
 
   const o = output;
 
-  if (o.discovery && (o.prd || o.discovery.generatedPrd)) {
+  if (o.discovery && (o.prd || o.discovery.generatedPrd || o.paused)) {
     return {
       mode: "full",
       prd: o.prd ?? null,
@@ -17,10 +17,14 @@ export function parseDiscoveryOutput(output) {
       gapAnalysis: o.discovery.gapAnalysis ?? null,
       complexityAssessment: o.discovery.complexityAssessment ?? null,
       generatedPrd: o.discovery.generatedPrd ?? null,
+      retrievalContext: o.discovery.retrievalContext ?? [],
+      discoveryQuestions: o.discoveryQuestions ?? [],
+      paused: Boolean(o.paused),
+      pauseReason: o.pauseReason ?? null,
     };
   }
 
-  if (o.ticketAnalysis || o.gapAnalysis || o.generatedPrd) {
+  if (o.ticketAnalysis || o.gapAnalysis || o.generatedPrd || o.paused) {
     return {
       mode: "full",
       prd: o.prd ?? null,
@@ -30,6 +34,10 @@ export function parseDiscoveryOutput(output) {
       gapAnalysis: o.gapAnalysis ?? null,
       complexityAssessment: o.complexityAssessment ?? null,
       generatedPrd: o.generatedPrd ?? null,
+      retrievalContext: o.retrievalContext ?? [],
+      discoveryQuestions: o.discoveryQuestions ?? [],
+      paused: Boolean(o.paused),
+      pauseReason: o.pauseReason ?? null,
     };
   }
 
@@ -50,7 +58,14 @@ export function parseDiscoveryOutput(output) {
 }
 
 export function hasDiscoveryContent(parsed) {
-  return Boolean(parsed && (parsed.mode === "full" || parsed.prd));
+  return Boolean(
+    parsed &&
+      (parsed.mode === "full" ||
+        parsed.prd ||
+        parsed.paused ||
+        parsed.ticketAnalysis ||
+        parsed.retrievalContext?.length)
+  );
 }
 
 /** Formula-based scores from server (`scores` object). Never read LLM self-ratings in UI. */

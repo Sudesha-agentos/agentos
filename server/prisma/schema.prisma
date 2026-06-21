@@ -151,6 +151,18 @@ model IntakeEvent {
   @@index([organizationId, jiraKey])
 }
 
+model PmAnalysisRecord {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  jiraKey        String
+  recordJson     Json
+  updatedAt      DateTime     @updatedAt
+
+  @@unique([organizationId, jiraKey])
+  @@index([organizationId, updatedAt])
+}
+
 model Pipeline {
   id             String             @id @default(cuid())
   organizationId String
@@ -338,6 +350,7 @@ model Organization {
   pipelines      Pipeline[]
   pipelineQueueItems PipelineQueueItem[]
   intakeEvents   IntakeEvent[]
+  pmAnalysisRecords PmAnalysisRecord[]
   orgIntelligence OrgIntelligenceRecord[]
   codebaseFiles  CodebaseFile[]
   codebaseIndexRuns CodebaseIndexRun[]

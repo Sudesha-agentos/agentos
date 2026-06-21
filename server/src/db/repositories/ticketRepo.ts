@@ -22,7 +22,6 @@ export const ticketRepo = {
       update: {
         rawPayload: input.rawPayload,
         normalizedData: input.normalizedData,
-        status: input.status,
       },
       create: {
         organizationId,

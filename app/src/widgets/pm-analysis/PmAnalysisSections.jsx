@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
 import {
   PM_STAGE_ORDER,
   PM_STAGE_LABELS,
@@ -19,7 +18,6 @@ import {
 import { CompetitorAnalysisSection } from "./CompetitorAnalysisSection";
 import { Panel, PanelHeader } from "../../shared/ui/Panel";
 import { useOrgPathBuilder } from "../../shared/providers/OrgRouteProvider";
-import { motionSafe, pageStagger, sectionFadeUp } from "../../lib/motion";
 
 export function PmStageProgress({ analysis }) {
   const current = analysis?.currentStage;
@@ -669,22 +667,11 @@ export function PmAnalysisOutputs({
     ) : null,
   ].filter(Boolean);
 
-  const safeStagger = motionSafe(pageStagger(0.05));
-  const safeSection = motionSafe(sectionFadeUp);
-
   return (
-    <motion.div
-      key={analysis.id ?? analysis.jiraKey}
-      className="space-y-5"
-      variants={safeStagger}
-      initial="hidden"
-      animate="show"
-    >
+    <div className="space-y-5">
       {sections.map((section, index) => (
-        <motion.div key={section.key ?? index} variants={safeSection}>
-          {section}
-        </motion.div>
+        <div key={section.key ?? index}>{section}</div>
       ))}
-    </motion.div>
+    </div>
   );
 }
