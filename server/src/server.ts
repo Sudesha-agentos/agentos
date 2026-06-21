@@ -28,7 +28,7 @@ import { validateAuthConfig } from "./api/routes/authSession";
 
 async function bootstrap(): Promise<void> {
   validateAuthConfig();
-  runMigrationsOnStartup();
+  await runMigrationsOnStartup();
   initIntakeDb();
   loadPipelineJiraCredentialsFromStore();
   loadCanarySettingsFromStore();
