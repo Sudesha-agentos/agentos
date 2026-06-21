@@ -3,7 +3,15 @@ import type { Request, Response } from "express";
 import { prisma } from "../../db/client";
 import { withOrganizationContext } from "../../api/orgRequestContext";
 import { logger } from "../../utils/logger";
-import { resolveOrganizationByJiraWebhookSecret } from "../../organization/webhookResolver";
+import {
+  listOrganizationIdsWithJiraConfig,
+  resolveOrganizationByJiraProjectKey,
+  resolveOrganizationByJiraWebhookSecret,
+} from "../../organization/webhookResolver";
+import {
+  extractBearerToken,
+  verifyAtlassianOAuthWebhookJwt,
+} from "./jiraWebhookAuth";
 import { isPipelineIntakeStatus } from "./intakeConfig";
 import { type PipelineJiraWebhookPayload } from "./ticketNormalizer";
 import { upsertJiraIssueFromWebhook, handleJiraIssueDeleted } from "../../jira-sync/webhookBridge";
@@ -18,29 +26,45 @@ async function resolveWebhookOrganization(req: Request): Promise<string | null> 
   const rawBody = (req as Request & { rawBody?: string }).rawBody ?? "";
   const hubSignature =
     req.header("x-hub-signature") ?? req.header("X-Hub-Signature");
-  if (!hubSignature || !rawBody) return null;
+  if (hubSignature && rawBody) {
+    const provided = hubSignature.startsWith("sha256=")
+      ? hubSignature
+      : `sha256=${hubSignature}`;
 
-  const provided = hubSignature.startsWith("sha256=")
-    ? hubSignature
-    : `sha256=${hubSignature}`;
+    const configs = await prisma.organizationJiraConfig.findMany({
+      where: { webhookSecret: { not: "" } },
+      select: { organizationId: true, webhookSecret: true },
+    });
 
-  const configs = await prisma.organizationJiraConfig.findMany({
-    where: { webhookSecret: { not: "" } },
-    select: { organizationId: true, webhookSecret: true },
-  });
-
-  for (const config of configs) {
-    const computed = `sha256=${crypto
-      .createHmac("sha256", config.webhookSecret)
-      .update(rawBody)
-      .digest("hex")}`;
-    try {
-      if (crypto.timingSafeEqual(Buffer.from(provided), Buffer.from(computed))) {
-        return config.organizationId;
+    for (const config of configs) {
+      const computed = `sha256=${crypto
+        .createHmac("sha256", config.webhookSecret)
+        .update(rawBody)
+        .digest("hex")}`;
+      try {
+        if (crypto.timingSafeEqual(Buffer.from(provided), Buffer.from(computed))) {
+          return config.organizationId;
+        }
+      } catch {
+        continue;
       }
-    } catch {
-      continue;
     }
+  }
+
+  // OAuth 2.0 dynamic webhooks: Authorization Bearer JWT signed with app client secret.
+  const clientSecret = process.env.ATLASSIAN_CLIENT_SECRET?.trim();
+  const bearer = extractBearerToken(req.header("authorization"));
+  if (bearer && clientSecret && verifyAtlassianOAuthWebhookJwt(bearer, clientSecret)) {
+    const payload = req.body as PipelineJiraWebhookPayload | undefined;
+    const projectKey = (
+      payload?.issue?.fields as { project?: { key?: string } } | undefined
+    )?.project?.key;
+    if (projectKey) {
+      const orgId = await resolveOrganizationByJiraProjectKey(projectKey);
+      if (orgId) return orgId;
+    }
+    const orgIds = await listOrganizationIdsWithJiraConfig();
+    if (orgIds.length === 1) return orgIds[0]!;
   }
 
   return null;
