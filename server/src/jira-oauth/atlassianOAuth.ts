@@ -22,6 +22,10 @@ export const ATLASSIAN_JIRA_SCOPES = [
   // Granular — JQL search (required for /rest/api/3/search/jql)
   "read:jql:jira",
   "validate:jql:jira",
+  // Granular — dynamic webhooks (POST /rest/api/3/webhook for OAuth apps)
+  "read:webhook:jira",
+  "write:webhook:jira",
+  "read:issue-details:jira",
   // Granular — projects, boards, issues (pipeline board picker + intake)
   "read:project:jira",
   "read:board-scope:jira-software",

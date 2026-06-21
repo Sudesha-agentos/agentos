@@ -41,6 +41,31 @@ export async function resolveOrganizationByGitWebhookSecret(
   return row?.organizationId ?? null;
 }
 
+function parseProjectKeysJson(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.map(String).filter(Boolean);
+}
+
+/** Match org by Jira project key (OAuth dynamic webhooks share one app client secret). */
+export async function resolveOrganizationByJiraProjectKey(
+  projectKey: string
+): Promise<string | null> {
+  const normalized = projectKey.trim().toUpperCase();
+  if (!normalized) return null;
+
+  const rows = await prisma.organizationJiraConfig.findMany({
+    select: { organizationId: true, projectKeysJson: true },
+  });
+
+  for (const row of rows) {
+    const keys = parseProjectKeysJson(row.projectKeysJson);
+    if (keys.some((k) => k.trim().toUpperCase() === normalized)) {
+      return row.organizationId;
+    }
+  }
+  return null;
+}
+
 export async function listOrganizationIdsWithJiraConfig(): Promise<string[]> {
   const rows = await prisma.organizationJiraConfig.findMany({
     where: {
