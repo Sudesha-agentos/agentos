@@ -81,7 +81,7 @@ export default function Onboarding() {
     return () => {
       cancelled = true;
     };
-  }, [navigate, user?.organizationId]);
+  }, [navigate, user?.organizationId, user?.organizationSlug, organization?.slug]);
 
   const step = STEPS[stepIndex];
 
@@ -182,7 +182,16 @@ export default function Onboarding() {
           } else {
             throw new Error("Choose a workspace to continue");
           }
-          await refresh();
+        }
+
+        await completeOnboardingFlow();
+
+        const session = await refresh();
+        const homePath = sessionHomePath(orgSession ?? session ?? { organization, user });
+        if (homePath === "/onboarding") {
+          throw new Error(
+            "Workspace was created but the session did not update. Please refresh and try again."
+          );
         }
 
         const stageLabel =
@@ -190,7 +199,7 @@ export default function Onboarding() {
         const teamLabel = TEAM_SIZES.find((s) => s.id === teamSize)?.label ?? teamSize;
         const roleLabel = USER_ROLES.find((r) => r.id === role)?.label ?? role;
 
-        await saveCompanyProfile({
+        void saveCompanyProfile({
           companyName: companyName.trim(),
           website: website.trim(),
           productSummary: productSummary.trim(),
@@ -208,10 +217,11 @@ export default function Onboarding() {
           strategicGoals: [],
           nonGoals: [],
           competitors: [],
+        }).catch((profileErr) => {
+          console.warn("Company profile save failed after onboarding:", profileErr);
         });
-        await completeOnboardingFlow();
-        const session = await refresh();
-        navigate(sessionHomePath(orgSession ?? session ?? { organization, user }), { replace: true });
+
+        navigate(homePath, { replace: true });
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : "Something went wrong";
