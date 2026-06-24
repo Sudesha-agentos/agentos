@@ -12,7 +12,6 @@ import {
   extractAuthToken,
   revokeAuthToken,
 } from "./authSession";
-import { getOnboarding } from "../../onboarding/store";
 import { logger } from "../../utils/logger";
 
 const router = Router();
@@ -188,28 +187,22 @@ router.get("/session", async (req, res) => {
     res.status(401).json({ error: "unauthorized" });
     return;
   }
-  const { resolveUserFromAuthHeader } = await import("./authSession");
+  const { resolveUserFromAuthHeader, issueSessionForUserId } = await import(
+    "./authSession"
+  );
   const user = resolveUserFromAuthHeader(req);
   if (!user) {
     res.status(401).json({ error: "unauthorized" });
     return;
   }
-  const onboarding = await getOnboarding(user.id);
-  res.json({
-    token,
-    issuedAt: new Date().toISOString(),
-    user,
-    organization: user.organizationId
-      ? {
-          id: user.organizationId,
-          name: user.organizationName!,
-          domain: user.organizationDomain!,
-          slug: user.organizationSlug!,
-          role: user.organizationRole!,
-        }
-      : undefined,
-    onboardingCompleted: onboarding?.completed ?? false,
-  });
+  try {
+    res.json(await issueSessionForUserId(user.id));
+  } catch (err) {
+    res.status(500).json({
+      error: "session_refresh_failed",
+      message: err instanceof Error ? err.message : "Could not refresh session",
+    });
+  }
 });
 
 router.post("/logout", (req, res) => {

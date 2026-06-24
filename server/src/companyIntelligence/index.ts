@@ -73,7 +73,9 @@ export const companyIntelligence = {
     organizationId?: string
   ): Promise<CompanyProfile> {
     const profile = await saveCompanyProfile(input, organizationId);
-    await this.syncEmbeddings(profile);
+    void this.syncEmbeddings(profile).catch((err) => {
+      logger.warn({ err }, "company intelligence embed failed (background)");
+    });
     return profile;
   },
 
