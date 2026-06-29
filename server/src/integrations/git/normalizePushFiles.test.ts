@@ -10,6 +10,8 @@ describe("resolveToolFilePath", () => {
     assert.equal(resolveToolFilePath({ file_path: "docs/a.md" }), "docs/a.md");
     assert.equal(resolveToolFilePath({ path: "docs/b.md" }), "docs/b.md");
     assert.equal(resolveToolFilePath({ filePath: "docs/c.md" }), "docs/c.md");
+    assert.equal(resolveToolFilePath({ target_file: "docs/d.md" }), "docs/d.md");
+    assert.equal(resolveToolFilePath({ filename: "docs/e.md" }), "docs/e.md");
   });
 
   it("returns empty when no path is provided", () => {

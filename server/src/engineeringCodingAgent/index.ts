@@ -4,6 +4,8 @@ import type { CodebaseKnowledge } from "../codebaseIntelligence/knowledgeService
 import {
   clearCodingArtifacts,
   getCodingArtifacts,
+  markCodingFileWritten,
+  setCodingDeliverablePaths,
 } from "../engineering/codingArtifactStore";
 import {
   getEngWorkspace,
@@ -77,6 +79,16 @@ export async function runEngineeringCodingAgentic(
   const branchName = workspace?.branchName ?? resolveCodingBranchName();
 
   clearCodingArtifacts(input.pipelineId);
+
+  const requiredPaths = [
+    ...new Set([
+      ...(input.deliverableFiles?.map((f) => f.path) ?? []),
+      ...(input.implementation.targetFiles ?? []),
+    ]),
+  ].filter(Boolean);
+  if (requiredPaths.length > 0) {
+    setCodingDeliverablePaths(input.pipelineId, requiredPaths);
+  }
 
   try {
     const loop = await runAgenticLoop({

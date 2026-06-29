@@ -7,7 +7,17 @@ function readPathCandidate(value: unknown): string {
 
 /** Normalize repo-relative paths from tool/agent payloads. */
 export function resolveToolFilePath(input: Record<string, unknown>): string {
-  for (const key of ["file_path", "path", "filePath", "target_path"] as const) {
+  for (const key of [
+    "file_path",
+    "path",
+    "filePath",
+    "filepath",
+    "file",
+    "filename",
+    "file_name",
+    "target_path",
+    "target_file",
+  ] as const) {
     const candidate = readPathCandidate(input[key]);
     if (candidate) {
       return candidate.replace(/\\/g, "/").replace(/^\/+/, "");

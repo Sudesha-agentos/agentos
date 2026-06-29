@@ -16,6 +16,10 @@ import {
 import { githubClient } from "../integrations/githubClient";
 import { resolveToolFilePath } from "../integrations/git/normalizePushFiles";
 import { resolveRepoScope } from "../codebaseIntelligence/repoScope";
+import {
+  getCodingArtifacts,
+  markCodingFileWritten,
+} from "../engineering/codingArtifactStore";
 import { logger } from "../utils/logger";
 import type { ToolCallInput, ToolCallResult } from "./executor";
 
@@ -84,6 +88,39 @@ function requireFilePath(
     };
   }
   return { filePath };
+}
+
+function resolveWriteFilePath(
+  pipelineId: string,
+  toolCall: ToolCallInput
+): { filePath: string; inferred?: boolean } | { error: string } {
+  const input = toolCall.input as Record<string, unknown>;
+  const explicit = resolveToolFilePath(input);
+  if (explicit) {
+    return { filePath: explicit };
+  }
+
+  const artifacts = getCodingArtifacts(pipelineId);
+  const remaining = artifacts.requiredDeliverablePaths.filter(
+    (path) => !artifacts.writtenPaths.includes(path)
+  );
+  if (remaining.length === 1) {
+    logger.info(
+      { pipelineId, inferredPath: remaining[0] },
+      "inferred write_file path from single remaining deliverable"
+    );
+    return { filePath: remaining[0]!, inferred: true };
+  }
+
+  const hint =
+    artifacts.requiredDeliverablePaths.length > 0
+      ? ` Required deliverable paths: ${artifacts.requiredDeliverablePaths.join(", ")}.`
+      : "";
+  return {
+    error:
+      `file_path is required and must be a non-empty repo-relative path ` +
+      `(e.g. docs/curriculum/guide.md).${hint}`,
+  };
 }
 
 export async function executeEngineeringCodingToolCall(
@@ -300,7 +337,7 @@ export async function executeEngineeringCodingToolCall(
       // ── Full-file write ─────────────────────────────────────────────────────
       case "write_file":
       case "write_source_file": {
-        const resolved = requireFilePath(toolCall);
+        const resolved = resolveWriteFilePath(pipelineId, toolCall);
         if ("error" in resolved) {
           await auditRepo.log(pipelineId, "CODING_TOOL_CALL_FAILED", {
             tool: toolCall.name,
@@ -323,6 +360,7 @@ export async function executeEngineeringCodingToolCall(
 
         if (workspace) {
           workspaceWriteFile(workspace.workspaceDir, filePath, content);
+          markCodingFileWritten(pipelineId, filePath);
           emitEngineeringCodingEvent({
             type: "file_staged",
             pipelineId,
@@ -337,7 +375,10 @@ export async function executeEngineeringCodingToolCall(
             action,
             summary,
             written: true,
-            note: "File written to workspace.",
+            inferredPath: resolved.inferred ?? false,
+            note: resolved.inferred
+              ? "File path inferred from PRD deliverable list."
+              : "File written to workspace.",
           };
         } else {
           const { getCodingArtifacts } = await import("../engineering/codingArtifactStore");
@@ -355,6 +396,7 @@ export async function executeEngineeringCodingToolCall(
           } else {
             artifacts.stagedFiles.push(entry);
           }
+          markCodingFileWritten(pipelineId, filePath);
           emitEngineeringCodingEvent({
             type: "file_staged",
             pipelineId,
@@ -369,7 +411,10 @@ export async function executeEngineeringCodingToolCall(
             action,
             summary,
             staged: true,
-            note: "Source file staged in memory (no workspace).",
+            inferredPath: resolved.inferred ?? false,
+            note: resolved.inferred
+              ? "Source file staged in memory (path inferred from PRD)."
+              : "Source file staged in memory (no workspace).",
           };
         }
         resultsFound = 1;
