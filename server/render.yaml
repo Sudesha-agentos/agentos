@@ -24,3 +24,7 @@ services:
         value: https://agentos-blue.vercel.app
       - key: PUBLIC_API_URL
         value: https://agentos-sc05.onrender.com
+      # Skip npm install in Ananta workspace on 512MB instances (content tickets skip automatically).
+      # Set to "1" to force-skip for all tickets; upgrade to 1GB+ for code-mode npm install + typecheck.
+      - key: ENGINEERING_SKIP_NPM_INSTALL
+        value: "1"

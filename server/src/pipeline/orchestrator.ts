@@ -22,6 +22,7 @@ import {
   getEngWorkspace,
   resolveFallbackApiPushBranch,
   sanitizeGitShellError,
+  shouldSkipEngineeringDependencyInstall,
   workspaceCommitAndPush,
   workspaceGetChangedFiles,
 } from "../engineering/engineeringWorkspace";
@@ -1084,15 +1085,23 @@ export class PipelineOrchestrator {
       // Knowledge cache miss is non-fatal
     }
 
-    // Create a persistent workspace: clone + per-ticket branch + npm install
+    const skipDependencyInstall = shouldSkipEngineeringDependencyInstall({
+      implementationMode,
+    });
+
+    // Create a persistent workspace: clone + per-ticket branch (+ npm install for code mode)
     let workspace;
     try {
-      workspace = await createEngWorkspace(pipelineId, ticket.jiraKey, sourceBranch);
+      workspace = await createEngWorkspace(pipelineId, ticket.jiraKey, sourceBranch, {
+        skipDependencyInstall,
+      });
       await auditRepo.log(pipelineId, "ENGINEERING_WORKSPACE_CREATED", {
         jiraKey: ticket.jiraKey,
         branchName: workspace.branchName,
         workspaceDir: workspace.workspaceDir,
         sourceBranch,
+        skipDependencyInstall,
+        implementationMode,
       });
     } catch (err) {
       const message = sanitizeGitShellError(err);

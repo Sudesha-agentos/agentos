@@ -32,22 +32,36 @@ export const sandboxManager = {
   },
 
   async installDependencies(sandboxDir: string): Promise<void> {
+    const npmFlags =
+      "--silent --no-audit --no-fund --ignore-scripts --prefer-offline";
+    const npmEnv = {
+      ...process.env,
+      NODE_OPTIONS: "--max-old-space-size=384",
+      npm_config_jobs: "1",
+    };
+
     if (existsSync(join(sandboxDir, "package.json"))) {
-      await execAsync("npm install --silent", {
+      await execAsync(`npm install ${npmFlags}`, {
         cwd: sandboxDir,
         timeout: 180_000,
+        env: npmEnv,
+        maxBuffer: 10 * 1024 * 1024,
       });
     }
     if (existsSync(join(sandboxDir, "app", "package.json"))) {
-      await execAsync("npm install --silent", {
+      await execAsync(`npm install ${npmFlags}`, {
         cwd: join(sandboxDir, "app"),
         timeout: 180_000,
+        env: npmEnv,
+        maxBuffer: 10 * 1024 * 1024,
       });
     }
     if (existsSync(join(sandboxDir, "server", "package.json"))) {
-      await execAsync("npm install --silent", {
+      await execAsync(`npm install ${npmFlags}`, {
         cwd: join(sandboxDir, "server"),
         timeout: 180_000,
+        env: npmEnv,
+        maxBuffer: 10 * 1024 * 1024,
       });
     }
   },
