@@ -48,6 +48,22 @@ export function resolveFallbackApiPushBranch(): string {
   return process.env.ENGINEERING_TARGET_BRANCH?.trim() || LEGACY_API_PUSH_BRANCH;
 }
 
+export type EngineeringWorkspaceOptions = {
+  /** When true, skip npm install after clone (content/docs tickets). */
+  skipDependencyInstall?: boolean;
+};
+
+/** Skip npm install for doc-only work or when Render memory is constrained. */
+export function shouldSkipEngineeringDependencyInstall(input?: {
+  implementationMode?: "content" | "code";
+  skipDependencyInstall?: boolean;
+}): boolean {
+  if (input?.skipDependencyInstall) return true;
+  const env = process.env.ENGINEERING_SKIP_NPM_INSTALL?.trim().toLowerCase();
+  if (env === "1" || env === "true" || env === "yes") return true;
+  return input?.implementationMode === "content";
+}
+
 async function configureGitUser(workspaceDir: string): Promise<void> {
   await execAsync('git config user.email "agentos@agentos.ai"', { cwd: workspaceDir, timeout: 10_000 });
   await execAsync('git config user.name "AgentOS"', { cwd: workspaceDir, timeout: 10_000 });
@@ -79,7 +95,8 @@ export function resetEngWorkspaceDir(pipelineId: string, workspaceDir: string): 
 export async function createEngWorkspace(
   pipelineId: string,
   jiraKey: string,
-  sourceBranch: string
+  sourceBranch: string,
+  options: EngineeringWorkspaceOptions = {}
 ): Promise<WorkspaceHandle> {
   const runId = `${pipelineId}-eng`;
   const workspaceDir = join(SANDBOX_BASE, runId);
@@ -123,8 +140,15 @@ export async function createEngWorkspace(
     logger.info({ pipelineId, targetBranch }, "created new engineering branch");
   }
 
-  // Install dependencies once (slow but needed for type checking)
-  await sandboxManager.installDependencies(workspaceDir);
+  if (options.skipDependencyInstall) {
+    logger.info(
+      { pipelineId, workspaceDir },
+      "skipping npm install in engineering workspace (content mode or ENGINEERING_SKIP_NPM_INSTALL)"
+    );
+  } else {
+    // Needed for in-workspace typecheck; skip on content tickets or low-memory hosts (Render 512MB).
+    await sandboxManager.installDependencies(workspaceDir);
+  }
 
   const handle: WorkspaceHandle = {
     pipelineId,

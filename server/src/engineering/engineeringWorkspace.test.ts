@@ -10,6 +10,7 @@ import {
   workspaceGrep,
   resetEngWorkspaceDir,
   sanitizeGitShellError,
+  shouldSkipEngineeringDependencyInstall,
 } from "./engineeringWorkspace";
 
 describe("engineeringWorkspace path guard (L4)", () => {
@@ -99,5 +100,27 @@ describe("engineering workspace lifecycle", () => {
     const sanitized = sanitizeGitShellError(new Error(raw));
     assert.doesNotMatch(sanitized, /github_pat_SECRET/);
     assert.doesNotMatch(sanitized, /x-access-token:github_pat/);
+  });
+
+  it("skips npm install for content mode and ENGINEERING_SKIP_NPM_INSTALL", () => {
+    assert.equal(
+      shouldSkipEngineeringDependencyInstall({ implementationMode: "content" }),
+      true
+    );
+    assert.equal(
+      shouldSkipEngineeringDependencyInstall({ implementationMode: "code" }),
+      false
+    );
+    const prev = process.env.ENGINEERING_SKIP_NPM_INSTALL;
+    process.env.ENGINEERING_SKIP_NPM_INSTALL = "1";
+    try {
+      assert.equal(
+        shouldSkipEngineeringDependencyInstall({ implementationMode: "code" }),
+        true
+      );
+    } finally {
+      if (prev === undefined) delete process.env.ENGINEERING_SKIP_NPM_INSTALL;
+      else process.env.ENGINEERING_SKIP_NPM_INSTALL = prev;
+    }
   });
 });
