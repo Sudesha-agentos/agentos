@@ -127,7 +127,7 @@ Use a repo-relative file_path (e.g. docs/curriculum/guide.md).
           description: "One-line description of what this file is",
         },
       },
-      required: ["content", "summary"],
+      required: ["file_path", "content", "summary"],
     },
   },
 
@@ -149,7 +149,7 @@ For modifying existing files, prefer edit_file instead.
           description: "One-line description of what this file is",
         },
       },
-      required: ["content", "summary"],
+      required: ["file_path", "content", "summary"],
     },
   },
 

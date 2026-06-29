@@ -5,6 +5,7 @@ const CONTENT_CODING_RULES = `
 You are authoring document/content deliverables (markdown, curriculum, policy, guides).
 - read_file on existing docs in the same area for tone, structure, and headings.
 - write_file with COMPLETE markdown/document content for every required deliverable path.
+- Every write_file call MUST include file_path (repo-relative, e.g. docs/curriculum/guide.md).
 - You MUST call write_file once per required deliverable file before finishing.
 - Do not write application source code unless a doc explicitly requires code samples.
 - Match existing documentation style when prior docs exist.

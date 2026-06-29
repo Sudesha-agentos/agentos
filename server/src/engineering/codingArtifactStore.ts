@@ -9,6 +9,10 @@ export interface StagedSourceFile {
 export interface EngineeringCodingArtifacts {
   stagedFiles: StagedSourceFile[];
   readCache: Map<string, string>;
+  /** PRD deliverable paths Ananta must write (for path inference + errors). */
+  requiredDeliverablePaths: string[];
+  /** Paths successfully written this coding run. */
+  writtenPaths: string[];
 }
 
 const store = new Map<string, EngineeringCodingArtifacts>();
@@ -16,9 +20,28 @@ const completedSnapshots = new Map<string, StagedSourceFile[]>();
 
 function ensure(pipelineId: string): EngineeringCodingArtifacts {
   if (!store.has(pipelineId)) {
-    store.set(pipelineId, { stagedFiles: [], readCache: new Map() });
+    store.set(pipelineId, {
+      stagedFiles: [],
+      readCache: new Map(),
+      requiredDeliverablePaths: [],
+      writtenPaths: [],
+    });
   }
   return store.get(pipelineId)!;
+}
+
+export function setCodingDeliverablePaths(
+  pipelineId: string,
+  paths: string[]
+): void {
+  ensure(pipelineId).requiredDeliverablePaths = [...new Set(paths.filter(Boolean))];
+}
+
+export function markCodingFileWritten(pipelineId: string, filePath: string): void {
+  const artifacts = ensure(pipelineId);
+  if (!artifacts.writtenPaths.includes(filePath)) {
+    artifacts.writtenPaths.push(filePath);
+  }
 }
 
 export function getCodingArtifacts(pipelineId: string): EngineeringCodingArtifacts {
