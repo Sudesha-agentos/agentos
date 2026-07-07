@@ -65,6 +65,10 @@ export interface GeneratedPRD {
     impact: string;
     mitigation: string;
   }>;
+  /** Concrete edge/failure scenarios with expected behavior. */
+  edgeCases?: string[];
+  /** Testable completion criteria for this work item. */
+  definitionOfDone?: string[];
   successMetrics: Array<{
     metric: string;
     baseline: string;

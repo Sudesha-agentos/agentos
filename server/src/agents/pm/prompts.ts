@@ -63,8 +63,8 @@ ENRICHED BRIEF:
 
 CODEBASE SIGNALS (if available):
 Affected components: {{affected_components}}
-Component churn rate: {{churn_rate}}
-Component test coverage: {{test_coverage}}
+Component churn rate (last 30 days): {{churn_rate}}
+Component test coverage: {{test_coverage}} — ignore if "not available"
 Recent changes to affected files: {{recent_commit_summary}}
 
 ---
@@ -255,7 +255,7 @@ Risk factors: {{risk_factors}}
 
 CURRENT SPRINT CONTEXT:
 Active OKRs: {{okr_list}}
-Sprint capacity remaining: {{capacity_remaining}}
+Pipeline capacity: {{capacity_remaining}}
 Currently in-flight tickets count: {{inflight_count}}
 
 ---

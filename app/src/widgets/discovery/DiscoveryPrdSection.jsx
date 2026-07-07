@@ -55,8 +55,28 @@ export default function DiscoveryPrdSection({ parsed, scores }) {
       {prd.reuseFromCodebase?.length > 0 ? (
         <BulletList label="Reuse from codebase" items={prd.reuseFromCodebase} />
       ) : null}
-      {prd.successDefinition ? (
-        <ProseBlock label="Definition of done" text={prd.successDefinition} />
+      {prd.successDefinition && !prd.definitionOfDone?.length ? (
+        <ProseBlock label="Success definition" text={prd.successDefinition} />
+      ) : null}
+
+      {prd.userPersonas?.length > 0 ? (
+        <div>
+          <p className="editorial-kicker mb-3 text-ink-mute">User personas</p>
+          <ul className="space-y-3">
+            {prd.userPersonas.map((p) => (
+              <li
+                key={p.persona ?? p.need}
+                className="rounded-[0.85rem] border border-hairline bg-canvas/30 px-3 py-3"
+              >
+                <p className="text-[14px] font-medium text-ink">{p.persona}</p>
+                <p className="mt-1 text-[13px] text-ink-dim">{p.need}</p>
+                {p.currentPain ? (
+                  <p className="mt-1 text-[13px] text-ink-dim">Pain: {p.currentPain}</p>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        </div>
       ) : null}
 
       {prd.userStories?.length > 0 ? (
@@ -155,6 +175,76 @@ export default function DiscoveryPrdSection({ parsed, scores }) {
         </div>
       ) : null}
 
+      {prd.edgeCases?.length > 0 ? (
+        <BulletList label="Edge cases" items={prd.edgeCases} />
+      ) : null}
+
+      {prd.definitionOfDone?.length > 0 ? (
+        <div>
+          <p className="editorial-kicker mb-2 text-ink-mute">Definition of done</p>
+          <ul className="space-y-1.5">
+            {prd.definitionOfDone.map((item, i) => (
+              <li key={i} className="flex gap-2 text-[14px] text-ink-dim">
+                <span className="text-success">□</span>
+                {item}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
+      {prd.nonFunctionalRequirements?.length > 0 ? (
+        <div>
+          <p className="editorial-kicker mb-3 text-ink-mute">Non-functional requirements</p>
+          <ul className="space-y-2">
+            {prd.nonFunctionalRequirements.map((nfr, i) => (
+              <li key={i} className="rounded-[0.85rem] border border-hairline bg-canvas/30 px-3 py-3">
+                <LabelPill label={nfr.type} tone="muted" />
+                <p className="mt-2 text-[14px] text-ink">{nfr.requirement}</p>
+                {nfr.measurable ? (
+                  <p className="mt-1 text-[13px] text-ink-dim">Measurable: {nfr.measurable}</p>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
+      {prd.successMetrics?.length > 0 ? (
+        <div>
+          <p className="editorial-kicker mb-3 text-ink-mute">Success metrics</p>
+          <ul className="space-y-2">
+            {prd.successMetrics.map((m, i) => (
+              <li key={i} className="rounded-[0.85rem] border border-hairline bg-canvas/30 px-3 py-3 text-[13px] text-ink-dim">
+                <p className="font-medium text-ink">{m.metric}</p>
+                <p className="mt-1">
+                  Target: {m.target} (from {m.baseline})
+                </p>
+                {m.measurementMethod ? <p className="mt-1">{m.measurementMethod}</p> : null}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
+      {prd.complexitySummary ? (
+        <div>
+          <p className="editorial-kicker mb-2 text-ink-mute">Complexity & effort</p>
+          <p className="font-mono text-[12px] text-ink-dim">
+            Score {prd.complexitySummary.score ?? "—"} · optimistic {prd.complexitySummary.effortOptimistic} ·
+            realistic {prd.complexitySummary.effortRealistic} · pessimistic{" "}
+            {prd.complexitySummary.effortPessimistic}
+          </p>
+          {prd.complexitySummary.keyComplexityDrivers?.length > 0 ? (
+            <ul className="mt-2 list-inside list-disc space-y-1 text-[13px] text-ink-dim">
+              {prd.complexitySummary.keyComplexityDrivers.map((d) => (
+                <li key={d}>{d}</li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
+      ) : null}
+
       {parsed.prd?.confidenceReason ? (
         <p className="text-[13px] italic text-ink-dim">{parsed.prd.confidenceReason}</p>
       ) : null}
@@ -177,6 +267,8 @@ function adaptLegacyPrd(legacy) {
     })),
     outOfScope: legacy.outOfScope,
     openQuestions: legacy.openQuestions,
+    edgeCases: legacy.edgeCases ?? [],
+    definitionOfDone: legacy.definitionOfDone ?? [],
     risks: (legacy.edgeCases ?? []).map((e) => ({
       risk: e,
       probability: "medium",

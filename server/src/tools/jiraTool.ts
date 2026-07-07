@@ -1,3 +1,4 @@
+import { parseDescription } from "../jira-intake/descriptionParser";
 import { getPipelineJiraClient } from "../pipeline/jira/client";
 import { logger } from "../utils/logger";
 
@@ -38,6 +39,23 @@ export interface RelatedJiraTicketsResult {
   notes: string[];
 }
 
+export interface RelatedTicketDetail {
+  key: string;
+  summary: string;
+  description: string;
+  status: string;
+  issueType: string;
+  relationship: "epic" | "subtask" | "linked";
+  commentsText?: string;
+}
+
+export interface RelatedTicketGraphResult {
+  epic?: RelatedTicketDetail;
+  subtasks: RelatedTicketDetail[];
+  linkedIssues: RelatedTicketDetail[];
+  notes: string[];
+}
+
 const RELATED_FIELDS = [
   "summary",
   "status",
@@ -45,7 +63,17 @@ const RELATED_FIELDS = [
   "components",
   "parent",
   "issuelinks",
+  "description",
+  "subtasks",
+  "comment",
 ];
+
+const DETAIL_FIELDS = ["summary", "description", "status", "issuetype", "comment"];
+
+interface JiraComment {
+  body?: unknown;
+  author?: { displayName?: string };
+}
 
 export const jiraTool = {
   async fetchRelated(input: {
@@ -88,6 +116,65 @@ export const jiraTool = {
 
     return {
       tickets: [...tickets.values()].slice(0, 12),
+      notes,
+    };
+  },
+
+  async fetchRelatedTicketDetails(jiraKey: string): Promise<RelatedTicketGraphResult> {
+    logger.info({ jiraKey }, "fetching related Jira ticket graph details");
+
+    const notes: string[] = [];
+    const subtasks: RelatedTicketDetail[] = [];
+    const linkedIssues: RelatedTicketDetail[] = [];
+    let epic: RelatedTicketDetail | undefined;
+
+    try {
+      const current = (await getPipelineJiraClient().getIssueWithFields<JiraIssueRef>(
+        jiraKey,
+        RELATED_FIELDS
+      )) as JiraIssueRef;
+
+      const epicKey =
+        current.fields?.issuetype?.name?.toLowerCase() === "epic"
+          ? jiraKey
+          : current.fields?.parent?.key ?? findEpicKey(current.fields);
+
+      if (epicKey && epicKey !== jiraKey) {
+        const detail = await fetchIssueDetail(epicKey, "epic");
+        if (detail) epic = detail;
+      } else if (epicKey === jiraKey) {
+        const detail = issueRefToDetail(current, "epic");
+        if (detail) epic = detail;
+      } else {
+        notes.push("No parent epic detected for this ticket.");
+      }
+
+      const subtaskRefs = (current.fields?.subtasks as JiraIssueRef[] | undefined) ?? [];
+      for (const ref of subtaskRefs.slice(0, 8)) {
+        if (!ref.key) continue;
+        const detail =
+          ref.fields?.description !== undefined
+            ? issueRefToDetail(ref, "subtask")
+            : await fetchIssueDetail(ref.key, "subtask");
+        if (detail) subtasks.push(detail);
+      }
+
+      for (const link of current.fields?.issuelinks ?? []) {
+        const related = link.outwardIssue ?? link.inwardIssue;
+        if (!related?.key || related.key === jiraKey) continue;
+        const detail = await fetchIssueDetail(related.key, "linked");
+        if (detail) linkedIssues.push(detail);
+      }
+    } catch (error) {
+      notes.push(
+        `Related ticket graph fetch failed: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+
+    return {
+      epic,
+      subtasks: subtasks.slice(0, 8),
+      linkedIssues: linkedIssues.slice(0, 6),
       notes,
     };
   },
@@ -195,6 +282,53 @@ async function runSearchWithFallback(queries: string[]): Promise<JiraIssueRef[]>
   }
 
   throw lastError instanceof Error ? lastError : new Error("Related issue search failed");
+}
+
+function formatComments(
+  commentField: { comments?: JiraComment[] } | undefined,
+  maxComments = 3
+): string {
+  return (commentField?.comments ?? [])
+    .slice(-maxComments)
+    .map((c) => {
+      const author = c.author?.displayName ?? "Unknown";
+      const body = parseDescription(c.body);
+      return `[${author}]: ${body}`;
+    })
+    .filter(Boolean)
+    .join("\n\n");
+}
+
+function issueRefToDetail(
+  issue: JiraIssueRef,
+  relationship: RelatedTicketDetail["relationship"]
+): RelatedTicketDetail | null {
+  if (!issue.key) return null;
+  const commentField = issue.fields?.comment as { comments?: JiraComment[] } | undefined;
+  return {
+    key: issue.key,
+    summary: issue.fields?.summary ?? "",
+    description: parseDescription(issue.fields?.description),
+    status: issue.fields?.status?.name ?? "Unknown",
+    issueType: issue.fields?.issuetype?.name ?? "Unknown",
+    relationship,
+    commentsText: formatComments(commentField) || undefined,
+  };
+}
+
+async function fetchIssueDetail(
+  jiraKey: string,
+  relationship: RelatedTicketDetail["relationship"]
+): Promise<RelatedTicketDetail | null> {
+  try {
+    const issue = (await getPipelineJiraClient().getIssueWithFields<JiraIssueRef>(
+      jiraKey,
+      DETAIL_FIELDS
+    )) as JiraIssueRef;
+    return issueRefToDetail(issue, relationship);
+  } catch {
+    return null;
+  }
 }
 
 function summarizeIssue(

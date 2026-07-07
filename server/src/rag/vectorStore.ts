@@ -11,6 +11,7 @@ function requiredEnv(name: string): string {
   return value;
 }
 
+/** Module-level singleton — reuse one Supabase client per process. */
 const supabase = createClient(
   requiredEnv("SUPABASE_URL"),
   requiredEnv("SUPABASE_SERVICE_KEY")
@@ -59,6 +60,26 @@ interface VectorTableRow {
   organization_id?: string | null;
 }
 
+interface VectorMetadataRow {
+  id: string;
+  jira_ticket_id: string;
+  jira_key: string;
+  content_type: VectorContentType;
+  metadata: Record<string, unknown>;
+  chunk_index?: number;
+}
+
+type UpsertInput = {
+  jiraTicketId: string;
+  jiraKey: string;
+  contentType: VectorContentType;
+  content: string;
+  embedding: number[];
+  metadata: Record<string, unknown>;
+  chunkIndex?: number;
+  organizationId?: string;
+};
+
 function resolveOrganizationId(explicit?: string): string | undefined {
   try {
     return explicit ?? requireActiveOrganizationId();
@@ -80,38 +101,53 @@ function mapSearchRows(data: SimilaritySearchRow[] | null): VectorRecord[] {
   }));
 }
 
+function toBatchRow(record: UpsertInput, organizationId: string | undefined) {
+  return {
+    jira_ticket_id: record.jiraTicketId,
+    jira_key: record.jiraKey,
+    content_type: record.contentType,
+    content: record.content,
+    embedding: JSON.stringify(record.embedding),
+    metadata: record.metadata,
+    chunk_index: record.chunkIndex ?? 0,
+    organization_id: organizationId ?? null,
+  };
+}
+
 export const vectorStore = {
-  async upsert(record: {
-    jiraTicketId: string;
-    jiraKey: string;
-    contentType: VectorContentType;
-    content: string;
-    embedding: number[];
-    metadata: Record<string, unknown>;
-    chunkIndex?: number;
-    organizationId?: string;
-  }): Promise<void> {
-    const organizationId = resolveOrganizationId(record.organizationId);
-    const { error } = await supabase.rpc("upsert_vector", {
-      p_jira_ticket_id: record.jiraTicketId,
-      p_jira_key: record.jiraKey,
-      p_content_type: record.contentType,
-      p_content: record.content,
-      p_embedding: JSON.stringify(record.embedding),
-      p_metadata: record.metadata,
-      p_chunk_index: record.chunkIndex ?? 0,
-      p_organization_id: organizationId ?? null,
+  async upsert(record: UpsertInput): Promise<void> {
+    await vectorStore.upsertBatch([record]);
+  },
+
+  async upsertBatch(records: UpsertInput[]): Promise<void> {
+    if (records.length === 0) return;
+
+    const payload = records.map((record) =>
+      toBatchRow(record, resolveOrganizationId(record.organizationId))
+    );
+
+    const { error } = await supabase.rpc("upsert_vectors_batch", {
+      p_vectors: payload,
     });
 
     if (error) {
-      logger.error({ err: error, jiraKey: record.jiraKey }, "vector store upsert failed");
-      throw new Error(`Vector store upsert failed: ${error.message}`);
-    }
+      if (/upsert_vectors_batch/i.test(error.message ?? "")) {
+        logger.warn(
+          { err: error, count: records.length },
+          "upsert_vectors_batch unavailable — falling back to per-row upsert"
+        );
+        for (const record of records) {
+          await upsertSingle(record);
+        }
+        return;
+      }
 
-    logger.info(
-      { jiraKey: record.jiraKey, contentType: record.contentType, chunkIndex: record.chunkIndex ?? 0 },
-      "vector stored"
-    );
+      logger.error(
+        { err: error, jiraKey: records[0]?.jiraKey, count: records.length },
+        "vector store batch upsert failed"
+      );
+      throw new Error(`Vector store batch upsert failed: ${error.message}`);
+    }
   },
 
   async deleteByJiraKeyAndContentType(
@@ -198,9 +234,13 @@ export const vectorStore = {
     }
   },
 
+  /** Lightweight metadata read — never pulls content or embedding vectors. */
   async getByJiraKey(jiraKey: string, organizationId?: string): Promise<VectorRecord[]> {
     const orgId = resolveOrganizationId(organizationId);
-    let q = supabase.from("vector_store").select("*").eq("jira_key", jiraKey);
+    let q = supabase
+      .from("vector_store")
+      .select("id, jira_ticket_id, jira_key, content_type, metadata, chunk_index")
+      .eq("jira_key", jiraKey);
     if (orgId) q = q.eq("organization_id", orgId);
 
     const { data, error } = await q;
@@ -209,14 +249,33 @@ export const vectorStore = {
       throw new Error(error.message);
     }
 
-    return ((data ?? []) as VectorTableRow[]).map((row) => ({
+    return ((data ?? []) as VectorMetadataRow[]).map((row) => ({
       id: row.id,
       jiraTicketId: row.jira_ticket_id,
       jiraKey: row.jira_key,
       contentType: row.content_type,
-      content: row.content,
+      content: "",
       metadata: row.metadata,
       chunkIndex: row.chunk_index ?? 0,
     }));
   },
 };
+
+async function upsertSingle(record: UpsertInput): Promise<void> {
+  const organizationId = resolveOrganizationId(record.organizationId);
+  const { error } = await supabase.rpc("upsert_vector", {
+    p_jira_ticket_id: record.jiraTicketId,
+    p_jira_key: record.jiraKey,
+    p_content_type: record.contentType,
+    p_content: record.content,
+    p_embedding: JSON.stringify(record.embedding),
+    p_metadata: record.metadata,
+    p_chunk_index: record.chunkIndex ?? 0,
+    p_organization_id: organizationId ?? null,
+  });
+
+  if (error) {
+    logger.error({ err: error, jiraKey: record.jiraKey }, "vector store upsert failed");
+    throw new Error(`Vector store upsert failed: ${error.message}`);
+  }
+}

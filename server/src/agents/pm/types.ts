@@ -26,6 +26,23 @@ export const PM_STAGE_ORDER: PmStageId[] = VIRIN_STAGE_ORDER;
 
 export type VirinRunMode = "interactive" | "auto";
 
+export interface RelatedTicketDetail {
+  key: string;
+  summary: string;
+  description: string;
+  status: string;
+  issueType: string;
+  relationship: "epic" | "subtask" | "linked";
+  commentsText?: string;
+}
+
+export interface RelatedTicketContext {
+  epic?: RelatedTicketDetail;
+  subtasks: RelatedTicketDetail[];
+  linkedIssues: RelatedTicketDetail[];
+  notes?: string[];
+}
+
 export interface PmTicketInput {
   jiraKey: string;
   summary: string;
@@ -42,6 +59,8 @@ export interface PmTicketInput {
   commentsText?: string;
   /** Inlined attachment contents / metadata for LLM prompts. */
   attachmentsText?: string;
+  /** Epic, subtasks, and linked issues with descriptions for discovery context. */
+  relatedContext?: RelatedTicketContext;
 }
 
 /** @deprecated Legacy — synced from Virin outputs for pipeline compatibility */

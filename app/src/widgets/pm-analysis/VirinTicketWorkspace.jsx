@@ -19,6 +19,12 @@ import {
   VirinHandoffPackageSection,
   VirinIntakeSection,
 } from "./VirinSections";
+import {
+  VirinCodebaseSignalsSection,
+  VirinOrgIntelligenceSection,
+  VirinSynthesisSection,
+  VirinTicketGraphSection,
+} from "./VirinContextPanels";
 import { CompetitorAnalysisSection } from "./CompetitorAnalysisSection";
 import DiscoveryPrdSection from "../discovery/DiscoveryPrdSection";
 import { PmTechHandoffSection } from "./PmAnalysisSections";
@@ -116,16 +122,21 @@ function TaskStageContent({ taskBreakdown }) {
 function SolutionStageContent({ analysis }) {
   const sol = analysis.solutioning;
   if (!sol || analysis.status === "AWAITING_CONFIRMATION") return null;
+  const orgIntel =
+    analysis.context?.orgIntelligenceSummary ?? analysis.orgIntelligenceSummary;
   return (
-    <Panel>
-      <PanelHeader kicker="Stage 7" title="Solution direction" />
-      <div className="px-5 py-4 sm:px-6">
-        <p className="text-[14px] font-medium text-app-ink">{sol.problemStatement}</p>
-        <div className="mt-4 whitespace-pre-wrap text-[14px] leading-relaxed text-app-ink-dim">
-          {sol.summaryMarkdown ?? sol.recommendedApproach}
+    <div className="space-y-4">
+      {orgIntel ? <VirinOrgIntelligenceSection summary={orgIntel} /> : null}
+      <Panel>
+        <PanelHeader kicker="Stage 7" title="Solution direction" />
+        <div className="px-5 py-4 sm:px-6">
+          <p className="text-[14px] font-medium text-app-ink">{sol.problemStatement}</p>
+          <div className="mt-4 whitespace-pre-wrap text-[14px] leading-relaxed text-app-ink-dim">
+            {sol.summaryMarkdown ?? sol.recommendedApproach}
+          </div>
         </div>
-      </div>
-    </Panel>
+      </Panel>
+    </div>
   );
 }
 
@@ -213,11 +224,17 @@ function AwaitingInputBanner({ analysis, handlers }) {
 }
 
 function renderStageContent(stageId, analysis, handlers) {
+  const orgIntel =
+    analysis.context?.orgIntelligenceSummary ?? analysis.orgIntelligenceSummary;
+  const relatedContext = analysis.ticketInput?.relatedContext;
+
   switch (stageId) {
     case "INTAKE":
       return (
         <StagePanel stageId={stageId} analysis={analysis} pendingLabel="Waiting for intake…">
           <div className="space-y-4">
+            <VirinTicketGraphSection relatedContext={relatedContext} defaultOpen />
+            <VirinCodebaseSignalsSection context={analysis.context} />
             {analysis.neelIntake ? <VirinIntakeSection intake={analysis.neelIntake} /> : null}
           </div>
         </StagePanel>
@@ -227,6 +244,7 @@ function renderStageContent(stageId, analysis, handlers) {
         <StagePanel stageId={stageId} analysis={analysis} pendingLabel="Discovery conversation pending…">
           {(analysis.questionMode || analysis.status === "AWAITING_INPUT") && (
             <div className="space-y-4">
+              <VirinTicketGraphSection relatedContext={relatedContext} />
               <VirinDiscoverySection
                 questionMode={analysis.questionMode}
                 analysis={analysis}
@@ -286,12 +304,19 @@ function renderStageContent(stageId, analysis, handlers) {
       return (
         <StagePanel stageId={stageId} analysis={analysis} pendingLabel="PRD not generated yet.">
           {analysis.generatedPrd ? (
-            <Panel>
-              <PanelHeader kicker="Stage 8" title="PRD generation" />
-              <div className="px-5 py-5 sm:px-6">
-                <DiscoveryPrdSection parsed={{ generatedPrd: analysis.generatedPrd }} />
-              </div>
-            </Panel>
+            <div className="space-y-4">
+              {orgIntel ? <VirinOrgIntelligenceSection summary={orgIntel} /> : null}
+              <VirinSynthesisSection
+                synthesisSummary={analysis.synthesisSummary}
+                similarPastWork={analysis.similarPastWork}
+              />
+              <Panel>
+                <PanelHeader kicker="Stage 8" title="PRD generation" />
+                <div className="px-5 py-5 sm:px-6">
+                  <DiscoveryPrdSection parsed={{ generatedPrd: analysis.generatedPrd }} />
+                </div>
+              </Panel>
+            </div>
           ) : null}
         </StagePanel>
       );
@@ -461,6 +486,11 @@ export function VirinTicketWorkspace({
         ) : null}
 
         <AwaitingInputBanner analysis={analysis} handlers={handlers} />
+
+        {analysis.ticketInput?.relatedContext &&
+        !["INTAKE", "QUESTION_MODE"].includes(activeStage) ? (
+          <VirinTicketGraphSection relatedContext={analysis.ticketInput.relatedContext} />
+        ) : null}
 
         {analysis.status === "FAILED" && analysis.error ? (
           <Panel>

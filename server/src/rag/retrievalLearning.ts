@@ -8,23 +8,106 @@ const componentPatternBoosts = new Map<string, Set<string>>();
 const ticketThresholdOffsets = new Map<string, number>();
 const codebaseThresholdOffsets = new Map<string, number>();
 
+const hydratedOrgs = new Set<string>();
+
 const PATTERN_KEYWORDS: Record<string, string[]> = {
   billing: ["billing", "config", "api-route"],
   config: ["config", "utility"],
   auth: ["auth", "middleware"],
 };
 
-export function recordRetrospectiveLearning(
+interface PersistedLearningState {
+  componentPatternBoosts?: Record<string, string[]>;
+  ticketThresholdOffsets?: Record<string, number>;
+  codebaseThresholdOffsets?: Record<string, number>;
+}
+
+function orgScopedKey(organizationId: string, component: string): string {
+  return `${organizationId}::${component}`;
+}
+
+function loadStateIntoMemory(organizationId: string, state: PersistedLearningState): void {
+  for (const [component, patterns] of Object.entries(state.componentPatternBoosts ?? {})) {
+    componentPatternBoosts.set(orgScopedKey(organizationId, component), new Set(patterns));
+  }
+  for (const [component, offset] of Object.entries(state.ticketThresholdOffsets ?? {})) {
+    ticketThresholdOffsets.set(orgScopedKey(organizationId, component), offset);
+  }
+  for (const [component, offset] of Object.entries(state.codebaseThresholdOffsets ?? {})) {
+    codebaseThresholdOffsets.set(orgScopedKey(organizationId, component), offset);
+  }
+}
+
+function serializeMemoryForOrg(organizationId: string): PersistedLearningState {
+  const prefix = `${organizationId}::`;
+  const state: PersistedLearningState = {
+    componentPatternBoosts: {},
+    ticketThresholdOffsets: {},
+    codebaseThresholdOffsets: {},
+  };
+
+  for (const [key, patterns] of componentPatternBoosts.entries()) {
+    if (!key.startsWith(prefix)) continue;
+    const component = key.slice(prefix.length);
+    state.componentPatternBoosts![component] = [...patterns];
+  }
+  for (const [key, offset] of ticketThresholdOffsets.entries()) {
+    if (!key.startsWith(prefix)) continue;
+    state.ticketThresholdOffsets![key.slice(prefix.length)] = offset;
+  }
+  for (const [key, offset] of codebaseThresholdOffsets.entries()) {
+    if (!key.startsWith(prefix)) continue;
+    state.codebaseThresholdOffsets![key.slice(prefix.length)] = offset;
+  }
+
+  return state;
+}
+
+async function ensureRetrievalLearningHydrated(organizationId: string): Promise<void> {
+  if (hydratedOrgs.has(organizationId)) return;
+  hydratedOrgs.add(organizationId);
+
+  try {
+    const row = await prisma.retrievalLearningState.findUnique({
+      where: { organizationId },
+    });
+    if (row?.state && typeof row.state === "object") {
+      loadStateIntoMemory(organizationId, row.state as PersistedLearningState);
+    }
+  } catch (err) {
+    logger.warn({ err, organizationId }, "retrieval learning hydrate failed");
+    hydratedOrgs.delete(organizationId);
+  }
+}
+
+async function persistLearningState(organizationId: string): Promise<void> {
+  const state = serializeMemoryForOrg(organizationId);
+  try {
+    await prisma.retrievalLearningState.upsert({
+      where: { organizationId },
+      create: { organizationId, state: state as object },
+      update: { state: state as object },
+    });
+  } catch (err) {
+    logger.warn({ err, organizationId }, "retrieval learning persist failed");
+  }
+}
+
+export async function recordRetrospectiveLearning(
   retrospective: RetrospectiveOutput,
   ticketComponents: string[] = []
-): void {
+): Promise<void> {
+  const organizationId = requireActiveOrganizationId();
+  await ensureRetrievalLearningHydrated(organizationId);
+
   for (const component of ticketComponents) {
-    if (!componentPatternBoosts.has(component)) {
-      componentPatternBoosts.set(component, new Set());
+    const key = orgScopedKey(organizationId, component);
+    if (!componentPatternBoosts.has(key)) {
+      componentPatternBoosts.set(key, new Set());
     }
-    const boosts = componentPatternBoosts.get(component)!;
-    for (const [key, patterns] of Object.entries(PATTERN_KEYWORDS)) {
-      if (component.toLowerCase().includes(key)) {
+    const boosts = componentPatternBoosts.get(key)!;
+    for (const [patternKey, patterns] of Object.entries(PATTERN_KEYWORDS)) {
+      if (component.toLowerCase().includes(patternKey)) {
         patterns.forEach((p) => boosts.add(p));
       }
     }
@@ -32,13 +115,14 @@ export function recordRetrospectiveLearning(
 
   for (const signal of retrospective.learningSignals ?? []) {
     const lower = signal.toLowerCase();
-    for (const [key, patterns] of Object.entries(PATTERN_KEYWORDS)) {
-      if (lower.includes(key)) {
+    for (const [patternKey, patterns] of Object.entries(PATTERN_KEYWORDS)) {
+      if (lower.includes(patternKey)) {
         for (const component of ticketComponents) {
-          if (!componentPatternBoosts.has(component)) {
-            componentPatternBoosts.set(component, new Set());
+          const key = orgScopedKey(organizationId, component);
+          if (!componentPatternBoosts.has(key)) {
+            componentPatternBoosts.set(key, new Set());
           }
-          patterns.forEach((p) => componentPatternBoosts.get(component)!.add(p));
+          patterns.forEach((p) => componentPatternBoosts.get(key)!.add(p));
         }
       }
     }
@@ -53,45 +137,82 @@ export function recordRetrospectiveLearning(
 
   if (retrospective.fileDetectionAccuracy?.toLowerCase().includes("missed")) {
     for (const component of ticketComponents) {
-      const prevTicket = ticketThresholdOffsets.get(component) ?? 0;
-      ticketThresholdOffsets.set(component, Math.min(prevTicket - 0.02, 0));
-      const prevCode = codebaseThresholdOffsets.get(component) ?? 0;
-      codebaseThresholdOffsets.set(component, Math.min(prevCode - 0.02, 0));
+      const key = orgScopedKey(organizationId, component);
+      const prevTicket = ticketThresholdOffsets.get(key) ?? 0;
+      ticketThresholdOffsets.set(key, Math.min(prevTicket - 0.02, 0));
+      const prevCode = codebaseThresholdOffsets.get(key) ?? 0;
+      codebaseThresholdOffsets.set(key, Math.min(prevCode - 0.02, 0));
     }
   }
   if (retrospective.fileDetectionAccuracy?.toLowerCase().includes("accurate")) {
     for (const component of ticketComponents) {
-      const prevTicket = ticketThresholdOffsets.get(component) ?? 0;
-      ticketThresholdOffsets.set(component, Math.max(prevTicket + 0.01, 0));
-      const prevCode = codebaseThresholdOffsets.get(component) ?? 0;
-      codebaseThresholdOffsets.set(component, Math.max(prevCode + 0.01, 0));
+      const key = orgScopedKey(organizationId, component);
+      const prevTicket = ticketThresholdOffsets.get(key) ?? 0;
+      ticketThresholdOffsets.set(key, Math.max(prevTicket + 0.01, 0));
+      const prevCode = codebaseThresholdOffsets.get(key) ?? 0;
+      codebaseThresholdOffsets.set(key, Math.max(prevCode + 0.01, 0));
     }
   }
+
+  await persistLearningState(organizationId);
 }
 
 export function getTicketThresholdOffset(components: string[]): number {
+  let organizationId: string | undefined;
+  try {
+    organizationId = requireActiveOrganizationId();
+    if (!hydratedOrgs.has(organizationId)) {
+      void ensureRetrievalLearningHydrated(organizationId);
+    }
+  } catch {
+    organizationId = undefined;
+  }
+
   let offset = 0;
   for (const component of components) {
-    offset += ticketThresholdOffsets.get(component) ?? 0;
+    const key = organizationId ? orgScopedKey(organizationId, component) : component;
+    offset += ticketThresholdOffsets.get(key) ?? 0;
   }
   return Math.max(-0.08, Math.min(0.08, offset));
 }
 
 export function getCodebaseThresholdOffset(components: string[]): number {
+  let organizationId: string | undefined;
+  try {
+    organizationId = requireActiveOrganizationId();
+    if (!hydratedOrgs.has(organizationId)) {
+      void ensureRetrievalLearningHydrated(organizationId);
+    }
+  } catch {
+    organizationId = undefined;
+  }
+
   let offset = 0;
   for (const component of components) {
-    offset += codebaseThresholdOffsets.get(component) ?? 0;
+    const key = organizationId ? orgScopedKey(organizationId, component) : component;
+    offset += codebaseThresholdOffsets.get(key) ?? 0;
   }
   return Math.max(-0.08, Math.min(0.08, offset));
 }
 
 export function getBoostedPatternTags(components: string[]): string[] {
+  let organizationId: string | undefined;
+  try {
+    organizationId = requireActiveOrganizationId();
+    if (!hydratedOrgs.has(organizationId)) {
+      void ensureRetrievalLearningHydrated(organizationId);
+    }
+  } catch {
+    organizationId = undefined;
+  }
+
   const tags = new Set<string>();
   for (const component of components) {
-    const boosted = componentPatternBoosts.get(component);
+    const key = organizationId ? orgScopedKey(organizationId, component) : component;
+    const boosted = componentPatternBoosts.get(key);
     if (boosted) boosted.forEach((t) => tags.add(t));
-    for (const [key, patterns] of Object.entries(PATTERN_KEYWORDS)) {
-      if (component.toLowerCase().includes(key)) {
+    for (const [patternKey, patterns] of Object.entries(PATTERN_KEYWORDS)) {
+      if (component.toLowerCase().includes(patternKey)) {
         patterns.forEach((p) => tags.add(p));
       }
     }

@@ -8,6 +8,7 @@ import { retriever } from "../../rag/retriever";
 import { jiraTool } from "../../tools/jiraTool";
 import { logger } from "../../utils/logger";
 import { companyIntelligence } from "../../companyIntelligence";
+import { orgIntelligence } from "../../orgIntelligence";
 import type { PmTicketInput, SynthesisSummary } from "./types";
 import { enrichTicketFromJira } from "./ticketEnrichment";
 import type { RetrievalResult } from "../../rag/retriever";
@@ -27,9 +28,12 @@ export interface PmContextBundle {
   candidateFilesList: string;
   relevantCommitHistory: string;
   affectedComponents: string;
+  /** Per-file commit churn over the last 30 days, or explicit not-available message. */
   churnRate: string;
+  /** Explicit not-available — per-file coverage is not indexed. */
   testCoverage: string;
   recentCommitSummary: string;
+  /** WIP capacity signal derived from running pipelines vs concurrency target. */
   capacityRemaining: string;
   inflightCount: string;
   branchName: string;
@@ -37,14 +41,143 @@ export interface PmContextBundle {
   synthesisSummary: SynthesisSummary;
   /** Full content of top prd/implementation RAG hits — for {{similar_past_work}} prompt block */
   similarPastWork: Array<{ jiraKey: string; contentType: string; similarity: number; content: string; summary?: string }>;
+  /** Recent org-intelligence signals filtered by ticket components. */
+  orgIntelligenceSummary: string;
 }
 
 function inferReporterTier(labels: string[], reporter: string): string {
   const joined = [...labels, reporter].join(" ").toLowerCase();
-  if (/enterprise|ent-|vip|strategic/.test(joined)) return "enterprise";
-  if (/paid|pro|team|business/.test(joined)) return "paid";
-  if (/free|trial|hobby/.test(joined)) return "free";
-  return "paid";
+  if (/enterprise|ent-|vip|strategic|fortune|global account/.test(joined)) {
+    return "enterprise";
+  }
+  if (/paid|pro|team|business|premium|plus/.test(joined)) return "paid";
+  if (/free|trial|hobby|community|open.?source/.test(joined)) return "free";
+  if (/internal|employee|staff|@/.test(reporter.toLowerCase())) return "internal";
+  return "unknown — tier not indexed on ticket; do not assume paid or enterprise";
+}
+
+const CHURN_WINDOW_DAYS = 30;
+const DEFAULT_PIPELINE_CONCURRENCY_TARGET = Number(
+  process.env.PIPELINE_CONCURRENCY_TARGET ?? "5"
+);
+
+async function computeChurnRate(
+  filePaths: string[],
+  branchName: string
+): Promise<string> {
+  if (filePaths.length === 0) {
+    return "not available — no candidate files identified yet";
+  }
+
+  try {
+    const scope = resolveRepoScope();
+    if (!scope) return "not available — repo not configured";
+
+    const since = new Date();
+    since.setDate(since.getDate() - CHURN_WINDOW_DAYS);
+
+    const commits = await prisma.commitHistory.findMany({
+      where: {
+        repoOwner: scope.repoOwner,
+        repoName: scope.repoName,
+        branchName,
+        authoredAt: { gte: since },
+      },
+      orderBy: { authoredAt: "desc" },
+      take: 200,
+    });
+
+    if (commits.length === 0) {
+      return `0 commits in last ${CHURN_WINDOW_DAYS} days on ${branchName}`;
+    }
+
+    const touchesByFile = new Map<string, number>();
+    for (const path of filePaths) {
+      touchesByFile.set(path, 0);
+    }
+
+    let relevantCommitCount = 0;
+    for (const commit of commits) {
+      const modified = [
+        ...(Array.isArray(commit.filesModified) ? commit.filesModified : []),
+        ...(Array.isArray(commit.filesAdded) ? commit.filesAdded : []),
+      ] as string[];
+
+      let touchedAny = false;
+      for (const path of filePaths) {
+        if (modified.some((f) => f.includes(path) || path.includes(f))) {
+          touchesByFile.set(path, (touchesByFile.get(path) ?? 0) + 1);
+          touchedAny = true;
+        }
+      }
+      if (touchedAny) relevantCommitCount += 1;
+    }
+
+    const avgTouches =
+      filePaths.reduce((sum, p) => sum + (touchesByFile.get(p) ?? 0), 0) /
+      filePaths.length;
+    const churnPct = ((relevantCommitCount / commits.length) * 100).toFixed(0);
+
+    const hotFiles = [...touchesByFile.entries()]
+      .filter(([, count]) => count > 0)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3)
+      .map(([path, count]) => `${path} (${count} commits)`)
+      .join("; ");
+
+    return [
+      `${relevantCommitCount}/${commits.length} commits (${churnPct}%) touched candidate files in last ${CHURN_WINDOW_DAYS} days`,
+      `avg ${avgTouches.toFixed(1)} touches/file`,
+      hotFiles ? `hottest: ${hotFiles}` : "no direct touches on candidate paths",
+    ].join("; ");
+  } catch {
+    return "not available — commit history lookup failed";
+  }
+}
+
+function computeCapacityRemaining(runningCount: number): string {
+  const target = DEFAULT_PIPELINE_CONCURRENCY_TARGET;
+  const slots = Math.max(0, target - runningCount);
+  if (runningCount >= target) {
+    return `at capacity — ${runningCount} running pipelines (target ${target}); 0 slots remaining`;
+  }
+  return `${slots} slot(s) available — ${runningCount} running of ${target} concurrency target`;
+}
+
+async function buildOrgIntelligenceSummary(
+  ticket: PmTicketInput
+): Promise<string> {
+  try {
+    const sourceTypes = ["QA_FAILURE", "OVERRIDE", "CANARY", "PIPELINE_COMPLETE"];
+    const records = await orgIntelligence.listRecent({ limit: 40 });
+    const components = ticket.components.map((c) => c.toLowerCase());
+
+    const filtered = records.filter((r) => {
+      if (!sourceTypes.includes(r.sourceType)) return false;
+      if (components.length === 0) return true;
+      const recordComponent = (r.component ?? "").toLowerCase();
+      return (
+        !recordComponent ||
+        components.some(
+          (c) => recordComponent.includes(c) || c.includes(recordComponent)
+        )
+      );
+    });
+
+    if (filtered.length === 0) {
+      return "No recent QA/canary/override/pipeline-complete signals for this area.";
+    }
+
+    return filtered
+      .slice(0, 12)
+      .map((r) => {
+        const component = r.component ? ` [${r.component}]` : "";
+        return `- ${r.sourceType}${component} (${r.jiraKey}, ${r.createdAt.toISOString().slice(0, 10)}): ${r.signal.slice(0, 240)}`;
+      })
+      .join("\n");
+  } catch {
+    return "Org intelligence unavailable.";
+  }
 }
 
 async function countComponentBugs(
@@ -342,14 +475,13 @@ async function mergeImplementationContext(
     return codebaseList;
   }
 }
-async function fetchInflightCount(): Promise<string> {
+async function fetchInflightCount(): Promise<number> {
   try {
-    const count = await prisma.pipeline.count({
+    return await prisma.pipeline.count({
       where: { status: "RUNNING" },
     });
-    return String(count);
   } catch {
-    return "unknown";
+    return -1;
   }
 }
 
@@ -373,6 +505,7 @@ export async function resolveTicketInput(
       priority: raw?.priority ?? fromJira.priority,
       commentsText: fromJira.commentsText,
       attachmentsText: fromJira.attachmentsText,
+      relatedContext: fromJira.relatedContext,
       status: fromJira.status,
       assignee: fromJira.assignee,
     };
@@ -432,11 +565,19 @@ export async function gatherPmContext(
     candidateFilesListRaw
   );
   const relevantCommitHistory = await fetchCommitHistory(paths, branchName);
+  const churnRate = await computeChurnRate(paths, branchName);
 
   const reporterTier = inferReporterTier(ticket.labels, ticket.reporter);
   const componentBugCount = await countComponentBugs(ticket.jiraKey, ticket.components);
   const linkedPrs = await fetchLinkedPrs(ticket.jiraKey);
-  const inflightCount = await fetchInflightCount();
+  const inflightRunning = await fetchInflightCount();
+  const inflightCount =
+    inflightRunning >= 0 ? String(inflightRunning) : "unknown";
+  const capacityRemaining =
+    inflightRunning >= 0
+      ? computeCapacityRemaining(inflightRunning)
+      : "not available — pipeline count unavailable";
+  const orgIntelligenceSummary = await buildOrgIntelligenceSummary(ticket);
 
   let companyProfile;
   try {
@@ -465,13 +606,14 @@ export async function gatherPmContext(
     candidateFilesList,
     relevantCommitHistory,
     affectedComponents: ticket.components.join(", ") || "none specified",
-    churnRate: "unknown (per-file churn not indexed)",
-    testCoverage: "unknown (per-file coverage not indexed)",
+    churnRate,
+    testCoverage: "not available — per-file test coverage is not indexed; ignore this signal",
     recentCommitSummary: relevantCommitHistory.split("\n")[0] ?? "none",
-    capacityRemaining: "40% (mock — connect sprint tooling for live data)",
+    capacityRemaining,
     inflightCount,
     branchName,
     synthesisSummary,
     similarPastWork,
+    orgIntelligenceSummary,
   };
 }

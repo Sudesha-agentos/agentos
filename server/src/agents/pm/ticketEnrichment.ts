@@ -1,8 +1,9 @@
 import { inflateRawSync } from "zlib";
 import { fetchJiraIssueByKey } from "../../jira-sync/issueFetcher";
 import { getPipelineJiraClient } from "../../pipeline/jira/client";
+import { jiraTool } from "../../tools/jiraTool";
 import { logger } from "../../utils/logger";
-import type { PmTicketInput } from "./types";
+import type { PmTicketInput, RelatedTicketContext } from "./types";
 
 const TEXT_EXTENSIONS = new Set([
   ".txt",
@@ -180,6 +181,70 @@ async function buildAttachmentsBlock(jiraKey: string): Promise<string> {
   }
 }
 
+function formatRelatedDetailBlock(
+  label: string,
+  detail: {
+    key: string;
+    summary: string;
+    status: string;
+    issueType: string;
+    description: string;
+    commentsText?: string;
+  }
+): string {
+  const lines = [
+    `${label}: ${detail.key} (${detail.issueType}, ${detail.status})`,
+    `Summary: ${detail.summary}`,
+  ];
+  if (detail.description.trim()) {
+    lines.push(`Description: ${truncate(detail.description, 1200)}`);
+  }
+  if (detail.commentsText?.trim()) {
+    lines.push(`Recent comments:\n${truncate(detail.commentsText, 800)}`);
+  }
+  return lines.join("\n");
+}
+
+export function formatRelatedContextBlock(related?: RelatedTicketContext): string {
+  if (!related) {
+    return "No epic, subtasks, or linked issues fetched for this ticket.";
+  }
+
+  const parts: string[] = [];
+
+  if (related.epic) {
+    parts.push(formatRelatedDetailBlock("Parent epic", related.epic));
+  }
+
+  if (related.subtasks.length > 0) {
+    parts.push(
+      "Subtasks:\n" +
+        related.subtasks
+          .map((s) => formatRelatedDetailBlock(`  ${s.key}`, s))
+          .join("\n\n")
+    );
+  }
+
+  if (related.linkedIssues.length > 0) {
+    parts.push(
+      "Linked issues:\n" +
+        related.linkedIssues
+          .map((l) => formatRelatedDetailBlock(`  ${l.key}`, l))
+          .join("\n\n")
+    );
+  }
+
+  if (related.notes?.length) {
+    parts.push(`Notes: ${related.notes.join("; ")}`);
+  }
+
+  if (parts.length === 0) {
+    return "No epic, subtasks, or linked issues found in Jira for this ticket.";
+  }
+
+  return parts.join("\n\n");
+}
+
 export function formatTicketPromptFields(ticket: PmTicketInput): Record<string, string> {
   return {
     ticket_summary: ticket.summary,
@@ -193,6 +258,7 @@ export function formatTicketPromptFields(ticket: PmTicketInput): Record<string, 
     ticket_assignee: ticket.assignee ?? "unassigned",
     ticket_comments: ticket.commentsText?.trim() || "No comments on ticket.",
     ticket_attachments: ticket.attachmentsText?.trim() || "No file attachments on this Jira ticket.",
+    ticket_related_context: formatRelatedContextBlock(ticket.relatedContext),
   };
 }
 
@@ -202,6 +268,13 @@ export async function enrichTicketFromJira(jiraKey: string): Promise<PmTicketInp
     if (!fetched) return null;
 
     const attachmentsText = await buildAttachmentsBlock(jiraKey);
+    const graph = await jiraTool.fetchRelatedTicketDetails(jiraKey);
+    const relatedContext: RelatedTicketContext = {
+      epic: graph.epic,
+      subtasks: graph.subtasks,
+      linkedIssues: graph.linkedIssues,
+      notes: graph.notes.length ? graph.notes : undefined,
+    };
 
     return {
       jiraKey: fetched.jiraKey,
@@ -217,6 +290,7 @@ export async function enrichTicketFromJira(jiraKey: string): Promise<PmTicketInp
       assignee: fetched.assignee ?? undefined,
       commentsText: fetched.commentsText,
       attachmentsText,
+      relatedContext,
     };
   } catch (err) {
     logger.warn({ err, jiraKey }, "pm ticket: enrich from Jira failed");
