@@ -88,17 +88,17 @@ async function printCounts(pool: pg.Pool) {
 async function main() {
   const pool = pgPool();
   try {
-    console.log("Step 1: vector SQL migrations");
-    await runSqlMigrations(pool);
-    await verifyRpcs(pool);
-
-    console.log("\nStep 2: Prisma migrate deploy");
+    console.log("Step 1: Prisma migrate deploy (must run before vector SQL on a fresh DB)");
     execSync("npx prisma migrate deploy", {
       cwd: join(__dirname, ".."),
       stdio: "inherit",
       env: process.env,
     });
     console.log("[ok] prisma migrate deploy");
+
+    console.log("\nStep 2: vector SQL migrations");
+    await runSqlMigrations(pool);
+    await verifyRpcs(pool);
 
     if (!skipIndex) {
       console.log("\nStep 3: codebase full re-index (embeddings)");

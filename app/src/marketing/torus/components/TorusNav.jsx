@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { AgentOxLogo } from "./AgentOxLogo";
 import { BRAND, NAV_LINKS } from "../torusPageContent";
 
-export default function TorusNav({ onToggleTheme, isLight }) {
+export default function TorusNav() {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
@@ -25,9 +25,6 @@ export default function TorusNav({ onToggleTheme, isLight }) {
           <Link to="/login" className="nav-signin">
             SIGN IN
           </Link>
-          <button type="button" className="mode-toggle" onClick={onToggleTheme}>
-            {isLight ? "DARK" : "LIGHT"}
-          </button>
           <button
             type="button"
             className="nav-toggle"

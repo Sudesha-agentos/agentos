@@ -16,12 +16,12 @@ export const NAV_LINKS = [
 ];
 
 export const HERO = {
-  headline: "Agents that think in Jira tickets, PRDs, and pull requests.",
+  headline: "From Jira Ticket to Shipped Code — Without Losing What You Actually Meant.",
   description:
     "AgentOX orchestrates Product, Engineering, and QA agents through your entire feature lifecycle — with validation gates that ensure what gets built is exactly what was specified.",
   primaryCta: "REQUEST EARLY ACCESS",
   primaryHref: "/login",
-  secondaryCta: "WATCH DEMO",
+  secondaryCta: "SEE THE PIPELINE",
   secondaryHref: "#solution",
   fallback: "or email",
 };

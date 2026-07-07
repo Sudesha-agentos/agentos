@@ -117,17 +117,9 @@ export const INTEGRATIONS = [
   { id: "grafana", name: "Grafana", detail: "Observability", logo: "/marketing/integrations/grafana-wordmark.svg", height: 30, minWidth: 100 },
 ];
 
-export const CLIENT_LOGOS = [
-  "Northwind Labs",
-  "Brightstack",
-  "Orbit Commerce",
-  "Fieldnote",
-  "Relay Systems",
-  "Harbor AI",
-];
-
-export const CLIENT_METRICS = [
-  { value: "60%", label: "typical rework reduction" },
-  { value: "<2h", label: "ticket to PR-ready" },
+/** Product proof points — honest targets, not customer claims. */
+export const PRODUCT_PROOF_METRICS = [
   { value: "3", label: "validation gates before ship" },
+  { value: "<2h", label: "ticket-to-PR-ready target" },
+  { value: "60%", label: "rework reduction in ROI model" },
 ];

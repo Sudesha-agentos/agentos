@@ -1,16 +1,15 @@
 /** Marketing page copy — AgentOX landing (design unchanged, content only). */
 
 export const HERO = {
-  headline: "From Jira Ticket to Shipped Code.\nWithout Losing What You Actually Meant.",
+  headline: "From Jira Ticket to Shipped Code — Without Losing What You Actually Meant.",
   subhead:
     "AgentOX orchestrates Product, Engineering, and QA agents through your entire feature lifecycle — with validation gates that ensure what gets built is exactly what was specified.",
   cta: "Request Early Access",
   ctaHref: "/login",
-  secondaryCta: "Watch 4-min Demo →",
+  secondaryCta: "See how the pipeline works →",
   secondaryHref: "#solution",
   trustLine:
-    "Built for engineering teams who are tired of sprint rework. No credit card required. Setup in under 30 minutes.",
-  socialProof: "Trusted by engineering teams at [Company] [Company] [Company]",
+    "Built for engineering teams tired of sprint rework. No credit card required. First pipeline in under 30 minutes.",
 };
 
 export const PROBLEM = {
@@ -177,15 +176,29 @@ export const HOW_IT_WORKS = {
 };
 
 export const SOCIAL_PROOF = {
-  headline: "What engineering leaders say",
-  placeholder:
-    '"[Specific outcome they experienced with specific numbers]" — [Name], [Title] at [Company]',
-  metrics: [
-    "X% reduction in sprint rework",
-    "X hours saved per feature on average",
-    "X% of pipelines completed without human intervention",
-    "$X saved in engineering costs per month",
+  kicker: "Early access",
+  headline: "Built with engineering teams, not for slide decks.",
+  intro:
+    "AgentOX is in early access. We work directly with a small group of design partners — VP Engineering and CTO-led teams who want validation gates, not another autocomplete.",
+  proofPoints: [
+    {
+      title: "Three validation gates",
+      body: "PRD, implementation, and QA gates pause the pipeline until requirements, code, and tests align — or a human approves the override.",
+    },
+    {
+      title: "Jira-native workflow",
+      body: "Tickets trigger the pipeline. PRDs, PR links, and QA reports write back to the same ticket your team already lives in.",
+    },
+    {
+      title: "Founder-led onboarding",
+      body: "Early partners get direct access to the team building AgentOX — not a generic success playbook.",
+    },
   ],
+  cta: "Become a design partner",
+  ctaHref: "/login",
+  contactLine: "Prefer email?",
+  email: "sudesha@agentox.io",
+  emailNote: "Tell us about your Jira workflow — we respond within one business day.",
 };
 
 export const PRICING = {

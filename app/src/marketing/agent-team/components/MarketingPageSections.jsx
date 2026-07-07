@@ -249,38 +249,42 @@ export function MarketingPricingTableSection() {
   );
 }
 
-export function MarketingSocialProofSection({ clientLogos, clientMetrics }) {
+export function MarketingSocialProofSection({ productMetrics }) {
   return (
-    <section id="clients" data-clients className="px-5 py-20 sm:px-8">
+    <section id="early-access" data-clients className="px-5 py-20 sm:px-8">
       <div className="mx-auto max-w-6xl">
-        <SectionHeader kicker="Social proof" headline={SOCIAL_PROOF.headline} />
-        <p className="mx-auto -mt-6 mb-10 max-w-2xl text-center text-[14px] italic text-[#6B6B6B]">
-          {SOCIAL_PROOF.placeholder}
-        </p>
-        <div className="at-marquee overflow-hidden">
-          <div className="at-marquee-track flex w-max gap-12">
-            {[...clientLogos, ...clientLogos].map((name, i) => (
-              <span
-                key={`${name}-${i}`}
-                className="shrink-0 text-lg font-semibold text-[#6B6B6B]/40 transition hover:text-[#2B2D33]"
-              >
-                {name}
-              </span>
-            ))}
-          </div>
-        </div>
-        <ul className="mx-auto mt-8 max-w-2xl space-y-2 text-center text-[13px] text-[#6B6B6B]">
-          {SOCIAL_PROOF.metrics.map((m) => (
-            <li key={m}>· {m}</li>
+        <SectionHeader kicker={SOCIAL_PROOF.kicker} headline={SOCIAL_PROOF.headline} subhead={SOCIAL_PROOF.intro} />
+        <div className="grid gap-5 md:grid-cols-3">
+          {SOCIAL_PROOF.proofPoints.map((point) => (
+            <article key={point.title} className="at-card p-6">
+              <h3 className="text-base font-semibold text-[#2B2D33]">{point.title}</h3>
+              <p className="mt-3 text-[14px] leading-relaxed text-[#6B6B6B]">{point.body}</p>
+            </article>
           ))}
-        </ul>
+        </div>
         <div className="mt-12 grid gap-5 sm:grid-cols-3">
-          {clientMetrics.map((m) => (
+          {productMetrics.map((m) => (
             <div key={m.label} data-client-metric className="at-card p-6 text-center">
               <p className="at-metric text-[#2B2D33]">{m.value}</p>
               <p className="mt-1 text-[14px] text-[#6B6B6B]">{m.label}</p>
             </div>
           ))}
+        </div>
+        <div className="mt-12 text-center">
+          <Link
+            to={SOCIAL_PROOF.ctaHref}
+            state={{ mode: "signup" }}
+            className="at-btn-charcoal inline-flex px-8 py-3.5 text-[14px] font-semibold"
+          >
+            {SOCIAL_PROOF.cta}
+          </Link>
+          <p className="mt-4 text-[14px] text-[#2B2D33]">
+            {SOCIAL_PROOF.contactLine}{" "}
+            <a href={`mailto:${SOCIAL_PROOF.email}`} className="font-medium text-indigo hover:underline">
+              {SOCIAL_PROOF.email}
+            </a>
+          </p>
+          <p className="mt-1 text-[12px] text-[#6B6B6B]">{SOCIAL_PROOF.emailNote}</p>
         </div>
       </div>
     </section>
