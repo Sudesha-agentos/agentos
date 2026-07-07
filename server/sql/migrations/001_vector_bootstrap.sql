@@ -34,12 +34,18 @@ CREATE TABLE IF NOT EXISTS vector_store (
 ALTER TABLE vector_store ADD COLUMN IF NOT EXISTS chunk_index INT NOT NULL DEFAULT 0;
 ALTER TABLE vector_store ADD COLUMN IF NOT EXISTS organization_id TEXT;
 
-UPDATE vector_store vs
-SET organization_id = ji."organizationId"
-FROM "JiraIssue" ji
-WHERE vs.jira_key = ji."jiraKey"
-  AND vs.organization_id IS NULL
-  AND ji."organizationId" IS NOT NULL;
+-- Backfill only when Prisma app tables already exist (skip on fresh Supabase).
+DO $$
+BEGIN
+  IF to_regclass('public."JiraIssue"') IS NOT NULL THEN
+    UPDATE vector_store vs
+    SET organization_id = ji."organizationId"
+    FROM "JiraIssue" ji
+    WHERE vs.jira_key = ji."jiraKey"
+      AND vs.organization_id IS NULL
+      AND ji."organizationId" IS NOT NULL;
+  END IF;
+END $$;
 
 ALTER TABLE vector_store DROP CONSTRAINT IF EXISTS vector_store_content_type_check;
 ALTER TABLE vector_store ADD CONSTRAINT vector_store_content_type_check
@@ -195,22 +201,29 @@ CREATE TABLE IF NOT EXISTS codebase_embeddings (
 
 ALTER TABLE codebase_embeddings ADD COLUMN IF NOT EXISTS organization_id TEXT;
 
-UPDATE vector_store vs
-SET organization_id = ji."organizationId"
-FROM "JiraIssue" ji
-WHERE vs.jira_key = ji."jiraKey"
-  AND vs.organization_id IS NULL
-  AND ji."organizationId" IS NOT NULL;
+DO $$
+BEGIN
+  IF to_regclass('public."JiraIssue"') IS NOT NULL THEN
+    UPDATE vector_store vs
+    SET organization_id = ji."organizationId"
+    FROM "JiraIssue" ji
+    WHERE vs.jira_key = ji."jiraKey"
+      AND vs.organization_id IS NULL
+      AND ji."organizationId" IS NOT NULL;
+  END IF;
 
-UPDATE codebase_embeddings ce
-SET organization_id = cf."organizationId"
-FROM "CodebaseFile" cf
-WHERE ce.file_path = cf."filePath"
-  AND ce.repo_owner = cf."repoOwner"
-  AND ce.repo_name = cf."repoName"
-  AND ce.branch_name = cf."branchName"
-  AND ce.organization_id IS NULL
-  AND cf."organizationId" IS NOT NULL;
+  IF to_regclass('public."CodebaseFile"') IS NOT NULL THEN
+    UPDATE codebase_embeddings ce
+    SET organization_id = cf."organizationId"
+    FROM "CodebaseFile" cf
+    WHERE ce.file_path = cf."filePath"
+      AND ce.repo_owner = cf."repoOwner"
+      AND ce.repo_name = cf."repoName"
+      AND ce.branch_name = cf."branchName"
+      AND ce.organization_id IS NULL
+      AND cf."organizationId" IS NOT NULL;
+  END IF;
+END $$;
 
 DO $$
 BEGIN

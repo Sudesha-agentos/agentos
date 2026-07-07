@@ -52,7 +52,32 @@ EXCEPTION
 END $$;
 CREATE INDEX IF NOT EXISTS "JiraSyncRun_organizationId_status_startedAt_idx" ON "JiraSyncRun"("organizationId", "status", "startedAt");
 
--- JiraMirror
+-- JiraMirror (legacy — table was never in earlier migrations on fresh deploys)
+CREATE TABLE IF NOT EXISTS "JiraMirror" (
+    "id" TEXT NOT NULL,
+    "jiraTicketId" TEXT NOT NULL,
+    "jiraKey" TEXT NOT NULL,
+    "projectKey" TEXT NOT NULL,
+    "summary" TEXT NOT NULL,
+    "description" TEXT NOT NULL,
+    "issueType" TEXT NOT NULL,
+    "status" TEXT NOT NULL,
+    "priority" TEXT,
+    "labels" JSONB NOT NULL DEFAULT '[]',
+    "components" JSONB NOT NULL DEFAULT '[]',
+    "commentsText" TEXT,
+    "resolution" TEXT,
+    "gitContext" TEXT,
+    "embeddedAt" TIMESTAMP(3),
+    "jiraUpdatedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    CONSTRAINT "JiraMirror_pkey" PRIMARY KEY ("id")
+);
+CREATE UNIQUE INDEX IF NOT EXISTS "JiraMirror_jiraTicketId_key" ON "JiraMirror"("jiraTicketId");
+CREATE UNIQUE INDEX IF NOT EXISTS "JiraMirror_jiraKey_key" ON "JiraMirror"("jiraKey");
+
+-- JiraMirror org isolation
 ALTER TABLE "JiraMirror" ADD COLUMN IF NOT EXISTS "organizationId" TEXT;
 UPDATE "JiraMirror" SET "organizationId" = (SELECT "id" FROM "Organization" ORDER BY "createdAt" ASC LIMIT 1)
 WHERE "organizationId" IS NULL;

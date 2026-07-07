@@ -2,30 +2,23 @@
 
 .torus-marketing {
   --black: #000000;
-  --gray-950: #080808;
-  --gray-900: #141414;
-  --gray-800: #222222;
-  --gray-700: #333333;
-  --gray-600: #4a4a4a;
-  --gray-400: #8a8a8a;
-  --gray-300: #9a9a9a;
-  --gray-200: #d4d4d4;
   --white: #ffffff;
-  --accent: #e67e22;
-  --accent-dim: rgba(230, 126, 34, 0.12);
+  --accent: #a8c53a;
+  --accent-strong: #5c6e1f;
+  --accent-dim: rgba(168, 197, 58, 0.2);
   --success: #4a7a5b;
   --warning: #9a7b3c;
   --error: #8b4049;
   --info: #4a6a8a;
-  --bg: var(--black);
-  --text: var(--gray-200);
-  --text-mid: var(--gray-300);
-  --text-dim: var(--gray-400);
-  --text-faint: var(--gray-600);
-  --surface: var(--gray-950);
+  --bg: #faf7f0;
+  --text: #2b2d33;
+  --text-mid: #6b6b6b;
+  --text-dim: #5a5a5a;
+  --text-faint: #777777;
+  --surface: #ffffff;
   --lw: 1px;
-  --line: var(--gray-700);
-  --line-faint: rgba(255, 255, 255, 0.12);
+  --line: #e8e4de;
+  --line-faint: rgba(43, 45, 51, 0.1);
   --font-display: "Space Grotesk", sans-serif;
   --font-body: "IBM Plex Sans", sans-serif;
   --font-mono: "IBM Plex Mono", monospace;
@@ -42,28 +35,11 @@
   position: relative;
 }
 
-.torus-marketing.torus-light {
-  --accent: #b85a00;
-  --accent-dim: rgba(184, 90, 0, 0.08);
-  --bg: #f5f3f0;
-  --text: #1a1a1a;
-  --text-mid: #4a4a4a;
-  --text-dim: #777777;
-  --text-faint: #999999;
-  --surface: #edeae6;
-  --line: #d4d0cc;
-  --line-faint: rgba(0, 0, 0, 0.1);
+.torus-marketing .logo-light {
+  display: none;
 }
 
 .torus-marketing .logo-dark {
-  display: none;
-}
-
-.torus-marketing.torus-light .logo-light {
-  display: none;
-}
-
-.torus-marketing.torus-light .logo-dark {
   display: inline;
 }
 
@@ -72,23 +48,6 @@
   margin: 0 auto;
   padding: 0 48px;
   position: relative;
-}
-
-.torus-marketing .mode-toggle {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  letter-spacing: 2px;
-  color: var(--text-dim);
-  background: transparent;
-  border: var(--lw) solid var(--line);
-  padding: 8px 12px;
-  cursor: pointer;
-  transition: color 0.1s ease-out, border-color 0.1s ease-out;
-}
-
-.torus-marketing .mode-toggle:hover {
-  color: var(--accent);
-  border-color: var(--accent);
 }
 
 .torus-marketing .plot-reveal {
@@ -169,14 +128,10 @@
   z-index: 0;
   width: 200px;
   height: 200px;
-  background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 60%);
+  background: radial-gradient(circle, rgba(168, 197, 58, 0.18) 0%, transparent 60%);
   border-radius: 50%;
   opacity: 0;
   transition: opacity 0.6s var(--ease-plot);
-}
-
-.torus-marketing.torus-light .grid-glow {
-  background: radial-gradient(circle, rgba(230, 126, 34, 0.2) 0%, transparent 60%);
 }
 
 .torus-marketing .grid-glow.revealed {
@@ -241,25 +196,17 @@
 }
 
 .torus-marketing .ambient-rings .ring {
-  stroke: #ffffff17;
+  stroke: #0000001f;
   stroke-width: 1;
 }
 
 .torus-marketing .ambient-rings .ring-faint {
-  stroke: #ffffff0d;
+  stroke: #00000012;
   stroke-width: 0.5;
 }
 
-.torus-marketing.torus-light .ambient-rings .ring {
-  stroke: #0000001f;
-}
-
-.torus-marketing.torus-light .ambient-rings .ring-faint {
-  stroke: #00000012;
-}
-
 .torus-marketing .ambient-rings .ring-bead {
-  stroke: #ffffff40;
+  stroke: #0003;
   stroke-width: 1.5;
   stroke-dasharray: 80 8000;
   animation: torus-ring-bead 25s linear infinite;
@@ -279,10 +226,6 @@
   animation-duration: 14s;
   animation-direction: reverse;
   animation-delay: -6s;
-}
-
-.torus-marketing.torus-light .ambient-rings .ring-bead {
-  stroke: #0003;
 }
 
 @keyframes torus-ring-bead {
@@ -388,13 +331,9 @@
   right: 0;
   z-index: 50;
   border-bottom: var(--lw) solid var(--line);
-  background: #000c;
+  background: #faf7f0cc;
   backdrop-filter: blur(12px) saturate(1.2);
   animation: torus-nav-enter 0.5s var(--ease-plot) both;
-}
-
-.torus-marketing.torus-light .site-nav {
-  background: #f5f3f0cc;
 }
 
 .torus-marketing .site-nav::after {
@@ -1387,14 +1326,25 @@
   outline-offset: 2px;
 }
 
+.torus-marketing .marketing-below-fold {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 520px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .torus-marketing *,
-  .torus-marketing *::before,
-  .torus-marketing *::after {
+  .torus-marketing *::after,
+  .torus-marketing *::before {
     animation-duration: 0.01ms !important;
     animation-delay: 0ms !important;
     transition-duration: 0.01ms !important;
     transition-delay: 0ms !important;
+  }
+
+  .torus-marketing .rings-container,
+  .torus-marketing .ambient-rings,
+  .torus-marketing .grid-glow {
+    display: none;
   }
 
   .torus-marketing .connector-line,

@@ -7,6 +7,10 @@ export default defineConfig({
     path: "prisma/migrations",
   },
   datasource: {
-    url: env("DATABASE_URL"),
+    // Migrations need direct Postgres (Supabase db.*.supabase.co), not the transaction pooler.
+    url:
+      process.env.DIRECT_DATABASE_URL?.trim() ||
+      process.env.DATABASE_URL?.trim() ||
+      env("DATABASE_URL"),
   },
 });
