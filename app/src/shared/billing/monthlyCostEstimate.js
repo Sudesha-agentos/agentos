@@ -1,6 +1,6 @@
 import { DEFAULT_RUNS_PER_MONTH, PLAN_PRICING } from "../config/billingPlans";
 
-/** Plans shown in the dashboard cost estimator (Cofounder-style UX, AgentOS pricing). */
+/** Plans shown in the dashboard cost estimator (Cofounder-style UX, AgentOX pricing). */
 export const ESTIMATOR_PLANS = [
   {
     id: "pilot",
@@ -88,7 +88,7 @@ export const PLAN_FEATURE_MATRIX = [
     ],
   },
   {
-    group: "AgentOS pipeline",
+    group: "AgentOX pipeline",
     rows: [
       { label: "Multiple AI models", pilot: true, starter: true, growth: true },
       { label: "Build workflow", pilot: true, starter: true, growth: true },

@@ -94,7 +94,7 @@ export default function JiraSetupGuide({
                 </a>
                 .
               </li>
-              <li>Click <strong className="text-ink">Create API token</strong>, name it e.g. AgentOS.</li>
+              <li>Click <strong className="text-ink">Create API token</strong>, name it e.g. AgentOX.</li>
               <li>Copy the token immediately — you will not see it again.</li>
               <li>Paste it into the <strong className="text-ink">API token</strong> field below.</li>
             </ol>
@@ -164,7 +164,7 @@ export default function JiraSetupGuide({
             </ol>
           </GuideSection>
 
-          <GuideSection number="6" title="Webhook (Jira → AgentOS)">
+          <GuideSection number="6" title="Webhook (Jira → AgentOX)">
             <p className="text-[14px] leading-relaxed text-ink-dim">
               Jira must send events to your API when issues are created or updated.
             </p>

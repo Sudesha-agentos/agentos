@@ -42,7 +42,7 @@ export const DEFAULT_AGENT_PIPELINE_BREAKDOWN = {
 } as const;
 
 export const PROMPT_AGENT_PIPELINE_EFFORT_GUIDANCE = `
-Estimate end-to-end AgentOS agent pipeline wall-clock time (NOT human developer sprint days).
+Estimate end-to-end AgentOX agent pipeline wall-clock time (NOT human developer sprint days).
 Pipeline stages: Virin discovery (15–45 min) → Ananta engineering (30 min–6 h) → Neel QA (15–60 min) → brief review/handoff.
 Typical total ranges: XS 30–90 min, S 1–3 h, M 3–8 h, L 8–16 h, XL 16–40 h (split if >8 h realistic).
 Express effortEstimate values in hours (decimals OK, e.g. 0.75 for 45 min). Set shouldBreakDown true when realistic > 8 hours.

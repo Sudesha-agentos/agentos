@@ -4,7 +4,7 @@ import { logger } from "../utils/logger";
 
 const prismaAny = prisma as any;
 
-/** Remove AgentOS git connection state (SQLite + Postgres). Does not uninstall the GitHub App on GitHub. */
+/** Remove AgentOX git connection state (SQLite + Postgres). Does not uninstall the GitHub App on GitHub. */
 export async function disconnectGitIntegration(): Promise<{
   disconnected: true;
   postgresInstallationsRemoved: number;

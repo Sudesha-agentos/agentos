@@ -1,7 +1,7 @@
 const ATLASSIAN_AUTH_BASE = "https://auth.atlassian.com";
 
 /**
- * OAuth 2.0 (3LO) scopes for AgentOS Jira integration.
+ * OAuth 2.0 (3LO) scopes for AgentOX Jira integration.
  *
  * Classic scopes cover platform REST (issues, comments, transitions).
  * Granular scopes are required since Atlassian's 2024 migration:

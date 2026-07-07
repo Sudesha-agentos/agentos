@@ -330,7 +330,7 @@ Quality bar:
 - Open questions are real and named with owner
 - definitionOfDone MUST list testable, measurable completion criteria (not process theater)
 - edgeCases MUST list concrete failure/edge scenarios with expected behavior (not generic risks)
-- effortEstimate and complexitySummary use AgentOS agent pipeline wall-clock hours (Virin → Ananta → Neel), NOT human developer sprint days. Typical ranges: XS 30–90 min, S 1–3 h, M 3–8 h, L 8–16 h, XL 16–40 h.
+- effortEstimate and complexitySummary use AgentOX agent pipeline wall-clock hours (Virin → Ananta → Neel), NOT human developer sprint days. Typical ranges: XS 30–90 min, S 1–3 h, M 3–8 h, L 8–16 h, XL 16–40 h.
 - If the ticket is a document/content deliverable (curriculum, policy, playbook, documentation):
   - set implementationMode to "content"
   - deliverableFiles MUST list every repo file to create/update with path, format (markdown), and purpose

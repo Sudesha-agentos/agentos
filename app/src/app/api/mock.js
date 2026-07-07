@@ -2807,12 +2807,12 @@ function buildMockKnowledge(branch = "main", source = "cache") {
     generatedAt: new Date().toISOString(),
     source,
     architecture: {
-      title: "AgentOS architecture",
+      title: "AgentOX architecture",
       purpose: "Multi-agent Jira pipeline with codebase intelligence, GitHub indexing, and QA automation.",
       sections: [
         {
           heading: "System purpose",
-          body: "AgentOS orchestrates Product → Engineering → QA agents with human gates, while indexing connected repositories for semantic search and documentation.",
+          body: "AgentOX orchestrates Product → Engineering → QA agents with human gates, while indexing connected repositories for semantic search and documentation.",
           fileRefs: ["server/src/pipeline/orchestrator.ts"],
         },
         {
@@ -2896,7 +2896,7 @@ function buildMockTour(branch = "main", source = "cache") {
     steps: [
       {
         id: "welcome",
-        title: "Welcome to AgentOS",
+        title: "Welcome to AgentOX",
         narration: `This tour walks branch ${branch} from the galaxy view down into the districts that matter most — server automation, product UI, and codebase intelligence.`,
         focusPath: null,
         zoomLevel: "galaxy",

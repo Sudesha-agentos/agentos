@@ -24,7 +24,7 @@ export default function MarketingScrollContent() {
 
       <footer className="relative border-t border-hairline bg-canvas/70 px-5 py-8 backdrop-blur-sm sm:px-8">
         <div className="mx-auto flex max-w-7xl flex-col justify-between gap-3 font-mono text-[11px] uppercase tracking-[0.18em] text-ink-mute sm:flex-row">
-          <span>Agentos · Workflow intelligence layer</span>
+          <span>AgentOX · Workflow intelligence layer</span>
           <div className="flex items-center gap-4">
             <a href="/login" className="transition-colors hover:text-ink">
               Sign in

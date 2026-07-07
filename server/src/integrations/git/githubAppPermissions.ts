@@ -1,4 +1,4 @@
-/** Canonical GitHub App repository permissions AgentOS requires. */
+/** Canonical GitHub App repository permissions AgentOX requires. */
 export const GITHUB_APP_REPOSITORY_PERMISSIONS = {
   contents: "write",
   metadata: "read",
@@ -97,7 +97,7 @@ export function buildGithubAppManifest(input: {
     url: input.url,
     description:
       input.description ??
-      "AgentOS — codebase intelligence, engineering agent push, and QA.",
+      "AgentOX — codebase intelligence, engineering agent push, and QA.",
     hook_attributes: { url: input.webhookUrl, active: true },
     redirect_url: input.setupUrl,
     callback_urls: [input.callbackUrl],

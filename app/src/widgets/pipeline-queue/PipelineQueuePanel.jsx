@@ -115,7 +115,7 @@ export default function PipelineQueuePanel({ setup, showHeader = true, onRefresh
           <p className="mt-2 text-sm text-white/90">{trigger}</p>
           <p className="mt-2 text-xs leading-relaxed text-white/50">
             When a <strong className="text-white/70">Task</strong> or{" "}
-            <strong className="text-white/70">Bug</strong> is moved into this column, AgentOS
+            <strong className="text-white/70">Bug</strong> is moved into this column, AgentOX
             fetches it from Jira, shows a notification, and starts the pipeline automatically.
             Stories and epics are ignored.
           </p>

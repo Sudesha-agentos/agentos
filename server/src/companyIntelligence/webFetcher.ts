@@ -67,7 +67,7 @@ async function fetchJinaReader(url: string): Promise<string | null> {
     const res = await fetchWithTimeout(readerUrl, {
       headers: {
         Accept: "text/plain",
-        "User-Agent": "AgentOS-CompanyIntelligence/1.0",
+        "User-Agent": "AgentOX-CompanyIntelligence/1.0",
       },
       timeoutMs: JINA_TIMEOUT_MS,
     });
@@ -130,7 +130,7 @@ async function fetchHtmlMeta(url: string): Promise<string | null> {
       headers: {
         Accept: "text/html,application/xhtml+xml",
         "User-Agent":
-          "Mozilla/5.0 (compatible; AgentOS-CompanyBot/1.0; +https://agentos.ai)",
+          "Mozilla/5.0 (compatible; AgentOX-CompanyBot/1.0; +https://agentox.io)",
       },
       redirect: "follow",
     });

@@ -92,7 +92,7 @@ export default function JiraSearch() {
       {error ? (
         <EmptyState
           title="Search failed"
-          body={error.message || "Ensure agentos API is running (npm run dev) and server/.env has JIRA_* credentials."}
+          body={error.message || "Ensure AgentOX API is running (npm run dev) and server/.env has JIRA_* credentials."}
         />
       ) : null}
 

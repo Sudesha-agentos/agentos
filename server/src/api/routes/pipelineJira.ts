@@ -72,7 +72,7 @@ function normalizePipelineError(err: unknown): unknown {
         /board|scope|Unauthorized|permission/i.test(message)
       ) {
         message +=
-          " — OAuth may be missing Jira scopes. In the Atlassian Developer Console enable classic scopes (read/write jira-work, read jira-user, manage jira-webhook) plus granular scopes (read:jql:jira, read:project:jira, read:board-scope:jira-software, read:board-scope.admin:jira-software, read:issue:jira-software), then Disconnect and reconnect Jira in AgentOS.";
+          " — OAuth may be missing Jira scopes. In the Atlassian Developer Console enable classic scopes (read/write jira-work, read jira-user, manage jira-webhook) plus granular scopes (read:jql:jira, read:project:jira, read:board-scope:jira-software, read:board-scope.admin:jira-software, read:issue:jira-software), then Disconnect and reconnect Jira in AgentOX.";
       }
       return new ValidationError(message);
     }

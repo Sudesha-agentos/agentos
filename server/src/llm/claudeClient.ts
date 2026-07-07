@@ -1,5 +1,5 @@
 /**
- * @deprecated AgentOS uses OpenAI GPT-5.1 for all chat completions.
+ * @deprecated AgentOX uses OpenAI GPT-5.1 for all chat completions.
  * Import from `./openaiClient` and `./openaiCompletion` instead.
  */
 import { getOpenAIChatModel, getOpenAIClient } from "./openaiClient";

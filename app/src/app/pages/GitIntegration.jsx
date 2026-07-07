@@ -382,7 +382,7 @@ function GitIntegrationContent({ setup, refetch, embedded = false }) {
               }
               subtitle={
                 installPendingFinish
-                  ? "GitHub App installed — select a repository to finish connecting AgentOS to your codebase."
+                  ? "GitHub App installed — select a repository to finish connecting AgentOX to your codebase."
                   : !githubAppEnabled
                     ? "GitHub App env vars are not set on the server — use manual token setup below or configure GITHUB_APP_* on Render."
                     : undefined

@@ -161,7 +161,7 @@ export default function GitHubSetupGuideWidget({
                 install the app on your org or account.
               </li>
               <li>
-                After redirect, pick the repository AgentOS should index and push to.
+                After redirect, pick the repository AgentOX should index and push to.
               </li>
               <li>
                 Push and pull request webhooks are managed by the GitHub App — no manual repo

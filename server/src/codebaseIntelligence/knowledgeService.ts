@@ -177,7 +177,7 @@ function buildHeuristicKnowledge(
 
   const architecture: ArchitectureDoc = {
     title: `${repoLabel} architecture`,
-    purpose: `AgentOS-indexed understanding of ${repoLabel} on branch ${branchName}.`,
+    purpose: `AgentOX-indexed understanding of ${repoLabel} on branch ${branchName}.`,
     sections: [
       {
         heading: "System purpose",

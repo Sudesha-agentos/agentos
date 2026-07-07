@@ -142,7 +142,7 @@ export async function completeTicketInJira(
 
   if (settings.attachJsonArtifact && fullJsonOutput) {
     try {
-      await client.addAttachmentNote(jiraKey, "Agentos pipeline output", fullJsonOutput);
+      await client.addAttachmentNote(jiraKey, "AgentOX pipeline output", fullJsonOutput);
       result.jsonAttached = true;
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);

@@ -56,7 +56,7 @@ export async function scoreComplexity(
   logger.info({ pipelineId }, "scoring complexity");
 
   const systemPrompt = `
-You are an AgentOS pipeline effort estimator. You size work for the automated agent pipeline
+You are an AgentOX pipeline effort estimator. You size work for the automated agent pipeline
 (Virin discovery → Ananta engineering → Neel QA), not human developer sprint timelines.
 Add buffer for gaps and integration work. Return ONLY valid JSON.
 

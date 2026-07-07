@@ -11,7 +11,7 @@ export interface JiraAdminWebhook {
   self?: string;
 }
 
-const WEBHOOK_NAME = "AgentOS Pipeline";
+const WEBHOOK_NAME = "AgentOX Pipeline";
 
 function escapeJqlString(value: string): string {
   return value.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
@@ -73,7 +73,7 @@ export async function registerPipelineAdminWebhook(input: {
 
   const body: Record<string, unknown> = {
     name: WEBHOOK_NAME,
-    description: "AgentOS — full Jira sync, AI Worker intake, and RAG embedding",
+    description: "AgentOX — full Jira sync, AI Worker intake, and RAG embedding",
     url: input.webhookUrl,
     excludeBody: false,
     enabled: true,

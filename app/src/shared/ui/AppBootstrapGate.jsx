@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { useAuth } from "../providers/useAuth";
 import AppPreloader from "./AppPreloader";
 
 const MIN_BOOT_MS = 0;
@@ -10,8 +9,9 @@ function removeInitialLoader() {
 }
 
 export default function AppBootstrapGate({ children }) {
-  const { loading: authLoading } = useAuth();
-  const [docReady, setDocReady] = useState(() => document.readyState === "complete");
+  const [docReady, setDocReady] = useState(
+    () => document.readyState === "complete" || document.readyState === "interactive"
+  );
   const [minElapsed, setMinElapsed] = useState(false);
   const [showApp, setShowApp] = useState(false);
   const [overlayMounted, setOverlayMounted] = useState(true);
@@ -24,12 +24,18 @@ export default function AppBootstrapGate({ children }) {
 
   useEffect(() => {
     if (docReady) return undefined;
-    const onLoad = () => setDocReady(true);
-    window.addEventListener("load", onLoad, { once: true });
-    return () => window.removeEventListener("load", onLoad);
+    const markReady = () => setDocReady(true);
+    document.addEventListener("DOMContentLoaded", markReady, { once: true });
+    window.addEventListener("load", markReady, { once: true });
+    return () => {
+      document.removeEventListener("DOMContentLoaded", markReady);
+      window.removeEventListener("load", markReady);
+    };
   }, [docReady]);
 
-  const booting = authLoading || !docReady || !minElapsed;
+  // Don't block the public marketing shell on auth/session checks — those can hang
+  // when the API is down or slow while a stale token exists in localStorage.
+  const booting = !docReady || !minElapsed;
 
   useEffect(() => {
     if (booting) return undefined;
@@ -53,7 +59,7 @@ export default function AppBootstrapGate({ children }) {
   return (
     <>
       {overlayMounted ? (
-        <AppPreloader overlay exiting={exiting} label="Loading Agentos" />
+        <AppPreloader overlay exiting={exiting} label="Loading AgentOX" />
       ) : null}
       <div className={showApp ? "app-boot-visible" : "app-boot-hidden"}>{children}</div>
     </>

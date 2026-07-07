@@ -92,7 +92,7 @@ export default function Sidebar() {
 
       <div className={`shrink-0 py-3 ${collapsed ? "flex justify-center px-0" : "px-1"}`}>
         {collapsed ? (
-          <NavLink to={orgPath()} aria-label="AgentOS home" className="inline-flex">
+          <NavLink to={orgPath()} aria-label="AgentOX home" className="inline-flex">
             <LogoMark />
           </NavLink>
         ) : (
