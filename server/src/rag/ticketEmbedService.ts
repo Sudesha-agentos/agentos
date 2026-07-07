@@ -10,7 +10,7 @@ import {
   ticketFieldsFromNormalized,
   type TicketEmbedFields,
 } from "./ticketEmbeddingText";
-import { shouldSkipTicketEmbed } from "./ticketEmbedCache";
+import { markTicketEmbedSynced, shouldSkipTicketEmbed } from "./ticketEmbedCache";
 import { buildEmbeddingMetadata } from "./embeddingMetadata";
 import { vectorStore } from "./vectorStore";
 import type { NormalizedTicket } from "../types/ticket";
@@ -40,12 +40,16 @@ async function fetchGitContext(jiraKey: string): Promise<string> {
 
 export async function embedTicketFields(
   jiraTicketId: string,
-  fields: TicketEmbedFields
+  fields: TicketEmbedFields,
+  options?: { skipHashCheck?: boolean }
 ): Promise<boolean> {
   const organizationId = requireActiveOrganizationId();
   const contentHash = buildTicketEmbedHash(fields);
 
-  if (await shouldSkipTicketEmbed(fields.jiraKey, contentHash, organizationId)) {
+  if (
+    !options?.skipHashCheck &&
+    (await shouldSkipTicketEmbed(fields.jiraKey, contentHash, organizationId))
+  ) {
     logger.info({ jiraKey: fields.jiraKey, contentHash }, "ticket embed skipped — content unchanged");
     return false;
   }
@@ -60,13 +64,14 @@ export async function embedTicketFields(
     chunkCount: chunks.length,
   });
 
+  const upsertRecords = [];
   for (let i = 0; i < chunks.length; i++) {
     const embedding = embeddings[i];
     if (!embedding) continue;
-    await vectorStore.upsert({
+    upsertRecords.push({
       jiraTicketId,
       jiraKey: fields.jiraKey,
-      contentType: "ticket",
+      contentType: "ticket" as const,
       content: chunks[i]!,
       embedding,
       chunkIndex: i,
@@ -86,7 +91,13 @@ export async function embedTicketFields(
     });
   }
 
-  logger.info({ jiraKey: fields.jiraKey, chunks: chunks.length }, "ticket embedded (multi-chunk batch)");
+  if (upsertRecords.length > 0) {
+    await vectorStore.upsertBatch(upsertRecords);
+  }
+
+  await markTicketEmbedSynced(fields.jiraKey, contentHash, organizationId);
+
+  logger.info({ jiraKey: fields.jiraKey, chunks: upsertRecords.length }, "ticket embedded (multi-chunk batch)");
   return true;
 }
 
@@ -95,34 +106,24 @@ export async function embedSyncedIssueRecord(
   gitContext?: string
 ): Promise<boolean> {
   const organizationId = requireActiveOrganizationId();
-  const existing = await prisma.jiraIssue.findFirst({
-    where: { organizationId, jiraKey: issue.jiraKey },
-    select: { embeddedAt: true },
-  });
-
   const git = gitContext ?? (await fetchGitContext(issue.jiraKey));
   const fields = ticketFieldsFromFetched(issue, git || undefined);
   const contentHash = buildTicketEmbedHash(fields);
 
-  if (
-    existing?.embeddedAt &&
-    issue.jiraUpdatedAt &&
-    issue.jiraUpdatedAt <= existing.embeddedAt &&
-    (await shouldSkipTicketEmbed(issue.jiraKey, contentHash, organizationId))
-  ) {
+  if (await shouldSkipTicketEmbed(issue.jiraKey, contentHash, organizationId)) {
     logger.info(
-      { jiraKey: issue.jiraKey, embeddedAt: existing.embeddedAt.toISOString() },
+      { jiraKey: issue.jiraKey, contentHash },
       "ticket embed skipped — unchanged since last embed"
     );
     return false;
   }
 
-  const embedded = await embedTicketFields(issue.jiraTicketId, fields);
+  const embedded = await embedTicketFields(issue.jiraTicketId, fields, { skipHashCheck: true });
 
   if (embedded) {
     await prisma.jiraIssue.updateMany({
       where: { organizationId, jiraKey: issue.jiraKey },
-      data: { embeddedAt: new Date(), gitContext: git || null },
+      data: { gitContext: git || null },
     });
   }
   return embedded;

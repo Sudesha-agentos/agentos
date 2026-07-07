@@ -10,9 +10,13 @@ export function generatedPrdToPrdOutput(
   const acceptanceCriteria = (prd.userStories ?? []).flatMap(
     (s) => s.acceptanceCriteria ?? []
   );
-  const edgeCases = (prd.risks ?? []).map(
-    (r) => `[${r.probability}] ${r.risk} — ${r.mitigation}`
-  );
+  const edgeCases =
+    prd.edgeCases?.length
+      ? prd.edgeCases
+      : (prd.risks ?? []).map(
+          (r) => `[${r.probability}] ${r.risk} — ${r.mitigation}`
+        );
+  const definitionOfDone = prd.definitionOfDone ?? [];
   const openQuestions = (prd.openQuestions ?? []).map(
     (q) => `${q.question} (default: ${q.defaultAssumption}, owner: ${q.owner})`
   );

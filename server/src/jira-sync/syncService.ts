@@ -19,6 +19,7 @@ import {
   setJiraSyncRunning,
 } from "./syncState";
 import { scanIntakeFromSyncedIssues } from "./intakeScan";
+import { SyncCircuitBreaker } from "../rag/supabaseErrors";
 
 interface JiraSearchIssue {
   id: string;
@@ -27,14 +28,23 @@ interface JiraSearchIssue {
 }
 
 async function processIssue(
-  issue: FetchedJiraIssue
+  issue: FetchedJiraIssue,
+  breaker: SyncCircuitBreaker
 ): Promise<{ synced: boolean; embedded: boolean }> {
+  if (breaker.tripped) {
+    return { synced: false, embedded: false };
+  }
+
   await upsertJiraIssueRecord(issue);
   let embedded = false;
   try {
     embedded = await embedSyncedIssue(issue);
+    breaker.recordSuccess();
   } catch (err) {
     logger.warn({ err, jiraKey: issue.jiraKey }, "jira sync embed failed");
+    if (await breaker.recordFailure(err)) {
+      logger.error("Jira sync embed aborting after repeated 402/429 responses");
+    }
   }
   return { synced: true, embedded };
 }
@@ -46,6 +56,7 @@ async function paginatedSync(jql: string): Promise<{
   latestUpdated: Date | null;
 }> {
   const cfg = getJiraSyncConfig();
+  const breaker = new SyncCircuitBreaker();
   let nextPageToken: string | undefined;
   let isLast = false;
   let issuesSynced = 0;
@@ -53,7 +64,7 @@ async function paginatedSync(jql: string): Promise<{
   let errors = 0;
   let latestUpdated: Date | null = null;
 
-  while (!isLast) {
+  while (!isLast && !breaker.tripped) {
     const page = await withRetry(
       () =>
         searchIssues<JiraSearchIssue>(jql, {
@@ -69,6 +80,8 @@ async function paginatedSync(jql: string): Promise<{
     );
 
     for (const raw of page.issues) {
+      if (breaker.tripped) break;
+
       try {
         const mapped = mapJiraApiIssue(raw, cfg.maxComments);
         if (mapped.jiraUpdatedAt) {
@@ -76,12 +89,16 @@ async function paginatedSync(jql: string): Promise<{
             latestUpdated = mapped.jiraUpdatedAt;
           }
         }
-        const result = await processIssue(mapped);
+        const result = await processIssue(mapped, breaker);
         if (result.synced) issuesSynced += 1;
         else issuesSkipped += 1;
       } catch (err) {
         errors += 1;
         logger.warn({ err, jiraKey: raw.key }, "jira sync issue failed");
+        if (await breaker.recordFailure(err)) {
+          logger.error("Jira sync aborting after repeated 402/429 responses");
+          break;
+        }
       }
     }
 
@@ -197,7 +214,8 @@ export async function syncSingleJiraIssueFromWebhook(
 ): Promise<void> {
   const issue = await fetchJiraIssueByKey(jiraKey);
   if (!issue) return;
-  await processIssue(issue);
+  const breaker = new SyncCircuitBreaker();
+  await processIssue(issue, breaker);
 }
 
 export async function syncSingleJiraIssueFromWebhookWithRetry(

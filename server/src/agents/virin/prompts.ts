@@ -37,6 +37,9 @@ TICKET COMMENTS:
 TICKET ATTACHMENTS (read these — they are part of the ticket):
 {{ticket_attachments}}
 
+TICKET GRAPH (epic, subtasks, linked issues — use for scope and dependencies):
+{{ticket_related_context}}
+
 COMPANY CONTEXT:
 Official company name: {{company_name}}
 Website: {{company_website}}
@@ -85,6 +88,9 @@ TICKET COMMENTS:
 
 TICKET ATTACHMENTS:
 {{ticket_attachments}}
+
+TICKET GRAPH (epic, subtasks, linked issues):
+{{ticket_related_context}}
 
 Turn {{turn_number}} of up to {{max_turns}} discovery questions.
 
@@ -249,6 +255,9 @@ COMPETITOR ANALYSIS:
 CODEBASE ANALYSIS:
 {{codebase_analysis_json}}
 
+ORGANIZATIONAL INTELLIGENCE (past failures, overrides, canary findings in this area — factor into direction):
+{{org_intelligence}}
+
 Flags raised during discovery:
 {{flags}}
 
@@ -303,6 +312,9 @@ Codebase intelligence (modules, similar work, candidate files):
 Similar past PRDs and implementation plans (full content — use these to identify reusable patterns, existing infrastructure, and implied requirements; do NOT copy them verbatim):
 {{similar_past_work}}
 
+ORGANIZATIONAL INTELLIGENCE (past QA failures, overrides, canary findings in this area — avoid repeating known mistakes):
+{{org_intelligence}}
+
 Jira: {{jira_key}}
 Title: {{ticket_summary}}
 
@@ -316,6 +328,8 @@ Quality bar:
 - reuseFromCodebase MUST cite modules/patterns to extend — cross-reference the "Similar past PRDs and implementation plans" block above
 - implementationDeltaSummary MUST explain already-built vs net-new in 2-4 sentences, mentioning any relevant past work from the similar_past_work block
 - Open questions are real and named with owner
+- definitionOfDone MUST list testable, measurable completion criteria (not process theater)
+- edgeCases MUST list concrete failure/edge scenarios with expected behavior (not generic risks)
 - effortEstimate and complexitySummary use AgentOS agent pipeline wall-clock hours (Virin → Ananta → Neel), NOT human developer sprint days. Typical ranges: XS 30–90 min, S 1–3 h, M 3–8 h, L 8–16 h, XL 16–40 h.
 - If the ticket is a document/content deliverable (curriculum, policy, playbook, documentation):
   - set implementationMode to "content"
@@ -349,6 +363,8 @@ Use GeneratedPRD schema:
   "outOfScope": ["specific non-goals from solutioning"],
   "openQuestions": [{"question":"...","impact":"...","defaultAssumption":"...","owner":"..."}],
   "risks": [{"risk":"...","probability":"...","impact":"...","mitigation":"..."}],
+  "edgeCases": ["Concrete edge/failure scenario — expected behavior"],
+  "definitionOfDone": ["Testable completion criterion — binary/measurable"],
   "successMetrics": [{"metric":"...","baseline":"...","target":"...","measurementMethod":"..."}],
   "complexitySummary": {
     "score": 0,

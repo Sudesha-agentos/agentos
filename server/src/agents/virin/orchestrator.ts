@@ -871,6 +871,7 @@ async function runSolutioning(
     discovery_summary: normalizeDiscoverySummary(record.questionMode?.discoverySummary),
     competitor_analysis: competitorBlock(record),
     codebase_analysis_json: JSON.stringify(record.codebaseAnalysis ?? {}, null, 2),
+    org_intelligence: ctx.orgIntelligenceSummary,
     flags: (record.questionMode?.flagsRaised ?? []).join("\n") || "none",
   });
   const solution = await runVirinStage<SolutioningOutput>(jiraKey, "SOLUTIONING", prompt);
@@ -915,6 +916,7 @@ async function runPrdGeneration(
     codebase_analysis_json: JSON.stringify(record.codebaseAnalysis ?? {}, null, 2),
     codebase_intelligence: qctx.codebase_intelligence,
     similar_past_work: formatSimilarPastWork(record.similarPastWork),
+    org_intelligence: ctx.orgIntelligenceSummary,
     jira_key: jiraKey,
     ticket_summary: ticket.summary,
     today_iso: new Date().toISOString(),
@@ -1069,8 +1071,11 @@ export async function runVirinRetrospective(input: {
   pmAnalysisStore.setCurrentStage(key, null);
 
   const components = record.ticketInput.components ?? [];
-  if (record.retrospective) {
-    recordRetrospectiveLearning(record.retrospective, components);
+  if (retrospective) {
+    await recordRetrospectiveLearning(
+      retrospective as unknown as NonNullable<PmAnalysisRecord["retrospective"]>,
+      components
+    );
   }
 
   return pmAnalysisStore.get(key)!;

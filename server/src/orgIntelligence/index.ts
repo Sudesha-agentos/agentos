@@ -126,7 +126,7 @@ export const orgIntelligence = {
 
   async listRecent(options: { limit?: number; jiraKey?: string; sourceType?: string } = {}) {
     const organizationId = requireActiveOrganizationId();
-    return prisma.orgIntelligenceRecord.findMany({
+    const rows = await prisma.orgIntelligenceRecord.findMany({
       where: {
         organizationId,
         ...(options.jiraKey ? { jiraKey: options.jiraKey } : {}),
@@ -135,5 +135,12 @@ export const orgIntelligence = {
       orderBy: { createdAt: "desc" },
       take: options.limit ?? 50,
     });
+    return rows as Array<{
+      sourceType: string;
+      jiraKey: string;
+      component: string | null;
+      signal: string;
+      createdAt: Date;
+    }>;
   },
 };

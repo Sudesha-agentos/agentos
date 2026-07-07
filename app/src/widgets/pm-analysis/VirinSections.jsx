@@ -6,6 +6,7 @@ import {
   getIntakeClarifyingProgress,
   VIRIN_MAX_DISCOVERY_TURNS,
 } from "../../entities/pm-agents";
+import { VirinOrgIntelligenceSection } from "./VirinContextPanels";
 
 function formatDiscoverySummary(summary) {
   if (!summary) return "";
@@ -88,6 +89,8 @@ export function VirinConversationPanel({ analysis, onAnswer, onConfirm, busy, pr
 
   if (status === "AWAITING_CONFIRMATION" && analysis?.solutioning) {
     const sol = analysis.solutioning;
+    const orgIntel =
+      analysis.context?.orgIntelligenceSummary ?? analysis.orgIntelligenceSummary;
     return (
       <Panel className={prominent ? "border-warning/25 shadow-lg" : ""}>
         <PanelHeader
@@ -96,6 +99,7 @@ export function VirinConversationPanel({ analysis, onAnswer, onConfirm, busy, pr
           subtitle={`${VIRIN_NAME} won't write the full PRD until you align on this approach.`}
         />
         <div className="space-y-5 px-5 py-5 sm:px-6">
+          {orgIntel ? <VirinOrgIntelligenceSection summary={orgIntel} /> : null}
           <blockquote className="border-l-4 border-indigo/40 pl-4">
             <p className="text-[15px] font-medium leading-snug text-app-ink">
               {sol.problemStatement}
@@ -628,6 +632,22 @@ export function VirinHandoffPackageSection({ handoffPackage, expanded = false })
                 </li>
               ))}
             </ul>
+          </div>
+        )}
+
+        {handoffPackage.teamsInvolved?.length > 0 && (
+          <div>
+            <p className="type-kicker mb-2">Teams involved</p>
+            <div className="flex flex-wrap gap-2">
+              {handoffPackage.teamsInvolved.map((team) => (
+                <span
+                  key={team}
+                  className="rounded-full border border-app-border px-3 py-1 text-[12px] text-app-ink-dim"
+                >
+                  {team}
+                </span>
+              ))}
+            </div>
           </div>
         )}
 

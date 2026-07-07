@@ -35,6 +35,11 @@ function basePrd(overrides: Partial<GeneratedPRD> = {}): GeneratedPRD {
     outOfScope: [],
     openQuestions: [],
     risks: [],
+    edgeCases: ["Empty curriculum file uploaded — reject with validation error"],
+    definitionOfDone: [
+      "Curriculum markdown file exists at declared path",
+      "All three month sections are present and reviewable",
+    ],
     successMetrics: [],
     complexitySummary: {
       score: 0.3,

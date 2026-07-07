@@ -388,6 +388,38 @@ export function PmAcceptanceSection({ ac }) {
           </div>
         ))}
       </div>
+      {ac.edgeCases?.length > 0 ? (
+        <div className="mt-4 space-y-3">
+          <p className="font-mono text-[10px] uppercase text-ink-mute">Edge cases</p>
+          {ac.edgeCases.map((ec, i) => (
+            <div
+              key={i}
+              className="rounded-lg border border-warning/30 bg-warning/5 px-3 py-2 text-[13px]"
+            >
+              <p className="font-medium text-warning">{ec.scenario}</p>
+              <p>
+                <span className="font-mono text-[10px] text-ink-mute">GIVEN</span> {ec.given}
+              </p>
+              <p className="mt-1">
+                <span className="font-mono text-[10px] text-ink-mute">WHEN</span> {ec.when}
+              </p>
+              <p className="mt-1">
+                <span className="font-mono text-[10px] text-ink-mute">THEN</span> {ec.then}
+              </p>
+            </div>
+          ))}
+        </div>
+      ) : null}
+      {ac.definitionOfDone?.length > 0 ? (
+        <ul className="mt-4 space-y-1 text-[13px] text-ink-dim">
+          {ac.definitionOfDone.map((item) => (
+            <li key={item} className="flex gap-2">
+              <span className="text-success">□</span>
+              {item}
+            </li>
+          ))}
+        </ul>
+      ) : null}
     </JsonCard>
   );
 }

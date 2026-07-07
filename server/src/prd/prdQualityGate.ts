@@ -38,6 +38,14 @@ export function validateGeneratedPrd(
   if (!prd.implementationDeltaSummary?.trim()) {
     issues.push("Missing implementationDeltaSummary tying PRD to codebase reality");
   }
+  if (!prd.definitionOfDone?.length) {
+    issues.push("Missing definitionOfDone — list testable completion criteria");
+  } else if (prd.definitionOfDone.length < 2) {
+    issues.push("definitionOfDone needs at least 2 testable items");
+  }
+  if (!prd.edgeCases?.length) {
+    issues.push("Missing edgeCases — list concrete failure/edge scenarios");
+  }
 
   if (prd.implementationMode === "content") {
     if (!prd.deliverableFiles?.length) {

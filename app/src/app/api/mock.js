@@ -386,6 +386,17 @@ const MOCK_GENERATED_PRD = {
       mitigation: "Shard into 4GB parts",
     },
   ],
+  edgeCases: [
+    "Empty date range requested — API returns 400 with validation message",
+    "Export job interrupted mid-stream — job marked failed and admin notified",
+    "Download link accessed after 7-day expiry — returns 410 Gone",
+  ],
+  definitionOfDone: [
+    "Export API endpoints deployed with workspace_admin RBAC enforced",
+    "Integration tests cover happy path, empty range, and expired download",
+    "SHA-256 integrity header verified in QA against sample bundle",
+    "Admin UI shows export status and download link within SLA",
+  ],
   successMetrics: [
     {
       metric: "Export completion time",
@@ -2528,8 +2539,63 @@ const MOCK_PM_ANALYSIS_FULL = {
     components: ["Billing"],
     createdDate: minutes(48),
     priority: "High",
+    relatedContext: {
+      epic: {
+        key: "PLT-1200",
+        summary: "Enterprise billing reliability",
+        description: "Improve billing controls and observability for enterprise workspaces.",
+        status: "In Progress",
+        issueType: "Epic",
+        relationship: "epic",
+      },
+      subtasks: [
+        {
+          key: "PLT-1288",
+          summary: "Add limit enforcement API",
+          description: "Hard cap usage when workspace limit reached.",
+          status: "To Do",
+          issueType: "Sub-task",
+          relationship: "subtask",
+        },
+      ],
+      linkedIssues: [
+        {
+          key: "PLT-1102",
+          summary: "Billing alert webhooks",
+          description: "Notify CS when usage crosses threshold.",
+          status: "Done",
+          issueType: "Story",
+          relationship: "linked",
+        },
+      ],
+    },
   },
-  context: { reporterTier: "enterprise" },
+  context: {
+    reporterTier: "enterprise",
+    churnRate: "3/12 commits (25%) touched candidate files in last 30 days",
+    capacityRemaining: "3 slot(s) available — 2 running of 5 concurrency target",
+    inflightCount: "2",
+    componentBugCount: "1 open bug-like tickets sharing components",
+    orgIntelligenceSummary:
+      "- QA_FAILURE [Billing] (PLT-1100, 2026-06-01): Limit bypass when meter lagged\n- OVERRIDE [Billing] (PLT-1150, 2026-06-15): Manual limit override for pilot customer",
+  },
+  synthesisSummary: {
+    historicalCoverage: 0.67,
+    reusedPatterns: ["PLT-1102: billing limits service pattern"],
+    knownFailures: ["PLT-1100: meter lag caused limit bypass"],
+    impliedRequirements: ["Alert when usage crosses 80% of cap"],
+    blockingGaps: 1,
+  },
+  similarPastWork: [
+    {
+      jiraKey: "PLT-1102",
+      contentType: "implementation",
+      similarity: 0.78,
+      summary: "Billing alert webhooks",
+      content: "Extended billing limits service with workspace-scoped caps.",
+    },
+  ],
+  generatedPrd: MOCK_GENERATED_PRD,
   enrichment: {
     cleanSummary: "Enterprise admins need workspace-level billing limits and proactive spend alerts.",
     realUserProblem: "Finance teams cannot prevent runaway usage charges across workspaces.",
