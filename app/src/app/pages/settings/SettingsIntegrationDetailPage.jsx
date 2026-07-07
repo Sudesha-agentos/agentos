@@ -98,7 +98,7 @@ function ComingSoonIntegration({ integration, displayStatus, backHref }) {
               {notified ? "You’re on the list" : "Notify me when available"}
             </button>
             <a
-              href="mailto:sales@agentos.dev?subject=Integration%20request"
+              href="mailto:sales@agentox.io?subject=Integration%20request"
               className="rounded-full border border-app-border px-4 py-2 text-[13px] font-medium text-app-ink-dim transition hover:border-indigo/30 hover:text-app-ink"
             >
               Contact sales

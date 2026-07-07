@@ -17,6 +17,9 @@ export default function TorusFooter() {
             <div className="footer-tagline">{BRAND.footerTagline}</div>
           </div>
           <div className="footer-right">
+            <a href="#roi" className="footer-contact">
+              ROI calculator
+            </a>
             <a href="/contact" className="footer-contact">
               Contact
             </a>

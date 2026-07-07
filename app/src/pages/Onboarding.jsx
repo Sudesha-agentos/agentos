@@ -262,7 +262,7 @@ export default function Onboarding() {
 
       <div className="relative mx-auto max-w-xl">
         <div className="mb-8 text-center">
-          <p className="font-[Poppins] text-sm font-semibold text-[#2B2D33]">AgentOS</p>
+          <p className="font-[Poppins] text-sm font-semibold text-[#2B2D33]">AgentOX</p>
           <p className="mt-1 text-xs text-[#6B6B6B]">Set up your workspace</p>
           <div className="mx-auto mt-6 h-1.5 max-w-xs overflow-hidden rounded-full bg-[#E8E4DE]">
             <div
@@ -278,7 +278,7 @@ export default function Onboarding() {
         <div className="at-card p-8 sm:p-10">
           {step === "welcome" ? (
             <>
-              <h1 className="text-2xl font-bold text-[#2B2D33]">Welcome to AgentOS</h1>
+              <h1 className="text-2xl font-bold text-[#2B2D33]">Welcome to AgentOX</h1>
               <p className="mt-2 text-[15px] text-[#6B6B6B]">
                 A few questions so Virin, Ananta, and Neel understand your company before the
                 first pipeline runs.

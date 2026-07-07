@@ -907,7 +907,7 @@ function JiraIntegrationContent({ setup, refetchSetup, embedded = false }) {
         <Panel>
           <PanelHeader
             title="AI Worker intake column"
-            subtitle="Only Task and Bug tickets are picked up. AgentOS watches the Jira workflow status behind the column — not the column label. If Jira says “Move to In Progress” when you drag a ticket into AI Worker, that status name is what triggers intake."
+            subtitle="Only Task and Bug tickets are picked up. AgentOX watches the Jira workflow status behind the column — not the column label. If Jira says “Move to In Progress” when you drag a ticket into AI Worker, that status name is what triggers intake."
           />
           <form className="flex flex-wrap items-end gap-3 p-4 sm:px-6" onSubmit={handleSaveIntakeColumn}>
             <label className="block min-w-[240px] flex-1 text-sm">

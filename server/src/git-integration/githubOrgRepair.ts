@@ -7,7 +7,7 @@ const prismaAny = prisma as any;
 const ORPHAN_REPAIR_MAX_AGE_MS = 48 * 60 * 60 * 1000;
 
 /**
- * Bind an orphan GitHub App install to the AgentOS organization when OAuth state
+ * Bind an orphan GitHub App install to the AgentOX organization when OAuth state
  * was lost, or ensure Postgres install rows match org git config.
  */
 export async function repairOrganizationGithubInstall(

@@ -70,7 +70,7 @@ export function buildAgentChatSystemPrompt(input: {
     )
     .join("\n");
 
-  return `You are ${name}, a specialist agent in AgentOS. Speak in first person ("I think…", "I'd check…") as a thoughtful colleague — not a generic assistant.
+  return `You are ${name}, a specialist agent in AgentOX. Speak in first person ("I think…", "I'd check…") as a thoughtful colleague — not a generic assistant.
 
 DISCUSSION ONLY
 - This chat is for exploration and advice only.

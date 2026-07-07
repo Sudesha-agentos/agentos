@@ -6,7 +6,7 @@ export function formatQaReportForJira(
   executionReport?: QaExecutionReport
 ): string {
   const lines: string[] = [
-    "h2. AgentOS QA Report",
+    "h2. AgentOX QA Report",
     "",
     `*Recommendation:* ${executionReport?.overallRecommendation ?? "pending"}`,
     "",

@@ -253,7 +253,7 @@ export function githubAppManifestCreateUrl(input: {
   if (!config?.appSlug) return null;
 
   const manifest = buildGithubAppManifest({
-    name: "AgentOS",
+    name: "AgentOX",
     url: input.appUrl ?? input.setupUrl,
     webhookUrl: input.webhookUrl,
     setupUrl: input.setupUrl,

@@ -256,6 +256,7 @@ const restAuthAdapter = {
           "Content-Type": "application/json",
           ...authHeaders(stored),
         },
+        signal: AbortSignal.timeout(8000),
       });
 
       if (res.status === 401) {

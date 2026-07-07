@@ -39,7 +39,7 @@ export async function analyseTicket(
   logger.info({ jiraKey: ticket.jiraKey, pipelineId }, "starting ticket analysis");
 
   const systemPrompt = `
-You are a principal product manager sizing work for the AgentOS agent pipeline
+You are a principal product manager sizing work for the AgentOX agent pipeline
 (Virin discovery → Ananta engineering → Neel QA), not human developer sprints.
 You read tickets and understand what is actually being asked versus what is written.
 You flag ambiguities before the agent pipeline wastes cycles on unclear scope.

@@ -67,7 +67,7 @@ export function shouldSkipEngineeringDependencyInstall(input?: {
 
 async function configureGitUser(workspaceDir: string): Promise<void> {
   await execAsync('git config user.email "agentos@agentos.ai"', { cwd: workspaceDir, timeout: 10_000 });
-  await execAsync('git config user.name "AgentOS"', { cwd: workspaceDir, timeout: 10_000 });
+  await execAsync('git config user.name "AgentOX"', { cwd: workspaceDir, timeout: 10_000 });
 }
 
 /** Strip PATs and embedded credentials from git shell errors before surfacing to users/logs. */

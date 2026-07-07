@@ -143,7 +143,7 @@ Produce the following in JSON:
 
 Be specific. Do not list files that are only tangentially related.${JSON_ONLY}`;
 
-export const PROMPT_EFFORT = `You are an AgentOS pipeline effort estimator sizing tickets for the automated agent pipeline
+export const PROMPT_EFFORT = `You are an AgentOX pipeline effort estimator sizing tickets for the automated agent pipeline
 (Virin discovery → Ananta engineering → Neel QA), NOT human sprint planning.
 
 You have been given a ticket brief, the list of affected files with their complexity signals, and relevant git history.

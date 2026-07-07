@@ -10,6 +10,7 @@ export const BRAND = {
 export const NAV_LINKS = [
   { label: "INTELLIGENCE", href: "#platform" },
   { label: "AUTOMATION", href: "#email" },
+  { label: "ROI", href: "#roi" },
 ];
 
 export const HERO = {
@@ -241,6 +242,14 @@ export const SECTION_05 = {
     },
   ],
   footnote: "SOC 2 Type 1 & 2 roadmap in progress.",
+};
+
+export const SECTION_06 = {
+  id: "roi",
+  label: "ROI CALCULATOR",
+  headline: "Model your annual savings.",
+  intro:
+    "Tune team size, pipeline volume, and rework rate. See net benefit, payback period, and ROI multiple across plans — updated live as you adjust inputs.",
 };
 
 export const FINAL_CTA = {

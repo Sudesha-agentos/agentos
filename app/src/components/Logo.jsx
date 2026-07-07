@@ -25,21 +25,21 @@ export default function Logo({ className = "", href = "#top", variant = "dark" }
       <span
         className={`text-[15px] font-semibold tracking-tight transition-colors ${labelClass} ${className}`}
       >
-        AgentOS
+        AgentOX
       </span>
     </>
   );
 
   if (href.startsWith("/")) {
     return (
-      <Link to={href} className="group inline-flex items-center gap-2.5" aria-label="Agentos home">
+      <Link to={href} className="group inline-flex items-center gap-2.5" aria-label="AgentOX home">
         {content}
       </Link>
     );
   }
 
   return (
-    <a href={href} className="group inline-flex items-center gap-2.5" aria-label="Agentos home">
+    <a href={href} className="group inline-flex items-center gap-2.5" aria-label="AgentOX home">
       {content}
     </a>
   );

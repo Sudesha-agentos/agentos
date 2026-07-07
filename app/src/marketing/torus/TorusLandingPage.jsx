@@ -9,6 +9,7 @@ import TorusHero from "./components/TorusHero";
 import TorusMissionSection from "./components/TorusMissionSection";
 import TorusNav from "./components/TorusNav";
 import TorusPipelineMockup from "./components/TorusPipelineMockup";
+import TorusRoiSection from "./components/TorusRoiSection";
 import TorusSecuritySection from "./components/TorusSecuritySection";
 import TorusWorkflowSection from "./components/TorusWorkflowSection";
 import { useTorusReveal } from "./hooks/useTorusReveal";
@@ -19,6 +20,7 @@ import {
   SECTION_03,
   SECTION_04,
   SECTION_05,
+  SECTION_06,
 } from "./torusPageContent";
 import "./torusMarketing.css";
 
@@ -57,6 +59,9 @@ export default function TorusLandingPage() {
 
           <TorusConnector id={SECTION_04.id} label={SECTION_04.label} />
           <TorusMissionSection />
+
+          <TorusConnector id={SECTION_06.id} label={SECTION_06.label} />
+          <TorusRoiSection />
 
           <TorusConnector id={SECTION_05.id} label={SECTION_05.label} />
           <TorusSecuritySection />
