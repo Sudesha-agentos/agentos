@@ -20,7 +20,7 @@ export function useTorusReveal(rootRef) {
     root.querySelectorAll("[data-reveal]").forEach((el) => revealObserver.observe(el));
 
     const navLinks = root.querySelectorAll(".nav-links a");
-    const navTargets = root.querySelectorAll(".connector[id], section[id], [data-pricing]");
+    const navTargets = root.querySelectorAll(".connector[id]");
     const navObserver = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {

@@ -1,4 +1,4 @@
-/** AgentOX marketing copy structured for Torus-style layout. */
+/** AgentOX marketing copy — Torus-style layout (usetorus.com structure). */
 
 export const BRAND = {
   name: "AGENTOX",
@@ -9,108 +9,144 @@ export const BRAND = {
 
 export const NAV_LINKS = [
   { label: "INTELLIGENCE", href: "#platform" },
-  { label: "AGENTS", href: "#agents" },
-  { label: "PRICING", href: "#pricing" },
-  { label: "ROI", href: "#roi" },
-  { label: "FAQ", href: "#faq" },
+  { label: "AUTOMATION", href: "#email" },
 ];
 
 export const HERO = {
-  headline: "From Jira Ticket to Shipped Code — Without Losing What You Actually Meant.",
+  headline: "Agents that think in Jira tickets, PRDs, and pull requests.",
   description:
-    "AgentOX orchestrates Product, Engineering, and QA agents through your entire feature lifecycle — with validation gates that ensure what gets built is exactly what was specified.",
+    "AgentOX's AI agents understand every requirement across your tickets, codebase, and test suites. They cross-reference every detail and adopt how your team ships.",
   primaryCta: "REQUEST EARLY ACCESS",
   primaryHref: "/login",
   secondaryCta: "SEE THE PIPELINE",
-  secondaryHref: "#solution",
+  secondaryHref: "#platform",
   fallback: "or email",
 };
 
 export const SECTION_01 = {
   id: "platform",
-  label: "01 PIPELINE INTELLIGENCE",
+  label: "ENGINEERING INTELLIGENCE",
   intro:
-    "Connect Jira and GitHub. AgentOX runs discovery, implementation, and QA in sequence — with validation gates between every handoff. Product sees PRDs and gap analysis. Engineering sees code and PRs. QA sees test coverage and failure reports. Same ticket, same pipeline.",
+    "Connect Jira and GitHub. AgentOX runs discovery, implementation, and QA in sequence — with validation gates between every handoff. Engineers see consistency flags. PMs see workflow automation. Same ticket, same pipeline.",
   mockup: {
     projectTitle: "AUTH-2847 OAuth Scope Expansion",
-    productMeta: {
-      flags: "2 gaps · 1 ambiguity",
-      coverage: "PRD 94% complete",
+    engineerMeta: {
+      flags: "2 critical · 5 warnings",
+      coverage: "9/12 acceptance criteria",
     },
-    engMeta: {
-      flags: "3 criteria unmapped",
-      coverage: "12/15 files planned",
+    pmMeta: {
+      flags: "PRD 94% · QA 45/47",
+      coverage: "Pipeline ready for review",
     },
-    productFlags: [
+    engineerFlags: [
       {
         icon: "⚠",
-        lines: [
-          "Acceptance criterion missing for token refresh failure path",
-          "  vs. similar ticket AUTH-2103 (had explicit Given/When/Then)",
-          "acceptance_criteria_completeness",
+        segments: [
+          { text: "Acceptance criterion missing for " },
+          { text: "token refresh failure path", hl: true },
+          { text: " (Jira AUTH-2847)" },
         ],
+        secondary: "vs. similar ticket AUTH-2103 (had explicit Given/When/Then)",
+        rule: "acceptance_criteria_completeness",
       },
       {
         icon: "⚠",
-        lines: [
-          "Scope mentions \"admin users only\" but ticket label says \"all users\"",
-          "  vs. product brief Q2-Auth-Scope.pdf",
-          "scope_alignment",
+        segments: [
+          { text: "Scope mentions " },
+          { text: "\"admin users only\"", hl: true },
+          { text: " but ticket label says \"all users\"" },
         ],
+        secondary: "vs. product brief Q2-Auth-Scope.pdf",
+        rule: "scope_alignment",
+      },
+      {
+        icon: "⚠",
+        segments: [
+          { text: "Rate limit policy referenced in PRD but not in " },
+          { text: "implementation plan", hl: true },
+        ],
+        secondary: "vs. org policy API-RATE-LIMITS.md",
+        rule: "policy_coverage",
       },
     ],
-    engBlock: {
-      title: "Implementation Plan, Draft #2",
-      meta: ["GENERATED 4m AGO", "SOURCE: Jira AUTH-2847", "CONFIDENCE: 0.88"],
-      body: [
-        "RECOMMENDATION: PROCEED WITH CHANGES",
-        "FILES: 12 modified · 3 new test files",
-        "CRITERIA: 13/15 mapped · 2 need PRD clarification",
-        "BLOCKERS: None",
-      ],
+    pmBlock: {
+      title: "Pipeline Approval, Draft #3",
+      meta: ["GENERATED 2m AGO", "SOURCE: Jira AUTH-2847", "CONFIDENCE: 0.91"],
+      memo: {
+        to: "Sarah Chen, Engineering Lead",
+        re: "AUTH-2847 OAuth Scope Expansion",
+        recommendation: "PROCEED TO MERGE",
+        body: [
+          "PRD: 15 acceptance criteria · PR #847 · QA: 45/47 passed",
+          "2 non-blocking failures flagged for human review.",
+        ],
+        chain: [
+          { label: "PRD gate (Virin)", done: true },
+          { label: "Implementation gate (Ananta)", done: true },
+          { label: "Human review (Sarah Chen)", done: false },
+        ],
+      },
     },
-    productSidebar: {
-      live: ["Jira ticket AUTH-2847", "Similar tickets (4)", "Product brief Q2"],
+    engineerSidebar: {
+      documents: [
+        { label: "Jira ticket AUTH-2847", dot: "live", active: true },
+        { label: "Similar tickets (4)", dot: "live" },
+        { label: "Product brief Q2", dot: "live" },
+        { label: "Implementation plan draft", dot: "learning" },
+        { label: "Org policy API-RATE-LIMITS.md", dot: "live" },
+      ],
       missing: ["Error handling spec", "Rate limit policy"],
       stat: "847 CODEBASE SYMBOLS INDEXED",
     },
-    engSidebar: {
-      live: ["prd-validation", "implementation-plan"],
-      learning: ["test-scaffolding", "canary-run"],
-      ready: ["pr-draft", "qa-handoff", "jira-writeback"],
+    pmSidebar: {
+      live: [
+        { label: "prd-validation", dot: "live", active: true },
+        { label: "implementation-plan", dot: "live" },
+      ],
+      learning: [
+        { label: "test-scaffolding", dot: "learning" },
+        { label: "canary-run", dot: "learning" },
+      ],
+      ready: [
+        { label: "pr-draft", dot: "ready" },
+        { label: "qa-handoff", dot: "ready" },
+        { label: "jira-writeback", dot: "ready" },
+      ],
     },
-    productNav: ["TICKET", "PRD", "GAPS", "GATE"],
-    engNav: ["PLAN", "CODE", "PR", "GATE"],
+    engineerNav: ["PROJECT MODEL", "CONSISTENCY", "COVERAGE", "REVIEW QUEUE"],
+    engineerNavActive: 1,
+    pmNav: ["OVERVIEW", "BLOCKING", "DOCS", "FLAGS", "QUEUE"],
+    pmNavActive: 0,
   },
 };
 
 export const SECTION_02 = {
   id: "beyond",
-  label: "02 BEYOND A CODING ASSISTANT",
+  label: "BEYOND A CHATBOT",
   intro: [
-    "Most AI tools for engineering are just coding assistants. You paste a ticket, get a pull request, hope it's right.",
-    "One ticket. One PR. No validation.",
+    "Most AI tools for engineering are just chatbots. You paste a ticket, ask a question, get an answer.",
+    "One ticket. One question. One answer.",
     "That's not how shipping works.",
   ],
   points: [
     {
       title: "Full pipeline context, not single prompts",
-      body: "AgentOX holds your Jira ticket, PRD, codebase, and test results in context simultaneously. When your acceptance criteria say one thing and your implementation does another, AgentOX doesn't wait for you to notice. It already flagged it at the gate.",
+      body: "AgentOX holds your Jira ticket, PRD, codebase, and test results in context simultaneously. When your acceptance criteria say one thing and your implementation does another, AgentOX doesn't wait for you to ask. It already flagged it at the gate.",
     },
     {
       title: "Proactive, not reactive",
-      body: "Coding assistants answer when asked. AgentOX finds gaps before engineering starts, blockers before QA runs, and coverage holes before merge. Three validation gates running against every feature in your sprint.",
+      body: "Chatbots answer questions. AgentOX finds gaps before engineering starts, blockers before QA runs, and coverage holes before merge. Three validation gates running against every feature in your sprint.",
     },
     {
-      title: "Ships deliverables, not snippets",
-      body: "AgentOX doesn't write generic code. It produces structured PRDs with Given/When/Then criteria, implementation plans mapped to your codebase, draft PRs with full descriptions, and QA reports tied to every acceptance criterion.",
+      title: "Ships deliverables, not paragraphs",
+      body: "AgentOX doesn't write generic text. It drafts PRDs with Given/When/Then criteria, implementation plans mapped to your codebase, draft PRs, and QA reports tied to every acceptance criterion.",
     },
   ],
 };
 
 export const SECTION_03 = {
-  id: "workflow",
-  label: "03 WORKFLOW AUTOMATION",
+  id: "email",
+  label: "WORKFLOW AUTOMATION",
   email: {
     from: "agentox@notifications.agentox.io",
     to: "sarah.chen@company.com",
@@ -135,14 +171,14 @@ export const SECTION_03 = {
   },
   sidebar: [
     {
-      label: "GATES",
-      title: "Validation at every handoff",
-      body: "PRD gate before engineering. Implementation gate before QA. QA gate before merge. Pipeline pauses until you approve or override.",
+      label: "THREADS",
+      title: "Follows full conversations",
+      body: "CC AgentOX on Jira updates or Slack threads. It tracks decisions and action items across every party on the thread.",
     },
     {
-      label: "WRITE-BACK",
-      title: "Jira stays the source of truth",
-      body: "PRD attached to ticket. PR linked. QA report uploaded. Status updated. Your team never leaves Jira to understand what happened.",
+      label: "FOLLOW-UPS",
+      title: "Flags what's stalled",
+      body: "Gate failure? Missing acceptance criteria? AgentOX drafts the follow-up and waits for your go-ahead.",
     },
     {
       label: "AUDIT TRAIL",
@@ -154,17 +190,57 @@ export const SECTION_03 = {
 
 export const SECTION_04 = {
   id: "mission",
-  label: "04 WHY THIS MATTERS",
+  label: "WHY THIS MATTERS",
   headline: "The most expensive bug is the one you ship twice.",
   body: [
     {
-      strong: "30–40% of feature work gets reworked. 23% of sprint capacity lost to handoff degradation. 100× the cost when bugs reach production.",
+      strong:
+        "30–40% of feature work gets reworked. 23% of sprint capacity lost to handoff degradation. 100× the cost when bugs reach production.",
     },
     "Every sprint, teams lose days to misread requirements, ambiguous acceptance criteria, and tests that stopped being true. When a PM meant one thing and engineering built another, it's not a communication problem — it's a missing governance layer.",
     {
       strong: "AgentOX gives every team the capacity of a full product-engineering-QA loop.",
     },
   ],
+};
+
+export const SECTION_05 = {
+  id: "security",
+  label: "SECURITY",
+  headline: "You stay in control of your data.",
+  headlineKey: "control",
+  subhead: "Two ways to run AgentOX. You pick how much stays inside your walls.",
+  modes: [
+    {
+      name: "AgentOX",
+      tag: "Managed",
+      locked: false,
+      wallLoc: "AgentOX secure cloud",
+      wallPin: "Frontier models",
+      items: [
+        { label: "Your documents", suffix: "· isolated tenant" },
+        { label: "AgentOX agent" },
+      ],
+      captionBefore: "Runs in our hardened cloud. ",
+      captionStrong: "Your data is isolated, never trains the models,",
+      captionAfter: " and embeddings store summaries — not raw code.",
+    },
+    {
+      name: "Sovereign",
+      tag: "Locked down",
+      locked: true,
+      wallLoc: "Your cloud, VPC or on-prem",
+      wallPin: "Sealed",
+      items: [
+        { label: "Your documents" },
+        { label: "AgentOX agent" },
+        { label: "The model", model: true },
+      ],
+      captionBold: "Everything runs inside your own network:",
+      captionRest: " data, agents, and optional self-hosted models. Nothing leaves.",
+    },
+  ],
+  footnote: "SOC 2 Type 1 & 2 roadmap in progress.",
 };
 
 export const FINAL_CTA = {

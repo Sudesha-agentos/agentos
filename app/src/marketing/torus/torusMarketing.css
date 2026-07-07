@@ -2,23 +2,30 @@
 
 .torus-marketing {
   --black: #000000;
+  --gray-950: #080808;
+  --gray-900: #141414;
+  --gray-800: #222222;
+  --gray-700: #333333;
+  --gray-600: #4a4a4a;
+  --gray-400: #8a8a8a;
+  --gray-300: #9a9a9a;
+  --gray-200: #d4d4d4;
   --white: #ffffff;
-  --accent: #a8c53a;
-  --accent-strong: #5c6e1f;
-  --accent-dim: rgba(168, 197, 58, 0.2);
+  --accent: #e67e22;
+  --accent-dim: rgba(230, 126, 34, 0.12);
   --success: #4a7a5b;
   --warning: #9a7b3c;
   --error: #8b4049;
   --info: #4a6a8a;
-  --bg: #faf7f0;
-  --text: #2b2d33;
-  --text-mid: #6b6b6b;
-  --text-dim: #5a5a5a;
-  --text-faint: #777777;
-  --surface: #ffffff;
+  --bg: var(--black);
+  --text: var(--gray-200);
+  --text-mid: var(--gray-300);
+  --text-dim: var(--gray-400);
+  --text-faint: #767676;
+  --surface: var(--gray-950);
   --lw: 1px;
-  --line: #e8e4de;
-  --line-faint: rgba(43, 45, 51, 0.1);
+  --line: var(--gray-700);
+  --line-faint: rgba(255, 255, 255, 0.12);
   --font-display: "Space Grotesk", sans-serif;
   --font-body: "IBM Plex Sans", sans-serif;
   --font-mono: "IBM Plex Mono", monospace;
@@ -35,12 +42,46 @@
   position: relative;
 }
 
-.torus-marketing .logo-light {
-  display: none;
+.torus-marketing.torus-light {
+  --accent: #b85a00;
+  --accent-dim: rgba(184, 90, 0, 0.08);
+  --bg: #f5f3f0;
+  --text: #1a1a1a;
+  --text-mid: #4a4a4a;
+  --text-dim: #5a5a5a;
+  --text-faint: #777777;
+  --surface: #edeae6;
+  --line: #e8e4de;
+  --line-faint: rgba(0, 0, 0, 0.1);
 }
 
 .torus-marketing .logo-dark {
+  display: none;
+}
+
+.torus-marketing.torus-light .logo-light {
+  display: none;
+}
+
+.torus-marketing.torus-light .logo-dark {
   display: inline;
+}
+
+.torus-marketing .mode-toggle {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 2px;
+  color: var(--text-dim);
+  background: transparent;
+  border: var(--lw) solid var(--line);
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: color 0.1s ease-out, border-color 0.1s ease-out;
+}
+
+.torus-marketing .mode-toggle:hover {
+  color: var(--accent);
+  border-color: var(--accent);
 }
 
 .torus-marketing .page {
@@ -115,6 +156,27 @@
   mask-image: radial-gradient(ellipse 75% 65% at 80% 40%, black 40%, transparent 80%);
 }
 
+.torus-marketing .grid-patch-mid {
+  right: -60px;
+  transform: translateY(-100px);
+  width: 65%;
+  height: 700px;
+  mask-image: radial-gradient(ellipse 70% 60% at 85% 30%, black 15%, transparent 65%);
+}
+
+.torus-marketing .grid-glow-mid {
+  right: 80px;
+  transform: translateY(-60px);
+  animation: torus-grid-drift-v 19s ease-in-out infinite;
+  animation-delay: -7s;
+}
+
+.torus-marketing .hero-headline .key {
+  white-space: nowrap;
+  border-bottom: 2px solid var(--accent);
+  padding-bottom: 1px;
+}
+
 .torus-marketing .grid-patch-cta {
   right: 0;
   width: 50%;
@@ -128,7 +190,7 @@
   z-index: 0;
   width: 200px;
   height: 200px;
-  background: radial-gradient(circle, rgba(168, 197, 58, 0.18) 0%, transparent 60%);
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 60%);
   border-radius: 50%;
   opacity: 0;
   transition: opacity 0.6s var(--ease-plot);
@@ -195,21 +257,37 @@
   fill: none;
 }
 
+.torus-marketing.torus-light .grid-glow {
+  background: radial-gradient(circle, rgba(230, 126, 34, 0.2) 0%, transparent 60%);
+}
+
 .torus-marketing .ambient-rings .ring {
-  stroke: #0000001f;
+  stroke: #ffffff17;
   stroke-width: 1;
 }
 
 .torus-marketing .ambient-rings .ring-faint {
-  stroke: #00000012;
+  stroke: #ffffff0d;
   stroke-width: 0.5;
 }
 
+.torus-marketing.torus-light .ambient-rings .ring {
+  stroke: #0000001f;
+}
+
+.torus-marketing.torus-light .ambient-rings .ring-faint {
+  stroke: #00000012;
+}
+
 .torus-marketing .ambient-rings .ring-bead {
-  stroke: #0003;
+  stroke: #ffffff40;
   stroke-width: 1.5;
   stroke-dasharray: 80 8000;
   animation: torus-ring-bead 25s linear infinite;
+}
+
+.torus-marketing.torus-light .ambient-rings .ring-bead {
+  stroke: #0003;
 }
 
 .torus-marketing .ring-bead-b {
@@ -331,9 +409,13 @@
   right: 0;
   z-index: 50;
   border-bottom: var(--lw) solid var(--line);
-  background: #faf7f0cc;
+  background: #000c;
   backdrop-filter: blur(12px) saturate(1.2);
   animation: torus-nav-enter 0.5s var(--ease-plot) both;
+}
+
+.torus-marketing.torus-light .site-nav {
+  background: #f5f3f0cc;
 }
 
 .torus-marketing .site-nav::after {
@@ -593,6 +675,14 @@
   position: relative;
 }
 
+.torus-marketing .beyond-ai {
+  max-width: 720px;
+}
+
+.torus-marketing .mission {
+  max-width: 720px;
+}
+
 .torus-marketing .mission-headline {
   font-family: var(--font-display);
   font-size: 32px;
@@ -717,6 +807,10 @@
 
 .torus-marketing .dashboard-intro.revealed {
   clip-path: inset(0 0 0 0);
+}
+
+.torus-marketing .mockup-wrap {
+  position: relative;
 }
 
 .torus-marketing .mockup-frame {
@@ -918,9 +1012,172 @@
   color: var(--accent);
 }
 
+.torus-marketing .agent-block-body h3 {
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  margin: 0 0 4px;
+  letter-spacing: 0.5px;
+}
+
 .torus-marketing .flag-rule {
   opacity: 0.5;
   font-size: 0.85em;
+}
+
+.torus-marketing .memo-editable {
+  color: var(--text-faint);
+  letter-spacing: 1px;
+}
+
+.torus-marketing .security {
+  width: 100%;
+}
+
+.torus-marketing .security-headline {
+  font-family: var(--font-display);
+  font-size: 32px;
+  font-weight: 300;
+  line-height: 1.3;
+  letter-spacing: 0.5px;
+  margin: 0 0 8px;
+}
+
+.torus-marketing .security-sub {
+  font-family: var(--font-body);
+  font-size: 15px;
+  color: var(--text-mid);
+  margin: 0 0 40px;
+}
+
+.torus-marketing .security .modes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  align-items: start;
+}
+
+.torus-marketing .security .mode-h {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.torus-marketing .security .mode-nm {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: 20px;
+  color: var(--text);
+}
+
+.torus-marketing .security .mode-tag {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  border: var(--lw) solid var(--line);
+  padding: 3px 8px;
+}
+
+.torus-marketing .security .mode-lock .mode-tag {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.torus-marketing .security .wall {
+  border: var(--lw) solid var(--line);
+  padding: 18px;
+  min-height: 188px;
+}
+
+.torus-marketing .security .mode-lock .wall {
+  border-color: var(--accent);
+}
+
+.torus-marketing .security .wall-h {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.torus-marketing .security .wall-loc {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.torus-marketing .security .mode-lock .wall-loc {
+  color: var(--text);
+}
+
+.torus-marketing .security .wall-pin {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--text-mid);
+  white-space: nowrap;
+}
+
+.torus-marketing .security .mode-lock .wall-pin {
+  color: var(--accent);
+}
+
+.torus-marketing .security .wall-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text);
+  padding: 7px 0;
+}
+
+.torus-marketing .security .wall-b {
+  width: 9px;
+  height: 9px;
+  border: var(--lw) solid var(--text-mid);
+  flex: none;
+}
+
+.torus-marketing .security .wall-s {
+  color: var(--text-dim);
+}
+
+.torus-marketing .security .wall-model .wall-b {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.torus-marketing .security .mode-cap {
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: var(--text-mid);
+  line-height: 1.55;
+  margin: 16px 0 0;
+}
+
+.torus-marketing .security .mode-cap strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.torus-marketing .security-foot {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin-top: 36px;
+  border-top: var(--lw) solid var(--line);
+  padding-top: 18px;
 }
 
 .torus-marketing .agent-block-actions {
@@ -983,6 +1240,10 @@
   display: inline;
 }
 
+.torus-marketing .role-switch-icon {
+  font-size: 14px;
+}
+
 @keyframes torus-role-glow {
   0%, 100% { box-shadow: 0 0 4px var(--accent-dim); }
   50% { box-shadow: 0 0 12px var(--accent), 0 0 24px var(--accent-dim); }
@@ -992,12 +1253,49 @@
   visibility: hidden;
   opacity: 0;
   pointer-events: none;
+  transition: opacity 0.35s var(--ease-plot), visibility 0.35s var(--ease-plot);
 }
 
 .torus-marketing .role-content.active {
   visibility: visible;
   opacity: 1;
   pointer-events: auto;
+}
+
+.torus-marketing .mockup-sidebar.role-content.active > *,
+.torus-marketing .mockup-main.role-content.active > * {
+  animation: torus-role-stagger-in 0.9s var(--ease-plot) both;
+}
+
+.torus-marketing .mockup-sidebar.role-content.active > *:nth-child(1) {
+  animation-delay: 0ms;
+}
+
+.torus-marketing .mockup-sidebar.role-content.active > *:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.torus-marketing .mockup-sidebar.role-content.active > *:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+.torus-marketing .mockup-main.role-content.active > *:nth-child(1) {
+  animation-delay: 0.1s;
+}
+
+.torus-marketing .mockup-main.role-content.active > *:nth-child(2) {
+  animation-delay: 0.25s;
+}
+
+@keyframes torus-role-stagger-in {
+  0% {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .torus-marketing .mockup-sidebar.role-content {
@@ -1452,6 +1750,22 @@
 
   .torus-marketing .email-layout {
     grid-template-columns: 1fr;
+  }
+
+  .torus-marketing .security .modes {
+    grid-template-columns: 1fr;
+  }
+
+  .torus-marketing .security .wall {
+    min-height: 0;
+  }
+
+  .torus-marketing .security-headline {
+    font-size: 22px;
+  }
+
+  .torus-marketing .mockup-titleblock {
+    overflow: hidden;
   }
 
   .torus-marketing .grid-patch,

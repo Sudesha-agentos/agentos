@@ -2,11 +2,13 @@ import { useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import TorusFooter from "../torus/components/TorusFooter";
 import TorusNav from "../torus/components/TorusNav";
+import { useTorusTheme } from "../torus/hooks/useTorusTheme";
 import { BRAND } from "../torus/torusPageContent";
 import "../torus/torusMarketing.css";
 
 export default function ContactPage() {
   const rootRef = useRef(null);
+  const { isLight, toggleTheme } = useTorusTheme(rootRef);
   const [sent, setSent] = useState(false);
 
   function onSubmit(e) {
@@ -16,7 +18,7 @@ export default function ContactPage() {
 
   return (
     <div ref={rootRef} className="torus-marketing min-h-screen">
-      <TorusNav />
+      <TorusNav onToggleTheme={toggleTheme} isLight={isLight} />
       <main className="page" style={{ paddingTop: "120px", paddingBottom: "64px" }}>
         <p className="cta-label">CONTACT</p>
         <h1 className="mission-headline" style={{ maxWidth: "640px" }}>
