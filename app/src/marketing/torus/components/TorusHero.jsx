@@ -1,12 +1,9 @@
 import { Link } from "react-router-dom";
-import { AgentOxLogo } from "./AgentOxLogo";
 import { BRAND, HERO } from "../torusPageContent";
 
 export default function TorusHero() {
   return (
     <section className="hero">
-      <AgentOxLogo size={400} className="hero-torus logo-light" />
-      <AgentOxLogo size={400} className="hero-torus logo-dark" />
       <div className="hero-brand">
         <h1 className="wordmark">{BRAND.name}</h1>
         <div className="wordmark-sub">

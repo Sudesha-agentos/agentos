@@ -40,6 +40,7 @@
   -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
   position: relative;
+  isolation: isolate;
 }
 
 .torus-marketing.torus-light {
@@ -246,6 +247,17 @@
   overflow: clip;
   pointer-events: none;
   z-index: -1;
+}
+
+.torus-marketing .vanta-bg {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+}
+
+.torus-marketing .vanta-bg canvas {
+  opacity: 0.85;
 }
 
 .torus-marketing .ambient-rings {

@@ -1,6 +1,5 @@
 import { useRef } from "react";
 import { useReducedMotion } from "../hooks/useReducedMotion";
-import TorusAmbientRings from "./components/TorusAmbientRings";
 import TorusBeyondSection from "./components/TorusBeyondSection";
 import TorusConnector from "./components/TorusConnector";
 import TorusCtaSection from "./components/TorusCtaSection";
@@ -12,6 +11,7 @@ import TorusPipelineMockup from "./components/TorusPipelineMockup";
 import TorusRoiSection from "./components/TorusRoiSection";
 import TorusSecuritySection from "./components/TorusSecuritySection";
 import TorusWorkflowSection from "./components/TorusWorkflowSection";
+import VantaDotsBackground from "./components/VantaDotsBackground";
 import { useTorusReveal } from "./hooks/useTorusReveal";
 import { useTorusTheme } from "./hooks/useTorusTheme";
 import {
@@ -37,7 +37,7 @@ export default function TorusLandingPage() {
       </a>
       <TorusNav onToggleTheme={toggleTheme} isLight={isLight} />
       <main id="main">
-        {!reducedMotion ? <TorusAmbientRings /> : null}
+        {!reducedMotion ? <VantaDotsBackground light={isLight} /> : null}
         <div className="page">
           <div className="grid-patch grid-patch-hero revealed" aria-hidden="true" />
           <div className="grid-glow grid-glow-hero revealed" aria-hidden="true" />

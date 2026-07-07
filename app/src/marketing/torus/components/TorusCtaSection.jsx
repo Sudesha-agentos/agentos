@@ -1,5 +1,4 @@
 import { Link } from "react-router-dom";
-import { AgentOxLogo } from "./AgentOxLogo";
 import { BRAND, FINAL_CTA } from "../torusPageContent";
 
 export default function TorusCtaSection() {
@@ -7,8 +6,6 @@ export default function TorusCtaSection() {
     <div className="cta-section cta-wrap section-reveal" data-reveal>
       <div className="grid-patch grid-patch-cta" data-reveal />
       <div className="grid-glow grid-glow-cta" data-reveal aria-hidden="true" />
-      <AgentOxLogo size={280} className="cta-logo logo-light" />
-      <AgentOxLogo size={280} className="cta-logo logo-dark" />
       <p className="cta-label">{FINAL_CTA.label}</p>
       <h2>{FINAL_CTA.headline}</h2>
       <p className="cta-description">{FINAL_CTA.description}</p>
