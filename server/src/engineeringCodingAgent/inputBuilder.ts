@@ -1,10 +1,11 @@
 import type { PmPipelineContext } from "../agents/pm/pmPipelineContext";
-import { resolveContentDeliverablePaths } from "../engineering/contentDeliverables";
 import {
   collectVerifiedRepoPaths,
   formatVerifiedPathsBlock,
   filterToVerifiedPaths,
 } from "../agents/pm/verifiedRepoPaths";
+import { resolveContentDeliverablePaths } from "../engineering/contentDeliverables";
+import type { TaskBreakdownItem } from "../agents/virin/types";
 import { resolveRepoScope } from "../codebaseIntelligence/repoScope";
 import type { GeneratedPRD } from "../prd/prdGenerator";
 import type {
@@ -64,7 +65,7 @@ export function buildEngineeringCodingInitialUserMessage(
     | Record<string, unknown>
     | undefined;
   const tasks = input.pmContext?.enrichedPrdDocument?.pmTaskBreakdown as
-    | Array<{ id: string; title: string; files: string[] }>
+    | TaskBreakdownItem[]
     | undefined;
 
   const generatedPrd =
