@@ -38,6 +38,19 @@ export async function completeGithubInstallation(
   const canonicalId = String(meta.id ?? id);
 
   if (organizationId) {
+    const { prisma } = await import("../db/client");
+    const org = await prisma.organization.findUnique({
+      where: { id: organizationId },
+      select: { id: true },
+    });
+    if (!org) {
+      throw new Error(
+        "organization_not_found_in_database — your session references a workspace that does not exist in Postgres. Sign out and complete onboarding again."
+      );
+    }
+  }
+
+  if (organizationId) {
     await saveGitCredentialsForOrganization(organizationId, {
       provider: "github",
       authMethod: "github_app",

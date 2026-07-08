@@ -44,6 +44,16 @@ export async function saveOrganizationGitConfig(
   organizationId: string,
   input: Partial<OrganizationGitCredentials> & { provider?: GitProviderId }
 ): Promise<OrganizationGitCredentials> {
+  const org = await prisma.organization.findUnique({
+    where: { id: organizationId },
+    select: { id: true },
+  });
+  if (!org) {
+    throw new Error(
+      "organization_not_found_in_database — sign out, sign in again, and complete workspace onboarding"
+    );
+  }
+
   const existing = await prisma.organizationGitConfig.findUnique({
     where: { organizationId },
   });
