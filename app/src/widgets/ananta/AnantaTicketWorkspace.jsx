@@ -311,20 +311,39 @@ export default function AnantaTicketWorkspace({
         </div>
       ) : null}
 
-      {run.qaPhase ? (
-        <div className="mb-4 rounded-app-sm border border-indigo/30 bg-indigo/5 px-5 py-4 sm:px-6">
+      {run.qaPhase || run.qaPhaseState ? (
+        <div
+          className={`mb-4 rounded-app-sm border px-5 py-4 sm:px-6 ${
+            run.qaPhaseState === "failed"
+              ? "border-danger/30 bg-danger/5"
+              : run.qaPhaseState === "paused"
+                ? "border-warning/35 bg-warning/5"
+                : "border-indigo/30 bg-indigo/5"
+          }`}
+        >
           <p className="text-sm font-medium text-app-ink">
-            Handed off to {AGENT_NAMES.NEEL}
+            {run.qaPhaseState === "failed"
+              ? `${AGENT_NAMES.NEEL} failed`
+              : run.qaPhaseState === "paused"
+                ? `${AGENT_NAMES.NEEL} needs review`
+                : run.qaPhaseState === "done"
+                  ? `Handed off to ${AGENT_NAMES.NEEL} — QA complete`
+                  : `${AGENT_NAMES.NEEL} is running QA`}
           </p>
           <p className="mt-1 text-[13px] text-app-ink-dim">
-            Ananta finished coding for this ticket. Review the QA report as tests are written and
-            executed.
+            {run.qaPhaseState === "running"
+              ? "Ananta finished coding. Open Neel to watch tests and coverage as they appear — stats show after the QA stage completes."
+              : run.qaPhaseState === "failed"
+                ? "QA did not finish. Open the pipeline or Neel inbox to resume/retry."
+                : run.qaPhaseState === "paused"
+                  ? "Neel paused at a validation gate. Resume from Neel or the pipeline override workspace."
+                  : "Review the QA report in Neel."}
           </p>
           <Link
             to={`${orgPath("qa")}?pipeline=${encodeURIComponent(run.pipelineId)}`}
             className="mt-3 inline-flex text-sm font-medium text-indigo hover:underline"
           >
-            Open {AGENT_NAMES.NEEL} QA report →
+            Open {AGENT_NAMES.NEEL} →
           </Link>
         </div>
       ) : null}

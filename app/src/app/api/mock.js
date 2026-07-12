@@ -1638,6 +1638,19 @@ export const mockApi = {
           updatedAt: new Date(now - 600_000).toISOString(),
         },
       ],
+      failed: [
+        {
+          pipelineId: "pipe_qa_failed",
+          jiraKey: "PLT-1285",
+          ticketId: "t_1285",
+          summary: "Billing webhook retry",
+          status: "FAILED",
+          currentStage: "QA_AGENT",
+          currentStageLabel: "Neel (QA)",
+          message: "Failed at Neel (QA) — open pipeline or resume to retry",
+          updatedAt: new Date(now - 900_000).toISOString(),
+        },
+      ],
       completed: [
         {
           pipelineId: "pipe_qa_done",

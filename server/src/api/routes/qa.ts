@@ -78,7 +78,61 @@ router.get("/pipeline-reports/:pipelineId", async (req, res, next) => {
       include: { pipeline: { include: { ticket: true } } },
     });
     if (!stage) {
-      res.status(404).json({ error: "not_found" });
+      const pipeline = await prisma.pipeline.findFirst({
+        where: { id: req.params.pipelineId },
+        include: { ticket: true },
+      });
+      if (!pipeline) {
+        res.status(404).json({ error: "not_found" });
+        return;
+      }
+      const runningLog = await prisma.pipelineStageLog.findFirst({
+        where: {
+          pipelineId: pipeline.id,
+          stage: "QA_AGENT",
+          status: { in: ["RUNNING", "AWAITING_HUMAN", "FAILED"] },
+        },
+        orderBy: { startedAt: "desc" },
+      });
+      res.json({
+        pipelineId: pipeline.id,
+        jiraKey: pipeline.ticket.jiraKey,
+        ticketId: pipeline.ticketId,
+        status: pipeline.status,
+        currentStage: pipeline.currentStage,
+        inProgress: pipeline.status === "RUNNING" || pipeline.status === "PAUSED",
+        testCases: [],
+        coverageReport: null,
+        riskAreas: [],
+        confidenceScore: null,
+        confidenceBreakdown: null,
+        confidenceReason: null,
+        coverageGaps: [],
+        traceability: [],
+        testSummary: null,
+        recommendation: null,
+        testRun: null,
+        failureAnalysis: [],
+        securityScan: null,
+        executionStatus:
+          pipeline.status === "FAILED"
+            ? "failed"
+            : runningLog?.status === "RUNNING"
+              ? "running"
+              : pipeline.status === "PAUSED"
+                ? "paused"
+                : "pending",
+        executionMessage:
+          pipeline.status === "FAILED"
+            ? "QA stage failed before a report was produced. Open the pipeline audit log or resume to retry."
+            : pipeline.currentStage === "QA_AGENT" || pipeline.currentStage === "QA_VALIDATION"
+              ? "Neel is still working — test stats appear when the QA stage completes."
+              : "No completed QA report for this pipeline yet.",
+        requiresHumanOverride: pipeline.status === "PAUSED",
+        playwrightSmoke: null,
+        locatorHealProposals: [],
+        completedAt: null,
+      });
       return;
     }
     const out = stage.output as {

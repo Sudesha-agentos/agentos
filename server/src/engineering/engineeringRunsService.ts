@@ -73,6 +73,7 @@ export interface EngineeringRunDetail extends EngineeringRunListItem {
     detail?: string;
   }> | null;
   qaPhase: boolean;
+  qaPhaseState: "running" | "paused" | "done" | "failed" | null;
   qaPipelineStage: PipelineStage | null;
   implementationMode: ImplementationMode;
   deliverableFiles: Array<{ path: string; format: string; purpose: string }>;
@@ -135,7 +136,8 @@ function resolveAnantaStageStatus(
     codingDone: boolean;
     engineeringDone: boolean;
     validationDone: boolean;
-    qaStarted: boolean;
+    qaCompleted: boolean;
+    qaInFlight: boolean;
   }
 ): "pending" | "active" | "done" | "failed" {
   const isRunning = pipeline.status === "RUNNING";
@@ -151,13 +153,20 @@ function resolveAnantaStageStatus(
     if (stepId === "validate" && failedStage === "IMPLEMENTATION_VALIDATION") {
       return "failed";
     }
+    if (
+      stepId === "handoff" &&
+      (failedStage === "QA_AGENT" || failedStage === "QA_VALIDATION")
+    ) {
+      return "failed";
+    }
   }
 
   const doneByStep: Record<typeof stepId, boolean> = {
     plan: flags.codingStarted || flags.engineeringDone,
     write: flags.codingDone || flags.engineeringDone,
     validate: flags.validationDone,
-    handoff: flags.qaStarted || pipeline.status === "COMPLETED",
+    // Done only after Neel finishes QA_AGENT — not merely when stage advances.
+    handoff: flags.qaCompleted || pipeline.status === "COMPLETED",
   };
 
   const activeByStep: Record<typeof stepId, boolean> = {
@@ -169,13 +178,12 @@ function resolveAnantaStageStatus(
       !flags.codingDone &&
       isRunning,
     validate: pipeline.currentStage === "IMPLEMENTATION_VALIDATION" && isRunning,
-    handoff:
-      (pipeline.currentStage === "QA_AGENT" || pipeline.currentStage === "QA_VALIDATION") &&
-      isRunning,
+    handoff: flags.qaInFlight,
   };
 
+  // Prefer active over done for in-flight Neel work.
+  if (activeByStep[stepId]) return "active";
   if (doneByStep[stepId]) return "done";
-  if (activeByStep[stepId]) return isRunning ? "active" : "failed";
   return "pending";
 }
 
@@ -192,18 +200,20 @@ async function buildAnantaStages(
   const validationDone = Boolean(
     await pipelineRepo.getStageOutput(pipeline.id, "IMPLEMENTATION_VALIDATION")
   );
-  const qaStarted =
-    Boolean(await pipelineRepo.getStageOutput(pipeline.id, "QA_AGENT")) ||
-    pipeline.currentStage === "QA_AGENT" ||
-    pipeline.currentStage === "QA_VALIDATION" ||
-    pipeline.currentStage === "OUTPUT";
+  // Only COMPLETED QA_AGENT counts as handoff finished (getStageOutput is completed-only).
+  const qaCompleted = Boolean(await pipelineRepo.getStageOutput(pipeline.id, "QA_AGENT"));
+  const qaInFlight =
+    !qaCompleted &&
+    (pipeline.currentStage === "QA_AGENT" || pipeline.currentStage === "QA_VALIDATION") &&
+    (pipeline.status === "RUNNING" || pipeline.status === "PAUSED");
 
   const flags = {
     codingStarted,
     codingDone,
     engineeringDone,
     validationDone,
-    qaStarted,
+    qaCompleted,
+    qaInFlight,
   };
 
   return [
@@ -346,7 +356,20 @@ function buildRecentEvents(logs: AuditLog[]): EngineeringRunDetail["recentEvents
 }
 
 function isQaPhase(stage: PipelineStage): boolean {
-  return stage === "QA_AGENT" || stage === "QA_VALIDATION";
+  return (
+    stage === "QA_AGENT" ||
+    stage === "QA_VALIDATION" ||
+    stage === "OUTPUT"
+  );
+}
+
+function qaPhaseLabel(pipeline: Pipeline): "running" | "paused" | "done" | "failed" | null {
+  if (!isQaPhase(pipeline.currentStage) && pipeline.status !== "COMPLETED") return null;
+  if (pipeline.status === "FAILED") return "failed";
+  if (pipeline.status === "PAUSED") return "paused";
+  if (pipeline.status === "COMPLETED" || pipeline.currentStage === "OUTPUT") return "done";
+  if (pipeline.status === "RUNNING") return "running";
+  return null;
 }
 
 function simpleLineDiff(before: string, after: string): string {
@@ -653,7 +676,11 @@ async function buildDetail(
     pr: null,
     history: [],
     liveSteps: buildLiveSteps(pipeline, logs, staged.length),
-    qaPhase: isQaPhase(pipeline.currentStage),
+    qaPhase:
+      isQaPhase(pipeline.currentStage) ||
+      pipeline.status === "COMPLETED" ||
+      qaPhaseLabel(pipeline) != null,
+    qaPhaseState: qaPhaseLabel(pipeline),
     qaPipelineStage: isQaPhase(pipeline.currentStage) ? pipeline.currentStage : null,
     implementationMode,
     deliverableFiles,
