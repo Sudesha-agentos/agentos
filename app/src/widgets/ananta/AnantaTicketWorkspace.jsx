@@ -259,10 +259,62 @@ export default function AnantaTicketWorkspace({
         </div>
       ) : null}
 
+      {run.currentStage === "IMPLEMENTATION_VALIDATION" && run.status === "PAUSED" ? (
+        <div className="mb-4 rounded-app-sm border border-warning/35 bg-warning/5 px-5 py-4 sm:px-6">
+          <p className="text-sm font-medium text-app-ink">
+            Paused before {AGENT_NAMES.NEEL}
+          </p>
+          <p className="mt-1 text-[13px] text-app-ink-dim">
+            Coding is done, but the implementation gate did not pass. Resume or override to hand
+            off to {AGENT_NAMES.NEEL} for QA.
+          </p>
+          {run.implementationValidation?.issues?.length ? (
+            <ul className="mt-3 list-disc space-y-1 pl-5 text-[12px] text-app-ink-dim">
+              {run.implementationValidation.issues.slice(0, 4).map((issue, idx) => (
+                <li key={idx}>{issue.message ?? String(issue)}</li>
+              ))}
+            </ul>
+          ) : null}
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            {run.canResume ? (
+              <button
+                type="button"
+                onClick={handleResumePipeline}
+                disabled={resuming}
+                className="rounded-full bg-indigo px-4 py-2 text-sm font-medium text-white hover:bg-indigo/90 disabled:opacity-60"
+              >
+                {resuming ? "Resuming…" : `Continue to ${AGENT_NAMES.NEEL}`}
+              </button>
+            ) : null}
+            <Link
+              to={orgPath("pipelines", run.pipelineId, "override")}
+              className="text-sm font-medium text-indigo hover:underline"
+            >
+              Open override workspace →
+            </Link>
+          </div>
+          {resumeError ? (
+            <p className="mt-2 text-sm text-danger">{resumeError}</p>
+          ) : null}
+        </div>
+      ) : null}
+
+      {run.currentStage === "IMPLEMENTATION_VALIDATION" && run.status === "RUNNING" ? (
+        <div className="mb-4 rounded-app-sm border border-indigo/25 bg-indigo/5 px-5 py-4 sm:px-6">
+          <p className="text-sm font-medium text-app-ink">
+            Checking implementation — {AGENT_NAMES.NEEL} starts next
+          </p>
+          <p className="mt-1 text-[13px] text-app-ink-dim">
+            Ananta finished coding. If the gate passes, {AGENT_NAMES.NEEL} will write and run tests
+            automatically.
+          </p>
+        </div>
+      ) : null}
+
       {run.qaPhase ? (
         <div className="mb-4 rounded-app-sm border border-indigo/30 bg-indigo/5 px-5 py-4 sm:px-6">
           <p className="text-sm font-medium text-app-ink">
-            Implementation complete — {AGENT_NAMES.NEEL} is running QA
+            Handed off to {AGENT_NAMES.NEEL}
           </p>
           <p className="mt-1 text-[13px] text-app-ink-dim">
             Ananta finished coding for this ticket. Review the QA report as tests are written and

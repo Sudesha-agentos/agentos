@@ -4,7 +4,7 @@ import {
   useQaCoverage,
   useQaHeatmap,
   useQaFailures,
-  useQaReports,
+  useQaInbox,
   useQaPipelineReport,
 } from "../../entities/qa";
 import { TestCaseViewer } from "../../widgets/qa/TestCaseViewer";
@@ -21,6 +21,8 @@ import { AnimatedAppPage } from "../../shared/ui/AnimatedAppPage";
 import { AgentPageWithChat } from "../../widgets/agent-chat/AgentPageWithChat";
 import { AgentPageHeader } from "../../widgets/agent-chat/AgentPageHeader";
 import AgentPipelineLiveStatus from "../../shared/components/AgentPipelineLiveStatus";
+import { AGENT_NAMES } from "../../shared/config/app";
+import { pipelineAdapter } from "../../entities/pipeline";
 
 const RECOMMENDATION_STYLES = {
   approve: { border: "border-success/40 bg-success/10", text: "text-success", icon: "✓", label: "Approved — ready to merge" },
@@ -375,8 +377,123 @@ const TABS = [
 ];
 
 function formatWhen(iso) {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleString();
+  if (!iso) return "";
+  try {
+    return new Date(iso).toLocaleDateString();
+  } catch {
+    return "";
+  }
+}
+
+function QaInboxList({
+  title,
+  kicker,
+  items,
+  empty,
+  selectedPipelineId,
+  onSelect,
+  orgPath,
+  variant,
+  onResume,
+  resumeBusyId,
+}) {
+  return (
+    <Panel>
+      <PanelHeader kicker={kicker} title={title} />
+      <ul className="divide-y divide-app-border">
+        {items.length === 0 ? (
+          <li className="px-5 py-6 text-[13px] text-app-ink-dim">{empty}</li>
+        ) : (
+          items.map((item) => (
+            <li key={item.pipelineId}>
+              <div
+                className={`flex w-full flex-wrap items-center justify-between gap-3 px-5 py-3.5 ${
+                  selectedPipelineId === item.pipelineId ? "bg-app-surface-muted/40" : ""
+                }`}
+              >
+                <button
+                  type="button"
+                  onClick={() => onSelect(item.pipelineId)}
+                  className="min-w-0 flex-1 text-left transition hover:opacity-90"
+                >
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="text-[12px] font-medium text-indigo">{item.jiraKey}</p>
+                    {variant === "completed" && item.passRate != null && item.passRate >= 95 ? (
+                      <span className="rounded-full border border-success/30 bg-success/10 px-1.5 py-0.5 text-[10px] font-semibold text-success">
+                        {item.passRate}% pass
+                      </span>
+                    ) : null}
+                    {variant === "completed" &&
+                    item.passRate != null &&
+                    item.passRate > 0 &&
+                    item.passRate < 95 ? (
+                      <span className="rounded-full border border-warning/30 bg-warning/10 px-1.5 py-0.5 text-[10px] font-semibold text-warning">
+                        {item.passRate}% pass
+                      </span>
+                    ) : null}
+                    {variant === "running" ? (
+                      <span className="rounded-full border border-indigo/30 bg-indigo/10 px-1.5 py-0.5 text-[10px] font-semibold text-indigo">
+                        {item.currentStageLabel}
+                      </span>
+                    ) : null}
+                    {variant === "blocked" ? (
+                      <span className="rounded-full border border-warning/30 bg-warning/10 px-1.5 py-0.5 text-[10px] font-semibold text-warning">
+                        Needs handoff
+                      </span>
+                    ) : null}
+                  </div>
+                  <p className="mt-0.5 truncate text-[13px] text-app-ink">{item.summary}</p>
+                  <p className="mt-1 text-[12px] text-app-ink-dim">{item.message}</p>
+                  {variant === "completed" && item.testCount != null ? (
+                    <p className="mt-1 text-[12px] text-app-ink-mute">
+                      {item.testCount} test case(s)
+                      {item.completedAt ? ` · ${formatWhen(item.completedAt)}` : ""}
+                    </p>
+                  ) : null}
+                </button>
+                <div className="flex shrink-0 flex-wrap items-center gap-2">
+                  {variant === "blocked" ? (
+                    <>
+                      <button
+                        type="button"
+                        disabled={resumeBusyId === item.pipelineId}
+                        onClick={() => onResume?.(item.pipelineId)}
+                        className="rounded-full border border-indigo/40 bg-indigo/10 px-3 py-1.5 text-[12px] font-medium text-indigo transition hover:bg-indigo/15 disabled:opacity-50"
+                      >
+                        {resumeBusyId === item.pipelineId ? "Resuming…" : "Continue to Neel"}
+                      </button>
+                      <Link
+                        to={orgPath("pipelines", item.pipelineId, "override")}
+                        className="text-[12px] text-indigo hover:underline"
+                      >
+                        Override →
+                      </Link>
+                    </>
+                  ) : null}
+                  {variant === "running" ? (
+                    <Link
+                      to={orgPath("pipelines", item.pipelineId)}
+                      className="text-[12px] text-indigo hover:underline"
+                    >
+                      Pipeline →
+                    </Link>
+                  ) : null}
+                  {variant === "completed" ? (
+                    <Link
+                      to={orgPath("pipelines", item.pipelineId)}
+                      className="text-[12px] text-indigo hover:underline"
+                    >
+                      Pipeline →
+                    </Link>
+                  ) : null}
+                </div>
+              </div>
+            </li>
+          ))
+        )}
+      </ul>
+    </Panel>
+  );
 }
 
 export default function QaCenter() {
@@ -389,6 +506,8 @@ export default function QaCenter() {
   const [selectedPipelineId, setSelectedPipelineId] = useState(
     () => searchParams.get("pipeline")?.trim() || null
   );
+  const [resumeBusyId, setResumeBusyId] = useState(null);
+  const [inboxMsg, setInboxMsg] = useState(null);
 
   useEffect(() => {
     const pipeline = searchParams.get("pipeline")?.trim();
@@ -400,11 +519,32 @@ export default function QaCenter() {
   const { data: coverage } = useQaCoverage();
   const { data: heatmap } = useQaHeatmap();
   const { data: failures } = useQaFailures();
-  const { data: reports } = useQaReports({ pollMs: 15_000 });
+  const { data: inbox, refetch: refetchInbox } = useQaInbox({ pollMs: 8_000 });
   // Poll while a pipeline is selected and might still be running QA
   const { data: pipelineReport } = useQaPipelineReport(selectedPipelineId, { pollMs: 5_000 });
   const { data: canaryData, refetch: refetchCanary } = useCanaryRuns({ pollMs: 15_000 });
   const { data: settings } = useSettings();
+
+  const running = inbox?.running ?? [];
+  const blocked = inbox?.blocked ?? [];
+  const completed = inbox?.completed ?? [];
+  const inboxEmpty =
+    running.length === 0 && blocked.length === 0 && completed.length === 0;
+
+  async function handleContinueToNeel(pipelineId) {
+    setResumeBusyId(pipelineId);
+    setInboxMsg(null);
+    try {
+      await pipelineAdapter.resume(pipelineId);
+      setInboxMsg("Pipeline resumed — Neel will start after the implementation gate.");
+      setSelectedPipelineId(pipelineId);
+      refetchInbox();
+    } catch (err) {
+      setInboxMsg(err instanceof Error ? err.message : "Could not resume pipeline");
+    } finally {
+      setResumeBusyId(null);
+    }
+  }
 
   // Live canary phase events via pipeline SSE
   useEngineeringCodingEvents(selectedPipelineId, {
@@ -465,6 +605,58 @@ export default function QaCenter() {
 
       {tab === "overview" ? (
         <>
+          {inboxEmpty ? (
+            <Panel className="border-indigo/20 bg-indigo/[0.03]">
+              <p className="px-5 py-5 text-[13px] leading-relaxed text-app-ink-dim sm:px-6">
+                {AGENT_NAMES.NEEL} runs after Ananta&apos;s implementation check passes. If a ticket
+                is paused at the implementation gate, use <strong>Continue to Neel</strong> below
+                (or pipeline override) to hand off. Finished reports appear here once the QA stage
+                completes.
+              </p>
+            </Panel>
+          ) : null}
+
+          {inboxMsg ? (
+            <p className="rounded-app-sm border border-app-border bg-app-surface-muted/40 px-4 py-2.5 text-[13px] text-app-ink-dim">
+              {inboxMsg}
+            </p>
+          ) : null}
+
+          <QaInboxList
+            kicker="Inbox"
+            title="Running with Neel"
+            items={running}
+            empty="No QA runs in progress."
+            selectedPipelineId={selectedPipelineId}
+            onSelect={setSelectedPipelineId}
+            orgPath={orgPath}
+            variant="running"
+          />
+
+          <QaInboxList
+            kicker="Handoff"
+            title="Blocked before Neel"
+            items={blocked}
+            empty="No tickets paused at the implementation gate."
+            selectedPipelineId={selectedPipelineId}
+            onSelect={setSelectedPipelineId}
+            orgPath={orgPath}
+            variant="blocked"
+            onResume={handleContinueToNeel}
+            resumeBusyId={resumeBusyId}
+          />
+
+          <QaInboxList
+            kicker="Reports"
+            title="Completed QA reports"
+            items={completed}
+            empty="No completed pipeline QA reports yet."
+            selectedPipelineId={selectedPipelineId}
+            onSelect={setSelectedPipelineId}
+            orgPath={orgPath}
+            variant="completed"
+          />
+
           <Panel>
             <PanelHeader kicker="Coverage" title="Test coverage by file" />
             <div className="grid gap-2 p-4 sm:grid-cols-2">
@@ -549,58 +741,6 @@ export default function QaCenter() {
                 </div>
               ))}
             </div>
-          </Panel>
-
-          <Panel>
-            <PanelHeader
-              kicker="Reports"
-              title="Pipeline QA reports"
-            />
-            <ul className="divide-y divide-app-border">
-              {(reports?.reports ?? []).length === 0 ? (
-                <li className="px-5 py-6 text-[13px] text-app-ink-dim">No pipeline QA reports yet.</li>
-              ) : (
-                (reports?.reports ?? []).map((report) => (
-                  <li key={report.pipelineId}>
-                    <button
-                      type="button"
-                      onClick={() => setSelectedPipelineId(report.pipelineId)}
-                      className={`flex w-full items-center justify-between px-5 py-3.5 text-left transition hover:bg-app-surface-muted/30 ${
-                        selectedPipelineId === report.pipelineId ? "bg-app-surface-muted/40" : ""
-                      }`}
-                    >
-                      <div>
-                        <div className="flex flex-wrap items-center gap-2">
-                          <p className="text-[12px] font-medium text-indigo">{report.jiraKey}</p>
-                          {report.passRate >= 95 ? (
-                            <span className="rounded-full border border-success/30 bg-success/10 px-1.5 py-0.5 text-[10px] font-semibold text-success">
-                              {report.passRate}% pass
-                            </span>
-                          ) : report.passRate > 0 ? (
-                            <span className="rounded-full border border-warning/30 bg-warning/10 px-1.5 py-0.5 text-[10px] font-semibold text-warning">
-                              {report.passRate}% pass
-                            </span>
-                          ) : null}
-                        </div>
-                        <p className="text-[13px] text-app-ink-dim">
-                          {report.testCount} test case(s) · {report.completedAt ? new Date(report.completedAt).toLocaleDateString() : ""}
-                        </p>
-                        {report.testSummary ? (
-                          <p className="mt-1 truncate text-[12px] text-app-ink-mute">{report.testSummary}</p>
-                        ) : null}
-                      </div>
-                      <Link
-                        to={orgPath("pipelines", report.pipelineId)}
-                        className="text-[13px] text-indigo hover:underline"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        Pipeline →
-                      </Link>
-                    </button>
-                  </li>
-                ))
-              )}
-            </ul>
           </Panel>
 
           {selectedPipelineId && canaryPhase ? (

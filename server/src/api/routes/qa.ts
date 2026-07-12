@@ -1,9 +1,28 @@
 import { Router } from "express";
 import { prisma } from "../../db/client";
 import { canaryRunRepo } from "../../db/repositories/canaryRunRepo";
+import { getQaInbox } from "../../qa/qaInbox";
 import type { QaOutput } from "../../types/agents";
+import {
+  requireOrganizationUser,
+  withOrganizationContext,
+} from "../orgRequestContext";
 
 const router = Router();
+
+router.get("/inbox", async (req, res, next) => {
+  try {
+    const user = requireOrganizationUser(req, res);
+    if (!user?.organizationId) return;
+
+    await withOrganizationContext(user.organizationId, async () => {
+      const inbox = await getQaInbox(user.organizationId!);
+      res.json(inbox);
+    });
+  } catch (err) {
+    next(err);
+  }
+});
 
 router.get("/pipeline-reports", async (_req, res, next) => {
   try {

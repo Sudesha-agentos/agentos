@@ -7,7 +7,7 @@ const STAGE_LABELS: Record<PipelineStage, string> = {
   PRODUCT_AGENT: "Virin (Product)",
   PRD_VALIDATION: "PRD validation gate",
   ENGINEERING_AGENT: "Ananta (Engineering)",
-  IMPLEMENTATION_VALIDATION: "Implementation gate",
+  IMPLEMENTATION_VALIDATION: "Implementation gate (before Neel)",
   QA_AGENT: "Neel (QA)",
   QA_VALIDATION: "QA validation gate",
   OUTPUT: "Jira writeback",
@@ -197,10 +197,17 @@ function deriveCurrentAction(
   blockReason: string | null
 ): string {
   if (status === "PAUSED") {
+    if (currentStage === "IMPLEMENTATION_VALIDATION") {
+      const reason = blockReason ? ` — ${blockReason}` : "";
+      return `Paused before Neel${reason}. Resume or override to hand off to QA.`;
+    }
     if (blockReason) {
       return `Blocked — ${blockReason}`;
     }
     return `Waiting for your review at ${stageLabel(currentStage)}`;
+  }
+  if (status === "RUNNING" && currentStage === "IMPLEMENTATION_VALIDATION") {
+    return "Checking implementation — Neel starts next if the gate passes";
   }
   const latest = recentActivity[0];
   if (latest) {
