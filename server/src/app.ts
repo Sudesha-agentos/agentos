@@ -39,18 +39,23 @@ export function createApp(): express.Express {
   const app = express();
   app.set("trust proxy", 1);
 
-  app.use(helmet());
+  // API is consumed cross-origin (Vercel / localhost → Render). Default Helmet
+  // CORP "same-origin" can block browser reads of JSON responses.
+  app.use(
+    helmet({
+      crossOriginResourcePolicy: { policy: "cross-origin" },
+      crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" },
+    })
+  );
   app.use((req, res, next) => {
     const configured =
       process.env.CORS_ORIGIN?.split(",").map((o) => o.trim()).filter(Boolean) ??
       [];
-    const devOrigins =
-      process.env.NODE_ENV !== "production"
-        ? ["http://localhost:5173", "http://127.0.0.1:5173"]
-        : [];
+    // Always allow local Vite during development of the marketing/app UI.
+    const localDevOrigins = ["http://localhost:5173", "http://127.0.0.1:5173"];
     const allowed =
-      configured.length || devOrigins.length
-        ? [...new Set([...configured, ...devOrigins])]
+      configured.length > 0
+        ? [...new Set([...configured, ...localDevOrigins])]
         : ["*"];
     const origin = req.header("origin");
     if (origin && (allowed.includes("*") || allowed.includes(origin))) {
