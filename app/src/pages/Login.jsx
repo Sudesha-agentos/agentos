@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { DEMO_CREDENTIAL_HINT, getGoogleAuthStartUrl, getGoogleAuthStatus } from "../entities/auth";
+import { DEMO_CREDENTIAL_HINT, getGoogleAuthStartUrl } from "../entities/auth";
 import MarketingGridBackground from "../marketing/agent-team/components/MarketingGridBackground";
 import { useAuth } from "../shared/providers/useAuth";
 import { DATA_MODE } from "../shared/config/app";
@@ -16,7 +16,6 @@ export default function Login() {
   const [password, setPassword] = useState(isSignup ? "" : DEMO_CREDENTIAL_HINT.password);
   const [pending, setPending] = useState(false);
   const [googlePending, setGooglePending] = useState(false);
-  const [googleAvailable, setGoogleAvailable] = useState(null);
   const [error, setError] = useState("");
 
   const destination = useMemo(() => {
@@ -25,20 +24,6 @@ export default function Login() {
     }
     return "/app";
   }, [location.state]);
-
-  useEffect(() => {
-    let cancelled = false;
-    void getGoogleAuthStatus()
-      .then((status) => {
-        if (!cancelled) setGoogleAvailable(Boolean(status?.googleAvailable));
-      })
-      .catch(() => {
-        if (!cancelled) setGoogleAvailable(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   async function onSubmit(event) {
     event.preventDefault();
@@ -73,12 +58,15 @@ export default function Login() {
 
   function handleGoogleSignIn() {
     setError("");
-    if (googleAvailable !== true) {
+    // Mock mode has no Google OAuth — don't pretend the redirect will work.
+    if (DATA_MODE === "mock") {
       setError(
-        "Google sign-in isn’t configured on the API. Add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET to the server environment (local `.env` or Render), then restart the API."
+        "Google sign-in needs REST mode. Set VITE_API_URL to your Render API in app/.env and restart Vite."
       );
       return;
     }
+    // Status can fail (CORS / cold start) even when Render has credentials.
+    // Full-page navigation to /auth/google/start does not need CORS.
     setGooglePending(true);
     window.location.href = getGoogleAuthStartUrl(destination);
   }

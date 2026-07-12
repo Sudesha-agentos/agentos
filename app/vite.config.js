@@ -14,10 +14,10 @@ export default defineConfig(({ mode }) => {
       port: 5173,
       strictPort: true,
       proxy: {
+        // Keep the /api prefix — the server mounts routes under /api/*
         "/api": {
           target: apiUrl,
           changeOrigin: true,
-          rewrite: (path) => path.replace(/^\/api/, ""),
         },
         "/jira-intake": {
           target: apiUrl,
@@ -35,7 +35,6 @@ export default defineConfig(({ mode }) => {
           target: apiUrl,
           changeOrigin: true,
           ws: true,
-          rewrite: (path) => path.replace(/^\/api/, ""),
         },
       },
     },
