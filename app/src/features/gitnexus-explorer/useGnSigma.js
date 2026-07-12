@@ -78,8 +78,11 @@ export function payloadToGraphology(payload, layoutMode = "force") {
     const key = e.id || `${e.source}->${e.target}:${e.type}`;
     if (g.hasEdge(key)) continue;
     try {
+      // Sigma uses `type` for render programs (line/arrow/…) — keep relation
+      // semantics on `relationType` so values like CLUSTER_LINK don't crash.
       g.addEdgeWithKey(key, e.source, e.target, {
-        type: e.type || "RELATED",
+        type: "line",
+        relationType: e.type || "RELATED",
         size: 1,
         color: EDGE_COLORS[e.type] || "rgba(148, 163, 184, 0.3)",
       });
@@ -145,14 +148,18 @@ export function useGnSigma({ onNodeClick, onNodeHover, onStageClick }) {
       if (!graph || graph.order === 0) return;
 
       graphRef.current = graph;
+      const isDark = document.documentElement.classList.contains("app-theme-dark");
+      const labelColor = isDark ? "#e2e8f0" : "#1a1a1a";
+      const edgeColor = isDark ? "rgba(148, 163, 184, 0.35)" : "rgba(26, 26, 26, 0.18)";
+
       const sigma = new Sigma(graph, el, {
         allowInvalidContainer: true,
         renderLabels: true,
-        labelFont: "Inter, system-ui, sans-serif",
+        labelFont: "Inter, ui-sans-serif, system-ui, sans-serif",
         labelSize: 11,
         labelWeight: "500",
-        labelColor: { color: "#e2e8f0" },
-        defaultEdgeColor: "rgba(148, 163, 184, 0.28)",
+        labelColor: { color: labelColor },
+        defaultEdgeColor: edgeColor,
         defaultNodeColor: "#64748b",
         minCameraRatio: 0.05,
         maxCameraRatio: 12,
@@ -186,7 +193,7 @@ export function useGnSigma({ onNodeClick, onNodeHover, onStageClick }) {
             res.zIndex = 2;
             res.size = (data.size || 6) * 1.35;
           } else {
-            res.color = "rgba(71, 85, 105, 0.35)";
+            res.color = "rgba(148, 163, 184, 0.35)";
             res.label = "";
           }
         } else if (node === sel) {
