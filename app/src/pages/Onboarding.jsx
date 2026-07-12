@@ -13,6 +13,7 @@ import {
   saveOnboardingStep,
 } from "../entities/onboarding";
 import { useAuth } from "../shared/providers/useAuth";
+import BrandLogo from "../shared/ui/BrandLogo";
 import { sessionHomePath } from "../shared/routing/orgPaths";
 import {
   createOrganization,
@@ -262,7 +263,13 @@ export default function Onboarding() {
 
       <div className="relative mx-auto max-w-xl">
         <div className="mb-8 text-center">
-          <p className="font-[Poppins] text-sm font-semibold text-[#2B2D33]">AgentOX</p>
+          <div className="flex justify-center">
+            <BrandLogo
+              size={28}
+              withWordmark
+              wordmarkClassName="font-[Poppins] text-sm font-semibold text-[#2B2D33]"
+            />
+          </div>
           <p className="mt-1 text-xs text-[#6B6B6B]">Set up your workspace</p>
           <div className="mx-auto mt-6 h-1.5 max-w-xs overflow-hidden rounded-full bg-[#E8E4DE]">
             <div

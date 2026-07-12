@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
+import { AGENTOX_LOGO_SRC } from "../../../shared/ui/BrandLogo";
 import { NAV_LINKS } from "../constants";
 
 const SECTION_LINKS = NAV_LINKS.filter((link) => link.href.startsWith("#"));
@@ -107,9 +108,14 @@ export default function MarketingHeader() {
     >
       <div className="at-marketing-header-inner">
         <Link to="/" className="at-marketing-logo" aria-label="AgentOX home">
-          <span className={`at-marketing-logo-mark ${lightHeader ? "at-marketing-logo-light" : ""}`}>
-            A
-          </span>
+          <img
+            src={AGENTOX_LOGO_SRC}
+            alt=""
+            width={36}
+            height={36}
+            className="at-marketing-logo-mark"
+            decoding="async"
+          />
           <span className={`at-marketing-logo-text ${lightHeader ? "text-white" : "text-[#2B2D33]"}`}>
             AgentOX
           </span>

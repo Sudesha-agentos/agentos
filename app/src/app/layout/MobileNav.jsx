@@ -15,7 +15,7 @@ export default function MobileNav() {
             `shrink-0 rounded-full px-3.5 py-2 text-xs font-medium transition-all ${
               isActive
                 ? "bg-app-surface text-app-ink shadow-app-nav-active"
-                : "text-app-ink-dim hover:bg-white/70 hover:text-app-ink"
+                : "text-app-ink-dim hover:bg-app-surface/70 hover:text-app-ink"
             }`
           }
         >

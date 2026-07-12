@@ -1,6 +1,7 @@
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useState } from "react";
 import { requestPasswordReset, resetPassword } from "../entities/auth";
+import BrandLogo from "../shared/ui/BrandLogo";
 import "../marketing/agent-team/agentTeam.css";
 
 export default function ForgotPassword() {
@@ -144,12 +145,13 @@ function AuthShell({ title, subtitle, children }) {
     <div className="agent-team relative flex min-h-screen items-center justify-center px-5 py-12">
       <div className="relative w-full max-w-md">
         <div className="at-card p-8 sm:p-10">
-          <Link to="/" className="flex items-center justify-center gap-2">
-            <span className="flex size-10 items-center justify-center rounded-2xl bg-[#2B2D33] font-bold text-white">
-              A
-            </span>
-            <span className="font-[Poppins] text-xl font-semibold text-[#2B2D33]">AgentOX</span>
-          </Link>
+          <BrandLogo
+            href="/"
+            size={40}
+            withWordmark
+            className="justify-center"
+            wordmarkClassName="font-[Poppins] text-xl font-semibold text-[#2B2D33]"
+          />
           <h1 className="mt-8 text-center text-2xl font-bold text-[#2B2D33]">{title}</h1>
           <p className="mt-2 text-center text-[15px] text-[#6B6B6B]">{subtitle}</p>
           <div className="mt-8">{children}</div>

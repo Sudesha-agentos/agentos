@@ -65,7 +65,7 @@
 }
 
 .torus-marketing.torus-light .logo-dark {
-  display: inline;
+  display: inline-flex;
 }
 
 .torus-marketing .mode-toggle {
