@@ -16,6 +16,7 @@ import {
   sanitizeTaskBreakdownFiles,
 } from "../pm/verifiedRepoPaths";
 import { VIRIN_BEHAVIOR, VIRIN_SYSTEM_PROMPT } from "./persona";
+import { resolveDiscoveryBudget } from "./discoveryBudget";
 import {
   PROMPT_CODEBASE_ANALYSIS,
   PROMPT_HANDOFF,
@@ -236,6 +237,51 @@ function findOverlappingPriorQuestion(
   return best;
 }
 
+function countCandidateModules(candidateFilesList: string): number {
+  if (!candidateFilesList || /^none\b/i.test(candidateFilesList.trim())) return 0;
+  const paths = candidateFilesList
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0 && !line.startsWith("("));
+  return paths.length;
+}
+
+function parseComponentBugCount(raw: string): number {
+  const match = String(raw ?? "").match(/\d+/);
+  return match ? Number(match[0]) : 0;
+}
+
+function ensureDiscoveryBudget(
+  state: QuestionModeState,
+  intake: IntakeOutput,
+  ticket: PmTicketInput,
+  ctx: Awaited<ReturnType<typeof gatherPmContext>>
+): QuestionModeState {
+  if (typeof state.maxTurns === "number" && state.maxTurns >= 2 && state.budgetRationale) {
+    return state;
+  }
+  const budget = resolveDiscoveryBudget({
+    intake,
+    ticket,
+    strategicGoalsText: ctx.okrList,
+    codebaseEase: {
+      similarTicketCount: ctx.similarPastWork?.length ?? 0,
+      candidateModuleCount: countCandidateModules(ctx.candidateFilesList),
+      componentBugCount: parseComponentBugCount(ctx.componentBugCount),
+    },
+  });
+  return {
+    ...state,
+    maxTurns: budget.maxTurns,
+    budgetRationale: budget.rationale,
+    highImportance: budget.highImportance,
+  };
+}
+
+function discoveryMaxTurns(state: QuestionModeState): number {
+  return state.maxTurns ?? VIRIN_BEHAVIOR.maxDiscoveryTurns;
+}
+
 function buildNextQuestionPrompt(
   state: QuestionModeState,
   intake: PmAnalysisRecord["neelIntake"],
@@ -251,7 +297,8 @@ function buildNextQuestionPrompt(
     prior_questions_list: formatPriorQuestionsList(state),
     last_answer_block: formatLastAnswerBlock(state),
     turn_number: String(state.conversation.length + 1),
-    max_turns: String(VIRIN_BEHAVIOR.maxDiscoveryTurns),
+    max_turns: String(discoveryMaxTurns(state)),
+    budget_rationale: state.budgetRationale ?? "Use the fewest questions needed; budget is a ceiling not a quota.",
     ...qctx,
     company_context: ctx.companyContextBlock,
     ...formatTicketPromptFields(ticket),
@@ -580,9 +627,18 @@ async function runQuestionMode(
     });
   }
 
-  const qctx = questionPromptContext(ctx);
+  state = ensureDiscoveryBudget(state, intake, ticket, ctx);
+  if (
+    state.maxTurns !== record.questionMode?.maxTurns ||
+    state.budgetRationale !== record.questionMode?.budgetRationale
+  ) {
+    pmAnalysisStore.update(jiraKey, { questionMode: state });
+  }
 
-  while (!state.readyToProceed && state.conversation.length < VIRIN_BEHAVIOR.maxDiscoveryTurns) {
+  const qctx = questionPromptContext(ctx);
+  const maxTurns = discoveryMaxTurns(state);
+
+  while (!state.readyToProceed && state.conversation.length < maxTurns) {
     assertPmAnalysisNotCancelled(jiraKey);
     const discoveryBody = buildNextQuestionPrompt(state, intake, ticket, ctx, record);
     let next = await runVirinStage<VirinNextQuestionResult>(

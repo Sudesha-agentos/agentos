@@ -61,6 +61,10 @@ export interface QuestionModeState {
   readyToProceed: boolean;
   pendingQuestion?: string | null;
   flagsRaised: string[];
+  /** Per-ticket discovery ceiling (not a quota). Persisted so resumes stay consistent. */
+  maxTurns?: number;
+  budgetRationale?: string;
+  highImportance?: boolean;
 }
 
 export interface CodebaseAnalysisOutput {
