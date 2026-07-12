@@ -91,6 +91,10 @@ export function VirinConversationPanel({ analysis, onAnswer, onConfirm, busy, pr
     const sol = analysis.solutioning;
     const orgIntel =
       analysis.context?.orgIntelligenceSummary ?? analysis.orgIntelligenceSummary;
+    const codebase = analysis.codebaseAnalysis;
+    const alreadyBuilt =
+      codebase?.overlapVerdict === "already_shipped" ||
+      codebase?.overlapVerdict === "partial_overlap";
     return (
       <Panel className={prominent ? "border-warning/25 shadow-lg" : ""}>
         <PanelHeader
@@ -99,6 +103,31 @@ export function VirinConversationPanel({ analysis, onAnswer, onConfirm, busy, pr
           subtitle={`${VIRIN_NAME} won't write the full PRD until you align on this approach.`}
         />
         <div className="space-y-5 px-5 py-5 sm:px-6">
+          {alreadyBuilt ? (
+            <div
+              className={`rounded-app-sm border p-4 ${
+                codebase.overlapVerdict === "already_shipped"
+                  ? "border-danger/35 bg-danger/8"
+                  : "border-warning/35 bg-warning/8"
+              }`}
+            >
+              <p
+                className={`text-[13px] font-medium ${
+                  codebase.overlapVerdict === "already_shipped"
+                    ? "text-danger"
+                    : "text-warning"
+                }`}
+              >
+                {codebase.overlapVerdict === "already_shipped"
+                  ? "Codebase says this is already built"
+                  : "Codebase shows substantial overlap"}
+              </p>
+              <p className="mt-1 text-[13px] text-app-ink-dim">
+                {codebase.alreadyShippedNote?.trim() ||
+                  "Review Already exists vs Gaps before confirming a full build."}
+              </p>
+            </div>
+          ) : null}
           {orgIntel ? <VirinOrgIntelligenceSection summary={orgIntel} /> : null}
           <blockquote className="border-l-4 border-indigo/40 pl-4">
             <p className="text-[15px] font-medium leading-snug text-app-ink">
@@ -508,6 +537,62 @@ export function VirinCodebaseSection({ analysis: codebaseAnalysis, expanded = fa
                 {codebaseAnalysis.rootCauseMismatch}
               </p>
             </div>
+          </div>
+        )}
+
+        {codebaseAnalysis.overlapVerdict === "already_shipped" ||
+        codebaseAnalysis.overlapVerdict === "partial_overlap" ? (
+          <div
+            className={`flex gap-3 rounded-app-sm border p-4 ${
+              codebaseAnalysis.overlapVerdict === "already_shipped"
+                ? "border-danger/35 bg-danger/8"
+                : "border-warning/35 bg-warning/8"
+            }`}
+          >
+            <span className="text-lg" aria-hidden>
+              {codebaseAnalysis.overlapVerdict === "already_shipped" ? "⛔" : "⚠"}
+            </span>
+            <div>
+              <p
+                className={`text-[13px] font-medium ${
+                  codebaseAnalysis.overlapVerdict === "already_shipped"
+                    ? "text-danger"
+                    : "text-warning"
+                }`}
+              >
+                {codebaseAnalysis.overlapVerdict === "already_shipped"
+                  ? "Already built in codebase"
+                  : "Partial overlap with existing code"}
+              </p>
+              <p className="mt-1 text-[13px] text-app-ink-dim">
+                {codebaseAnalysis.alreadyShippedNote?.trim() ||
+                  (codebaseAnalysis.overlapVerdict === "already_shipped"
+                    ? "This capability looks already implemented. Prefer verify/close over a full rebuild."
+                    : "Substantial pieces already exist — scope engineering to the gaps only.")}
+              </p>
+            </div>
+          </div>
+        ) : null}
+
+        {codebaseAnalysis.alreadyExists?.length > 0 && (
+          <div>
+            <p className="type-kicker mb-2">Already exists</p>
+            <ul className="list-disc space-y-1 pl-4 text-[13px] text-app-ink-dim">
+              {codebaseAnalysis.alreadyExists.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {codebaseAnalysis.gapsToBuild?.length > 0 && (
+          <div>
+            <p className="type-kicker mb-2">Gaps to build</p>
+            <ul className="list-disc space-y-1 pl-4 text-[13px] text-app-ink-dim">
+              {codebaseAnalysis.gapsToBuild.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
           </div>
         )}
 

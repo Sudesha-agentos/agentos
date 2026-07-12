@@ -4,6 +4,7 @@ import { startEngineeringHandoff } from "./startEngineeringHandoff";
 import { prisma } from "../../db/client";
 import { getActiveOrganizationId } from "../../organization/context";
 import { logger } from "../../utils/logger";
+import { isAlreadyShipped } from "../virin/alreadyBuiltAssessment";
 
 async function resolveOrganizationIdForHandoff(
   jiraKey: string,
@@ -42,6 +43,20 @@ export async function autoStartEngineeringFromVirin(jiraKey: string): Promise<vo
     logger.warn(
       { jiraKey: key, status: record?.status, hasPrd: Boolean(record?.generatedPrd) },
       "auto engineering start skipped — Virin not ready for handoff"
+    );
+    return;
+  }
+
+  if (isAlreadyShipped(record.codebaseAnalysis)) {
+    patchEngineeringHandoff(key, {
+      status: "not_started",
+      message:
+        record.codebaseAnalysis?.alreadyShippedNote?.trim() ||
+        "Auto handoff skipped — codebase analysis says this capability already exists. Verify in product or start Ananta manually for a thin delta only.",
+    });
+    logger.info(
+      { jiraKey: key, overlapVerdict: record.codebaseAnalysis?.overlapVerdict },
+      "auto engineering start skipped — feature already shipped in codebase"
     );
     return;
   }
