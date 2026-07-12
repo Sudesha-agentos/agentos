@@ -1,19 +1,26 @@
 import { DATA_MODE } from "../../shared/config/app";
 import { fetchJson } from "../../shared/lib/fetchJson";
 import { apiPath } from "../../shared/config/apiBase";
+import { authHeaders } from "../../shared/lib/authHeaders";
 import { useResource } from "../../shared/lib/useResource";
 import { mockApi } from "../../app/api/mock";
 
+function headers(extra = {}) {
+  return { ...authHeaders(), ...extra };
+}
+
 const restQaAdapter = {
-  coverage: () => fetchJson(apiPath("/api/qa/coverage")),
-  heatmap: () => fetchJson(apiPath("/api/qa/heatmap")),
-  failures: () => fetchJson(apiPath("/api/qa/failures")),
-  inbox: () => fetchJson(apiPath("/api/qa/inbox")),
-  reports: () => fetchJson(apiPath("/api/qa/pipeline-reports")),
-  report: (pipelineId) => fetchJson(apiPath(`/api/qa/pipeline-reports/${pipelineId}`)),
-  pipelineReports: () => fetchJson(apiPath("/api/qa/pipeline-reports")),
+  coverage: () => fetchJson(apiPath("/api/qa/coverage"), { headers: headers() }),
+  heatmap: () => fetchJson(apiPath("/api/qa/heatmap"), { headers: headers() }),
+  failures: () => fetchJson(apiPath("/api/qa/failures"), { headers: headers() }),
+  inbox: () => fetchJson(apiPath("/api/qa/inbox"), { headers: headers() }),
+  reports: () => fetchJson(apiPath("/api/qa/pipeline-reports"), { headers: headers() }),
+  report: (pipelineId) =>
+    fetchJson(apiPath(`/api/qa/pipeline-reports/${pipelineId}`), { headers: headers() }),
+  pipelineReports: () =>
+    fetchJson(apiPath("/api/qa/pipeline-reports"), { headers: headers() }),
   pipelineReport: (pipelineId) =>
-    fetchJson(apiPath(`/api/qa/pipeline-reports/${pipelineId}`)),
+    fetchJson(apiPath(`/api/qa/pipeline-reports/${pipelineId}`), { headers: headers() }),
 };
 
 const mockQaAdapter = {
