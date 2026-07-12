@@ -41,6 +41,11 @@ import { gitClient } from "../integrations/gitProvider";
 import { getKnowledge } from "../codebaseIntelligence/knowledgeService";
 import { runQaAgentic } from "../qaAgent";
 import { resolveImplementationBranchForQa } from "../qa/resolveImplementationBranch";
+import {
+  assertPipelineNotCancelled,
+  clearPipelineCancel,
+  PipelineCancelledError,
+} from "./cancelSession";
 import { completeTicketInJira } from "../jira/writeback/completeTicketInJira";
 import {
   persistBranchState,
@@ -214,6 +219,8 @@ export class PipelineOrchestrator {
       status: "RUNNING",
     });
 
+    clearPipelineCancel(pipeline.id, ticket.jiraKey);
+
     logger.info({ pipelineId: pipeline.id, ticketId }, "pipeline started");
     await ticketRepo.setStatus(ticket.id, "PROCESSING");
     await auditRepo.log(pipeline.id, "PIPELINE_STARTED", {
@@ -255,6 +262,8 @@ export class PipelineOrchestrator {
         normalizedTicket.jiraKey,
         productStage.agentOutput.parsed
       );
+
+      this.assertNotStopped(pipeline.id, normalizedTicket.jiraKey);
 
       const engStage = await this.runEngineeringAgent(
         pipeline.id,
@@ -302,6 +311,8 @@ export class PipelineOrchestrator {
         normalizedTicket.jiraKey,
         implementationOutput.parsed
       );
+
+      this.assertNotStopped(pipeline.id, normalizedTicket.jiraKey);
 
       const qaStage = await this.runQaAgent(
         pipeline.id,
@@ -430,6 +441,10 @@ export class PipelineOrchestrator {
         );
         return;
       }
+      if (err instanceof PipelineCancelledError) {
+        logger.info({ pipelineId: pipeline.id }, "pipeline stopped by user");
+        return;
+      }
       const message = err instanceof Error ? err.message : String(err);
       const failedPipeline = await pipelineRepo.findById(pipeline.id);
       await stateManager.fail(
@@ -452,6 +467,7 @@ export class PipelineOrchestrator {
     const completedStages = new Set(await pipelineRepo.listCompletedStages(pipelineId));
 
     logger.info({ pipelineId, completedStages: [...completedStages] }, "pipeline resume started");
+    clearPipelineCancel(pipelineId, ticket.jiraKey);
     await pipelineRepo.setStage(pipelineId, pipeline.currentStage, "RUNNING");
     await ticketRepo.setStatus(ticket.id, "PROCESSING");
     await auditRepo.log(pipelineId, "PIPELINE_RESUMED", { ticketId: ticket.id });
@@ -713,6 +729,10 @@ export class PipelineOrchestrator {
     } catch (err) {
       if (err instanceof DiscoveryPausedError) {
         await ticketRepo.setStatus(ticket.id, "AWAITING_HUMAN");
+        return;
+      }
+      if (err instanceof PipelineCancelledError) {
+        logger.info({ pipelineId }, "pipeline resume stopped by user");
         return;
       }
       const message = err instanceof Error ? err.message : String(err);
@@ -1704,6 +1724,7 @@ export class PipelineOrchestrator {
     stage: PipelineStage,
     validation: ValidationResult
   ): Promise<boolean> {
+    assertPipelineNotCancelled(pipelineId);
     if (validation.passed) return true;
     await stateManager.pauseForHuman(
       pipelineId,
@@ -1711,6 +1732,11 @@ export class PipelineOrchestrator {
       validation.issues.map((i) => i.message).join("; ")
     );
     return false;
+  }
+
+  /** Call between expensive stages so Stop session takes effect promptly. */
+  private assertNotStopped(pipelineId: string, jiraKey?: string): void {
+    assertPipelineNotCancelled(pipelineId, jiraKey);
   }
 }
 

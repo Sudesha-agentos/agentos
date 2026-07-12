@@ -14,6 +14,8 @@ export interface QaPipelineArtifacts {
   lastTestRun?: TestRunResult;
   securityScan?: import("./testing/securityScanner").SecurityScanResult;
   executionReport?: QaExecutionReport;
+  playwrightSmoke?: import("./testing/playwrightSmoke").PlaywrightSmokeResult;
+  locatorHealProposals?: import("./healing/locatorHeal").HealProposal[];
 }
 
 const store = new Map<string, QaPipelineArtifacts>();

@@ -81,12 +81,104 @@ function StatCard({ label, value, color = "text-app-ink" }) {
   );
 }
 
+function ConfidenceBreakdownPanel({ breakdown, reason, executionStatus, executionMessage }) {
+  if (!breakdown?.breakdown?.length && !executionStatus) return null;
+  return (
+    <div className="border-t border-app-border px-5 py-4">
+      <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-app-ink-mute">
+        Explainable confidence
+      </p>
+      {reason ? <p className="mb-3 text-[12px] text-app-ink-dim">{reason}</p> : null}
+      {executionStatus && executionStatus !== "ran" ? (
+        <p className="mb-3 rounded-app-sm border border-danger/30 bg-danger/10 px-3 py-2 text-xs text-danger">
+          Execution: {executionStatus}
+          {executionMessage ? ` — ${executionMessage}` : ""}
+        </p>
+      ) : null}
+      {breakdown?.breakdown?.length ? (
+        <ul className="space-y-2">
+          {breakdown.breakdown.map((row) => (
+            <li key={row.id} className="flex items-center justify-between gap-3 text-xs">
+              <span className="text-app-ink-dim">{row.label}</span>
+              <span className="font-mono text-app-ink">
+                {(row.value * 100).toFixed(0)}% × {row.weight.toFixed(2)} ={" "}
+                {(row.contribution * 100).toFixed(1)}
+              </span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      {breakdown?.scorePercent != null ? (
+        <p className="mt-3 text-sm font-semibold text-app-ink">
+          Composite: {breakdown.scorePercent}/100
+          {breakdown.testsNotExecuted ? " (capped — tests not executed)" : ""}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+function CoverageGapsSection({ gaps }) {
+  if (!gaps?.length) return null;
+  return (
+    <div className="border-t border-app-border px-5 py-4">
+      <p className="mb-3 text-[10px] font-semibold uppercase tracking-wider text-app-ink-mute">
+        Coverage gaps ({gaps.length})
+      </p>
+      <ul className="space-y-2">
+        {gaps.map((g) => (
+          <li key={g.id} className="rounded-app-sm border border-warning/30 bg-warning/5 px-3 py-2.5 text-xs">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="font-mono font-semibold">{g.id}</span>
+              <span className="rounded-full border px-1.5 py-0.5 text-[10px] uppercase opacity-70">
+                {g.severity}
+              </span>
+              <span className="type-kicker">{g.suggestedTestType}</span>
+            </div>
+            <p className="mt-1 font-medium text-app-ink">{g.criterion}</p>
+            <p className="mt-1 text-app-ink-dim">{g.reason}</p>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function HealProposalsSection({ proposals }) {
+  if (!proposals?.length) return null;
+  return (
+    <div className="border-t border-app-border px-5 py-4">
+      <p className="mb-3 text-[10px] font-semibold uppercase tracking-wider text-app-ink-mute">
+        Locator heal proposals ({proposals.length}) — review before merge
+      </p>
+      <ul className="space-y-2">
+        {proposals.map((h, i) => (
+          <li key={`${h.testFile}-${i}`} className="rounded-app-sm border border-indigo/30 bg-indigo/5 px-3 py-2.5 text-xs">
+            <p className="font-medium text-app-ink">
+              {h.testName}{" "}
+              {h.requiresHumanReview ? (
+                <span className="text-warning">· needs human review</span>
+              ) : (
+                <span className="text-success">· auto-heal candidate</span>
+              )}
+            </p>
+            <p className="mt-1 font-mono text-app-ink-dim">
+              {h.oldPrimary} → {h.proposedPrimary} ({(h.confidence * 100).toFixed(0)}%)
+            </p>
+            <p className="mt-1 text-app-ink-dim">{h.rationale}</p>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 function FailureAnalysisSection({ failures }) {
   if (!failures?.length) return null;
   return (
     <div className="border-t border-app-border px-5 py-4">
       <p className="mb-3 text-[10px] font-semibold uppercase tracking-wider text-app-ink-mute">
-        Failure analysis ({failures.length})
+        Failure triage ({failures.length})
       </p>
       <ul className="space-y-2">
         {failures.map((f) => (
@@ -96,15 +188,28 @@ function FailureAnalysisSection({ failures }) {
           >
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="font-mono font-semibold">{f.testId}</p>
-              <span className="rounded-full border px-1.5 py-0.5 text-[10px] uppercase tracking-wide opacity-70">
-                {f.severity}
-              </span>
+              <div className="flex flex-wrap gap-1">
+                {f.triageClass ? (
+                  <span className="rounded-full border px-1.5 py-0.5 text-[10px] uppercase tracking-wide opacity-70">
+                    {f.triageClass}
+                  </span>
+                ) : null}
+                <span className="rounded-full border px-1.5 py-0.5 text-[10px] uppercase tracking-wide opacity-70">
+                  {f.severity}
+                </span>
+              </div>
             </div>
             <p className="mt-1 font-medium">{f.testName}</p>
+            {f.requiresHumanOverride ? (
+              <p className="mt-1 font-semibold text-warning">Human override required before approve</p>
+            ) : null}
             {f.violatedCriterion ? (
               <p className="mt-1 opacity-80">AC: {f.violatedCriterion}</p>
             ) : null}
             {f.likelyCause ? <p className="mt-1 opacity-80">Cause: {f.likelyCause}</p> : null}
+            {f.evidence?.length ? (
+              <p className="mt-1 opacity-80">Evidence: {f.evidence.join("; ")}</p>
+            ) : null}
             {f.remediation ? (
               <p className="mt-1.5 font-medium text-app-ink">Fix: {f.remediation}</p>
             ) : null}
@@ -177,15 +282,28 @@ function PipelineQaDetail({ report }) {
         subtitle={report.testSummary}
       />
       <RecommendationBanner recommendation={report.recommendation} />
+      {report.requiresHumanOverride ? (
+        <div className="mx-5 mt-3 rounded-app-sm border border-warning/40 bg-warning/10 px-4 py-2 text-xs text-warning">
+          Human override required — low-confidence triage, missing execution, or locator heal pending review.
+        </div>
+      ) : null}
       <TestRunStats
         testRun={report.testRun}
         coverageReport={report.coverageReport}
         confidenceScore={report.confidenceScore}
       />
+      <ConfidenceBreakdownPanel
+        breakdown={report.confidenceBreakdown}
+        reason={report.confidenceReason}
+        executionStatus={report.executionStatus}
+        executionMessage={report.executionMessage}
+      />
       <div className="border-t border-app-border">
         <TestCaseViewer testCases={report.testCases ?? []} />
       </div>
+      <CoverageGapsSection gaps={report.coverageGaps} />
       <FailureAnalysisSection failures={report.failureAnalysis} />
+      <HealProposalsSection proposals={report.locatorHealProposals} />
       <UncoveredCriteria coverageReport={report.coverageReport} />
       <SecurityScanSection securityScan={report.securityScan} />
       {report.riskAreas?.length ? (

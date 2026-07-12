@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { usePipelineArtifacts, usePipelineDetail } from "../../entities/pipeline";
 import { usePipelineAudit } from "../../entities/audit";
 import { useRunPipeline } from "../../features/run-pipeline/model/useRunPipeline";
+import { cancelPmAnalysis } from "../../entities/pm-agents";
 import StageTimeline from "../components/StageTimeline";
 import Spinner from "../components/Spinner";
 import { EASE } from "../../lib/motion";
@@ -23,9 +24,11 @@ export default function PipelineDetail() {
   const { items: auditItems } = usePipelineAudit(id, { pollMs: 9000 });
   const { run, resume, pending: rerunning, error: rerunError } = useRunPipeline();
   const [actionMsg, setActionMsg] = useState(null);
+  const [stopBusy, setStopBusy] = useState(false);
 
   const canResume =
     item?.status === "PAUSED" || item?.status === "FAILED" || item?.status === "AWAITING_HUMAN";
+  const canStop = item?.status === "RUNNING" || item?.status === "PAUSED";
 
   async function handlePipelineAction() {
     if (!item) return;
@@ -40,6 +43,23 @@ export default function PipelineDetail() {
       }
     } catch {
       /* error surfaced via rerunError */
+    }
+  }
+
+  async function handleStopSession() {
+    if (!item?.jiraKey) return;
+    setStopBusy(true);
+    setActionMsg(null);
+    try {
+      const result = await cancelPmAnalysis(item.jiraKey);
+      setActionMsg(
+        result?.message ??
+          "Session stopped. Open this ticket in Virin and click Analyze to start again."
+      );
+    } catch (err) {
+      setActionMsg(err?.message ?? "Failed to stop session");
+    } finally {
+      setStopBusy(false);
     }
   }
 
@@ -128,6 +148,16 @@ export default function PipelineDetail() {
               >
                 Open override workspace
               </Link>
+              {canStop ? (
+                <button
+                  type="button"
+                  onClick={handleStopSession}
+                  disabled={stopBusy}
+                  className="rounded-full border border-danger/40 bg-danger/5 px-4 py-2 text-[13px] text-danger transition-colors hover:bg-danger/10 disabled:opacity-50"
+                >
+                  {stopBusy ? "Stopping…" : "Stop session"}
+                </button>
+              ) : null}
               <button
                 type="button"
                 onClick={handlePipelineAction}

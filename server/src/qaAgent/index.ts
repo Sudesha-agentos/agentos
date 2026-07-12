@@ -14,6 +14,7 @@ import type { QaExecutionReport } from "../qa/report/reportGenerator";
 import { resolveImplementationBranchForQa } from "../qa/resolveImplementationBranch";
 import { buildQaInitialUserMessage, resolveQaBranchName } from "./inputBuilder";
 import { buildQaSystemPrompt } from "./systemPrompt";
+import { enrichQaOutput } from "../qa/enrichQaOutput";
 
 const INPUT_COST_PER_TOKEN = 0.000003;
 const OUTPUT_COST_PER_TOKEN = 0.000015;
@@ -67,8 +68,98 @@ export async function runQaAgentic(
       forcedWrapUpMessage: `You have used the maximum number of QA tool calls. Produce the final JSON test plan now using everything gathered. Do not call more tools.`,
     });
 
-    const qaOutput = parseDiscoveryJson<QaOutput>(loop.finalResponse, "qaAgent");
     const artifacts = getQaArtifacts(input.pipelineId);
+    const qaOutput = enrichQaOutput({
+      qa: parseDiscoveryJson<QaOutput>(loop.finalResponse, "qaAgent"),
+      prd: input.prd,
+      implementation: input.implementation,
+      executionReport: artifacts.executionReport
+        ? {
+            ...artifacts.executionReport,
+            securityScan:
+              artifacts.securityScan ?? artifacts.executionReport.securityScan,
+            playwrightSmoke:
+              artifacts.playwrightSmoke ?? artifacts.executionReport.playwrightSmoke,
+            locatorHealProposals:
+              artifacts.locatorHealProposals ??
+              artifacts.executionReport.locatorHealProposals,
+          }
+        : artifacts.securityScan
+          ? {
+              generatedAt: new Date().toISOString(),
+              summary: "Security scan only",
+              overallRecommendation: "request_changes" as const,
+              criteriaCoverage: { total: 0, covered: 0, uncovered: [] },
+              securityScan: artifacts.securityScan,
+              executionStatus: "unavailable" as const,
+              executionMessage: "No test run — security scan only.",
+            }
+          : undefined,
+      ticketText: `${input.jiraKey} ${input.prd.title} ${input.prd.problemStatement}`,
+    });
+
+    // Keep artifact report aligned with explainable confidence
+    if (artifacts.executionReport) {
+      artifacts.executionReport = {
+        ...artifacts.executionReport,
+        explainableConfidence: qaOutput.confidenceBreakdown
+          ? {
+              score: qaOutput.confidenceBreakdown.score,
+              scorePercent: qaOutput.confidenceBreakdown.scorePercent,
+              weights: {
+                criteriaCoverage: 0.35,
+                moduleRisk: 0.15,
+                executionReliability: 0.25,
+                failRate: 0.15,
+                securityClean: 0.1,
+              },
+              components: {
+                criteriaCoverage:
+                  qaOutput.confidenceBreakdown.components.criteriaCoverage ?? 0,
+                moduleRisk: qaOutput.confidenceBreakdown.components.moduleRisk ?? 0,
+                executionReliability:
+                  qaOutput.confidenceBreakdown.components.executionReliability ?? 0,
+                failRate: qaOutput.confidenceBreakdown.components.failRate ?? 0,
+                securityClean:
+                  qaOutput.confidenceBreakdown.components.securityClean ?? 0,
+              },
+              breakdown: qaOutput.confidenceBreakdown.breakdown,
+              reason: qaOutput.confidenceReason,
+              testsNotExecuted: qaOutput.confidenceBreakdown.testsNotExecuted,
+            }
+          : artifacts.executionReport.explainableConfidence,
+        gapMap: qaOutput.coverageGaps
+          ? {
+              gaps: qaOutput.coverageGaps.map((g) => ({
+                id: g.id,
+                criterion: g.criterion,
+                severity: g.severity as "blocking" | "high" | "medium" | "low",
+                reason: g.reason,
+                suggestedTestType: g.suggestedTestType as
+                  | "unit"
+                  | "integration"
+                  | "e2e"
+                  | "security",
+                relatedFiles: g.relatedFiles,
+              })),
+              edges: (qaOutput.traceability ?? []).map((e) => ({
+                requirement: e.requirement,
+                codePaths: e.codePaths,
+                testIds: e.testIds,
+                testFiles: e.testFiles,
+                lastRunStatus: e.lastRunStatus as
+                  | "passed"
+                  | "failed"
+                  | "skipped"
+                  | "not_run"
+                  | undefined,
+              })),
+              changedFiles: [],
+              summary: `${qaOutput.coverageGaps.length} gap(s)`,
+            }
+          : artifacts.executionReport.gapMap,
+      };
+    }
 
     logger.info(
       {
@@ -78,6 +169,8 @@ export async function runQaAgentic(
         toolCalls: loop.toolCallCount,
         testCases: qaOutput.testCases?.length ?? 0,
         recommendation: artifacts.executionReport?.overallRecommendation,
+        confidence: qaOutput.confidenceScore,
+        testsNotExecuted: qaOutput.confidenceBreakdown?.testsNotExecuted,
       },
       "QA agent completed"
     );
@@ -108,6 +201,8 @@ export async function runQaAgentic(
               overallRecommendation: "request_changes" as const,
               criteriaCoverage: { total: 0, covered: 0, uncovered: [] },
               securityScan: artifacts.securityScan,
+              executionStatus: "unavailable" as const,
+              executionMessage: "No test run — security scan only.",
             }
           : undefined,
       toolCallLog: loop.toolCallLog,
