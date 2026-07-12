@@ -78,14 +78,55 @@ export const ANANTA_CHAT_TOOL_DEFINITIONS: Anthropic.Tool[] = [
   },
   {
     name: "analyze_impact",
-    description: "Analyze blast radius if a file or symbol changes.",
+    description:
+      "Analyze blast radius if a file or symbol changes (file import graph + knowledge-graph detect_changes/impact).",
     input_schema: {
       type: "object",
       properties: {
         file_path: { type: "string" },
+        change_description: { type: "string" },
+        symbol: { type: "string", description: "Optional symbol name for graph impact" },
         branch_name: { type: "string" },
       },
       required: ["file_path"],
+    },
+  },
+  {
+    name: "gn_query",
+    description:
+      "GitNexus process-grouped knowledge-graph query (execution flows related to a concept).",
+    input_schema: {
+      type: "object",
+      properties: {
+        query: { type: "string" },
+        branch_name: { type: "string" },
+      },
+      required: ["query"],
+    },
+  },
+  {
+    name: "gn_context",
+    description: "GitNexus 360° symbol context (callers, callees, processes).",
+    input_schema: {
+      type: "object",
+      properties: {
+        name: { type: "string" },
+        branch_name: { type: "string" },
+      },
+      required: ["name"],
+    },
+  },
+  {
+    name: "gn_impact",
+    description: "GitNexus symbol blast radius with confidence-weighted CALLS/IMPORTS.",
+    input_schema: {
+      type: "object",
+      properties: {
+        target: { type: "string" },
+        direction: { type: "string", enum: ["upstream", "downstream"] },
+        branch_name: { type: "string" },
+      },
+      required: ["target"],
     },
   },
 ];

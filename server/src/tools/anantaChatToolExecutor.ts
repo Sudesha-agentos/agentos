@@ -112,10 +112,59 @@ export async function executeAnantaChatToolCall(
       case "analyze_impact": {
         const filePath = stringValue(toolCall.input.file_path);
         metaQuery = filePath;
-        result = await analyzeImpact({
+        const fileImpact = await analyzeImpact({
           branchName: branch,
           filePaths: [filePath],
           changeDescription: stringValue(toolCall.input.change_description, "General modification"),
+        });
+        const { gnDetectChanges, gnImpact } = await import("../codebaseIntelligence/gitnexus");
+        const [detect, symbolImpact] = await Promise.all([
+          gnDetectChanges({
+            changedFiles: [filePath],
+            branchName: branch,
+            scope: "ananta_chat",
+          }).catch(() => null),
+          stringValue(toolCall.input.symbol)
+            ? gnImpact({
+                target: stringValue(toolCall.input.symbol),
+                branchName: branch,
+                direction: "upstream",
+              }).catch(() => null)
+            : Promise.resolve(null),
+        ]);
+        result = { fileImpact, knowledgeGraph: { detect, symbolImpact } };
+        resultsFound = 1;
+        break;
+      }
+      case "gn_query": {
+        const query = stringValue(toolCall.input.query);
+        metaQuery = query;
+        const { gnQuery } = await import("../codebaseIntelligence/gitnexus");
+        result = await gnQuery({ query, branchName: branch });
+        resultsFound = Array.isArray((result as { processes?: unknown[] }).processes)
+          ? (result as { processes: unknown[] }).processes.length
+          : 1;
+        break;
+      }
+      case "gn_context": {
+        const name = stringValue(toolCall.input.name || toolCall.input.symbol);
+        metaQuery = name;
+        const { gnContext } = await import("../codebaseIntelligence/gitnexus");
+        result = await gnContext({ name, branchName: branch });
+        resultsFound = 1;
+        break;
+      }
+      case "gn_impact": {
+        const target = stringValue(toolCall.input.target || toolCall.input.symbol);
+        metaQuery = target;
+        const { gnImpact } = await import("../codebaseIntelligence/gitnexus");
+        result = await gnImpact({
+          target,
+          branchName: branch,
+          direction:
+            stringValue(toolCall.input.direction, "upstream") === "downstream"
+              ? "downstream"
+              : "upstream",
         });
         resultsFound = 1;
         break;

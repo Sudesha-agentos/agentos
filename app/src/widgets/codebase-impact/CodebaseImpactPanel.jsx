@@ -1,6 +1,10 @@
 import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { analyzeCodebaseImpact } from "../../entities/codebase";
+import {
+  analyzeCodebaseImpact,
+  gitNexusDetectChanges,
+  gitNexusImpact,
+} from "../../entities/codebase";
 import { useOrg } from "../../shared/providers/OrgRouteProvider";
 import Spinner from "../../app/components/Spinner";
 import { Panel, PanelHeader } from "../../shared/ui/Panel";
@@ -42,6 +46,7 @@ export default function CodebaseImpactPanel({ branch = "main" }) {
   const [pathsInput, setPathsInput] = useState("");
   const [changeDescription, setChangeDescription] = useState("");
   const [report, setReport] = useState(null);
+  const [gnReport, setGnReport] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const navigate = useNavigate();
@@ -61,15 +66,31 @@ export default function CodebaseImpactPanel({ branch = "main" }) {
     setLoading(true);
     setError(null);
     try {
-      const result = await analyzeCodebaseImpact({
-        filePaths,
-        changeDescription,
-        branchName: branch,
-      });
+      const [result, detect, symbolImpact] = await Promise.all([
+        analyzeCodebaseImpact({
+          filePaths,
+          changeDescription,
+          branchName: branch,
+        }),
+        gitNexusDetectChanges({
+          changedFiles: filePaths,
+          branchName: branch,
+          scope: "panel",
+        }).catch(() => null),
+        changeDescription
+          ? gitNexusImpact({
+              target: changeDescription.split(/\s+/).find((t) => /^[A-Za-z_][\w.]*$/.test(t)) || "",
+              branchName: branch,
+              direction: "upstream",
+            }).catch(() => null)
+          : Promise.resolve(null),
+      ]);
       setReport(result);
+      setGnReport({ detect, symbolImpact });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Impact analysis failed");
       setReport(null);
+      setGnReport(null);
     } finally {
       setLoading(false);
     }
@@ -177,6 +198,33 @@ export default function CodebaseImpactPanel({ branch = "main" }) {
               empty="No related test files detected."
             />
           </div>
+          {gnReport?.detect?.summary ? (
+            <div className="border-t border-hairline px-5 py-4 sm:px-6">
+              <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-ink-mute">
+                Knowledge graph · detect_changes
+              </p>
+              <p className="mt-2 text-[13px] text-ink-dim">
+                Risk {gnReport.detect.summary.risk_level} · {gnReport.detect.summary.changed_count}{" "}
+                symbols · {gnReport.detect.summary.affected_count} processes
+              </p>
+              {gnReport.detect.affected_processes?.length ? (
+                <p className="mt-1 text-[13px] text-ink">
+                  {gnReport.detect.affected_processes.join(", ")}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+          {gnReport?.symbolImpact?.target ? (
+            <div className="border-t border-hairline px-5 py-4 sm:px-6">
+              <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-ink-mute">
+                Knowledge graph · symbol impact
+              </p>
+              <p className="mt-2 text-[13px] text-ink">
+                {gnReport.symbolImpact.target.kind} {gnReport.symbolImpact.target.name} →{" "}
+                {gnReport.symbolImpact.target.filePath}
+              </p>
+            </div>
+          ) : null}
         </Panel>
       ) : null}
     </div>

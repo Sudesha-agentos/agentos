@@ -193,7 +193,13 @@ export async function buildEnrichedCodebaseContext(input: {
   return {
     workFiles,
     files,
-    formatted: formatEnrichedContextBundle(workFiles, files, [...neighborSet].slice(0, 30)),
+    formatted: await formatEnrichedContextBundleAsync(
+      workFiles,
+      files,
+      [...neighborSet].slice(0, 30),
+      input.query,
+      input.branchName
+    ),
   };
 }
 
@@ -250,6 +256,51 @@ export function formatEnrichedContextBundle(
   }
 
   return lines.join("\n");
+}
+
+async function formatEnrichedContextBundleAsync(
+  workFiles: WorkFileHit[],
+  files: EnrichedFileContext[],
+  graphNeighbors: string[],
+  query: string,
+  branchName: string
+): Promise<string> {
+  let text = formatEnrichedContextBundle(workFiles, files, graphNeighbors);
+  try {
+    const { gnQuery, gnDetectChanges, isGitNexusGraphEnabled } = await import("./gitnexus");
+    if (!isGitNexusGraphEnabled()) return text;
+
+    const [q, changes] = await Promise.all([
+      gnQuery({ query, branchName, limit: 5 }).catch(() => null),
+      gnDetectChanges({
+        changedFiles: workFiles.map((f) => f.path),
+        branchName,
+        scope: "work_files",
+      }).catch(() => null),
+    ]);
+
+    const gnLines: string[] = ["\n## Knowledge graph (GitNexus)"];
+    if (q?.processes?.length) {
+      gnLines.push("### Process-grouped query");
+      for (const p of q.processes.slice(0, 5)) {
+        gnLines.push(
+          `- ${p.summary} (${p.process_type}, priority ${Number(p.priority).toFixed(3)}, ${p.step_count} steps)`
+        );
+      }
+    }
+    if (changes?.summary) {
+      gnLines.push(
+        `### Detect changes\nrisk=${changes.summary.risk_level}; symbols=${changes.summary.changed_count}; processes=${changes.summary.affected_count}`
+      );
+      if (changes.affected_processes?.length) {
+        gnLines.push(`Affected processes: ${changes.affected_processes.slice(0, 8).join(", ")}`);
+      }
+    }
+    if (gnLines.length > 1) text = `${text}\n${gnLines.join("\n")}`;
+  } catch {
+    /* graph optional */
+  }
+  return text;
 }
 
 export async function enrichWorkFilePaths(

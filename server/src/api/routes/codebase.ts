@@ -34,6 +34,20 @@ import {
 } from "../../codebaseIntelligence/knowledgeService";
 import { checkKnowledgeGenerateRateLimit } from "../../codebaseIntelligence/knowledgeRateLimit";
 import { bindOrganizationContextMiddleware } from "../orgRequestContext";
+import {
+  gnContext,
+  gnCypher,
+  gnDetectChanges,
+  gnGraphPayload,
+  gnImpact,
+  gnListRepos,
+  gnQuery,
+  gnRename,
+  gnResources,
+  generateGitNexusWiki,
+  runGitNexusAnalyzeForScope,
+  graphStatus as gnGraphStatus,
+} from "../../codebaseIntelligence/gitnexus";
 
 const router = Router();
 
@@ -435,6 +449,151 @@ router.post("/tour/generate", async (req, res, next) => {
     const { branchName = "main" } = req.body ?? {};
     const tour = await generateTour(String(branchName));
     res.json(tour);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ─── GitNexus knowledge-graph tools (MCP-compatible shapes) ─────────────────
+
+function gnError(res: import("express").Response, err: unknown) {
+  const e = err as { status?: number; code?: string; message?: string };
+  const status = e?.status ?? 500;
+  res.status(status).json({
+    error: e?.code || "gitnexus_error",
+    message: e?.message || (err instanceof Error ? err.message : String(err)),
+  });
+}
+
+router.post("/gn/analyze", async (req, res, next) => {
+  try {
+    const scope = resolveRepoScope();
+    if (!scope) {
+      res.status(400).json({ error: "repo_not_connected" });
+      return;
+    }
+    const branchName = String(req.body?.branchName ?? scope.defaultBranch ?? "main");
+    const graph = await runGitNexusAnalyzeForScope({
+      organizationId: scope.organizationId,
+      repoOwner: scope.repoOwner,
+      repoName: scope.repoName,
+      branchName,
+    });
+    res.json({ ok: true, meta: graph?.meta ?? null, analyzedAt: graph?.analyzedAt ?? null });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get("/gn/status", async (req, res, next) => {
+  try {
+    const scope = resolveRepoScope();
+    if (!scope) {
+      res.json({ ready: false });
+      return;
+    }
+    const branch = String(req.query.branch ?? scope.defaultBranch ?? "main");
+    res.json(
+      await gnGraphStatus(scope.organizationId, scope.repoOwner, scope.repoName, branch)
+    );
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get("/gn/graph", async (req, res) => {
+  try {
+    const payload = await gnGraphPayload({
+      branchName: typeof req.query.branch === "string" ? req.query.branch : undefined,
+      limitNodes: req.query.limit ? Number(req.query.limit) : undefined,
+      clusterCollapse: req.query.collapse !== "false",
+    });
+    res.json(payload);
+  } catch (err) {
+    gnError(res, err);
+  }
+});
+
+router.post("/gn/query", async (req, res) => {
+  try {
+    res.json(await gnQuery(req.body ?? {}));
+  } catch (err) {
+    gnError(res, err);
+  }
+});
+
+router.post("/gn/context", async (req, res) => {
+  try {
+    res.json(await gnContext(req.body ?? {}));
+  } catch (err) {
+    gnError(res, err);
+  }
+});
+
+router.post("/gn/impact", async (req, res) => {
+  try {
+    res.json(await gnImpact(req.body ?? {}));
+  } catch (err) {
+    gnError(res, err);
+  }
+});
+
+router.post("/gn/detect_changes", async (req, res) => {
+  try {
+    res.json(await gnDetectChanges(req.body ?? {}));
+  } catch (err) {
+    gnError(res, err);
+  }
+});
+
+router.post("/gn/rename", async (req, res) => {
+  try {
+    res.json(await gnRename({ ...(req.body ?? {}), dry_run: true }));
+  } catch (err) {
+    gnError(res, err);
+  }
+});
+
+router.post("/gn/cypher", async (req, res) => {
+  try {
+    res.json(await gnCypher(req.body ?? {}));
+  } catch (err) {
+    gnError(res, err);
+  }
+});
+
+router.get("/gn/list_repos", async (req, res) => {
+  try {
+    res.json(
+      await gnListRepos({
+        limit: req.query.limit ? Number(req.query.limit) : undefined,
+        offset: req.query.offset ? Number(req.query.offset) : undefined,
+      })
+    );
+  } catch (err) {
+    gnError(res, err);
+  }
+});
+
+router.get("/gn/resources/:resource", async (req, res) => {
+  try {
+    res.json(
+      await gnResources(
+        req.params.resource,
+        typeof req.query.name === "string" ? req.query.name : undefined,
+        typeof req.query.branch === "string" ? req.query.branch : undefined
+      )
+    );
+  } catch (err) {
+    gnError(res, err);
+  }
+});
+
+router.get("/gn/wiki", async (req, res, next) => {
+  try {
+    const branch =
+      typeof req.query.branch === "string" ? req.query.branch : undefined;
+    res.json(await generateGitNexusWiki(branch));
   } catch (err) {
     next(err);
   }

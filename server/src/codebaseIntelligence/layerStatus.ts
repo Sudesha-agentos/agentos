@@ -46,6 +46,11 @@ export type CodebaseLayerStatus = {
     ready: boolean;
     computedAt: string | null;
     nodeCount: number | null;
+    edgeCount: number | null;
+    clusterCount: number | null;
+    processCount: number | null;
+    source: string | null;
+    gitnexusCommit: string | null;
   };
   configuration: {
     openaiConfigured: boolean;
@@ -121,7 +126,35 @@ async function getGraphStatus(
   repoOwner: string,
   repoName: string,
   branchName: string
-): Promise<{ ready: boolean; computedAt: string | null; nodeCount: number | null }> {
+): Promise<{
+  ready: boolean;
+  computedAt: string | null;
+  nodeCount: number | null;
+  edgeCount: number | null;
+  clusterCount: number | null;
+  processCount: number | null;
+  source: string | null;
+  gitnexusCommit: string | null;
+}> {
+  try {
+    const { graphStatus } = await import("./gitnexus");
+    const gn = await graphStatus(organizationId, repoOwner, repoName, branchName);
+    if (gn.ready) {
+      return {
+        ready: true,
+        computedAt: gn.analyzedAt,
+        nodeCount: gn.symbolCount,
+        edgeCount: gn.edgeCount,
+        clusterCount: gn.clusterCount,
+        processCount: gn.processCount,
+        source: gn.source,
+        gitnexusCommit: gn.gitnexusCommit,
+      };
+    }
+  } catch {
+    /* fall through to viz cache */
+  }
+
   const row = await prismaAny.codebaseVisualizationCache.findUnique({
     where: {
       organizationId_repoOwner_repoName_branchName: {
@@ -135,7 +168,16 @@ async function getGraphStatus(
   });
 
   if (!row?.layoutJson) {
-    return { ready: false, computedAt: null, nodeCount: null };
+    return {
+      ready: false,
+      computedAt: null,
+      nodeCount: null,
+      edgeCount: null,
+      clusterCount: null,
+      processCount: null,
+      source: null,
+      gitnexusCommit: null,
+    };
   }
 
   const layout = row.layoutJson as { nodes?: unknown[]; meta?: { totalFiles?: number } };
@@ -147,6 +189,11 @@ async function getGraphStatus(
     ready: true,
     computedAt: row.computedAt?.toISOString() ?? null,
     nodeCount: nodeCount ?? null,
+    edgeCount: null,
+    clusterCount: null,
+    processCount: null,
+    source: "visualization_cache",
+    gitnexusCommit: null,
   };
 }
 
@@ -201,7 +248,16 @@ export async function getCodebaseLayerStatus(
         error: null,
       },
       counts: { filesIndexed: 0, embeddings: 0, indexHealthPercent: 0, filesSkippedOversized: 0 },
-      graph: { ready: false, computedAt: null, nodeCount: null },
+      graph: {
+        ready: false,
+        computedAt: null,
+        nodeCount: null,
+        edgeCount: null,
+        clusterCount: null,
+        processCount: null,
+        source: null,
+        gitnexusCommit: null,
+      },
       configuration: {
         openaiConfigured,
         llmProvider: llmProviderLabel(),
