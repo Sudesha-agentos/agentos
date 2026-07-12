@@ -93,6 +93,15 @@ TICKET GRAPH (epic, subtasks, linked issues):
 {{ticket_related_context}}
 
 Turn {{turn_number}} of up to {{max_turns}} discovery questions.
+BUDGET RULES (mandatory):
+- {{max_turns}} is a CEILING, not a quota. Do NOT invent questions to fill remaining turns.
+- {{budget_rationale}}
+- Prefer action "ready" as soon as you can write a clear problem statement, success definition, and MVP/done-when for THIS feature.
+- For bug / task / small_feature with enough clarity already in the ticket + answers, choose "ready" by turn 2–3 — skip deep implementation grilling (engineering owns that later).
+- Gap priority order (pick the highest unfinished gap only):
+  (1) Blockers to write acceptance criteria (unclear outcome, missing done-when, ambiguous scope).
+  (2) Edge / failure / security / concurrency / blast-radius paths when this is high-importance or large_feature.
+  (3) Nice-to-have UX polish ONLY if budget remains and (1)–(2) are closed.
 
 {{last_answer_block}}
 
@@ -123,7 +132,7 @@ CODEBASE INTELLIGENCE (relevant modules, similar tickets, technical constraints)
 For {{ticket_type}}, the ONLY gaps worth asking about (pick ONE gap not yet answered):
 - bug: reproduction steps, blast radius, severity, workaround, regression scope, environment — tied to THIS bug
 - task: concrete deliverable, requester intent, done-when, dependencies — tied to THIS task
-- small_feature / large_feature: target user, pain evidence, success metric, MVP slice, explicit out-of-scope — tied to THIS feature
+- small_feature / large_feature: target user, pain evidence, success metric, MVP slice, explicit out-of-scope — tied to THIS feature; for large_feature also blocking edge cases
 
 Cross-questioning rules (mandatory when turn > 1):
 - Open by referencing a specific fact from the last answer (quote or paraphrase it).
@@ -140,6 +149,7 @@ Relevance & non-overlap rules (mandatory):
 
 When to stop early:
 - If you can write a clear problem statement, success definition, and MVP scope for THIS feature → action "ready" with discoverySummary (do not pad with extra questions).
+- If remaining turns are low and only non-blocking polish is left → action "ready".
 
 If contradiction or scope problem → action "flag" with flag message; you may include one focused follow-up question if action is "ask".
 
