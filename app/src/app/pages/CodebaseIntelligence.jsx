@@ -1,7 +1,7 @@
 import { useState } from "react";
 import IndexProgressBar from "../../widgets/index-progress/IndexProgressBar";
 import CodebaseIntelligenceStatusWidget from "../../widgets/codebase-intelligence-status/CodebaseIntelligenceStatusWidget";
-import KnowledgeGraphView from "../../features/codebase-viz/KnowledgeGraphView";
+import GitNexusExplorer from "../../features/gitnexus-explorer/GitNexusExplorer";
 import { useGitIntegrationSetup } from "../../entities/git-integration";
 import { useCodebaseLayerStatus } from "../../entities/codebase";
 import { AnimatedAppPage } from "../../shared/ui/AnimatedAppPage";
@@ -37,11 +37,7 @@ export default function CodebaseIntelligence() {
           />
         ) : null}
 
-        {connected ? (
-          <div className="min-h-[min(78vh,820px)] rounded-[1.25rem] border border-hairline bg-canvas/50 p-3 sm:p-4">
-            <KnowledgeGraphView branch={branch} />
-          </div>
-        ) : null}
+        {connected ? <GitNexusExplorer branch={branch} /> : null}
       </AgentPageWithChat>
     </AnimatedAppPage>
   );

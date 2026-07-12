@@ -154,6 +154,15 @@ const restCodebaseAdapter = {
     fetchJson(apiPath("/api", `/codebase/gn/status?branch=${encodeURIComponent(branch)}`), {
       headers: headers(),
     }),
+  gnResources: (resource, { branch, name } = {}) => {
+    const qs = new URLSearchParams();
+    if (branch) qs.set("branch", branch);
+    if (name) qs.set("name", name);
+    const suffix = qs.toString() ? `?${qs}` : "";
+    return fetchJson(apiPath("/api", `/codebase/gn/resources/${encodeURIComponent(resource)}${suffix}`), {
+      headers: headers(),
+    });
+  },
 };
 
 const mockCodebaseAdapter = {
@@ -201,6 +210,12 @@ const mockCodebaseAdapter = {
     generatedAt: new Date().toISOString(),
   }),
   gnStatus: async () => ({ ready: true, symbolCount: 20 }),
+  gnResources: async (resource) => {
+    if (resource === "processes") {
+      return { processes: [{ id: "p1", name: "login flow", type: "intra_community", steps: 3 }] };
+    }
+    return {};
+  },
 };
 
 export const codebaseAdapter =
@@ -401,4 +416,12 @@ export function fetchGitNexusWiki(branch = "main") {
 
 export function fetchGitNexusStatus(branch = "main") {
   return codebaseAdapter.gnStatus(branch);
+}
+
+export function gitNexusContext(payload) {
+  return codebaseAdapter.gnContext(payload);
+}
+
+export function fetchGitNexusResources(resource, options = {}) {
+  return codebaseAdapter.gnResources(resource, options);
 }
