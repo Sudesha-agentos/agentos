@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { Panel, PanelHeader } from "../../shared/ui/Panel";
+import { STAGE_ORDER } from "../../shared/config/app";
 import { formatStageLabel, formatAuditInline, formatRelativeTime } from "../../shared/lib/format";
 import { formatAuditEventLabel, formatAuditEventDetail } from "../../shared/lib/auditLabels";
 
@@ -107,6 +108,13 @@ function normalizeEdit(edit) {
   };
 }
 
+/** One chip per pipeline stage — resumes create multiple stage logs for the same stage. */
+function uniqueStagePosition(stages = [], currentStage) {
+  const seen = new Set((stages ?? []).map((s) => s.stage).filter(Boolean));
+  if (currentStage) seen.add(currentStage);
+  return STAGE_ORDER.filter((stage) => seen.has(stage));
+}
+
 export default function TicketActivityWidget({
   stages = [],
   auditLogs = [],
@@ -135,7 +143,10 @@ export default function TicketActivityWidget({
   const [selectedActionId, setSelectedActionId] = useState(actions[0]?.id ?? null);
   const selected = actions.find((item) => item.id === selectedActionId) ?? actions[0];
 
-  const stageOrder = stages.map((stage) => stage.stage);
+  const stagePosition = useMemo(
+    () => uniqueStagePosition(stages, currentStage),
+    [stages, currentStage]
+  );
 
   return (
     <Panel>
@@ -148,7 +159,7 @@ export default function TicketActivityWidget({
         <div className="rounded-xl border border-hairline bg-canvas/35 p-3">
           <p className="editorial-kicker text-ink-mute">Ticket position</p>
           <div className="mt-2 flex flex-wrap gap-2">
-            {stageOrder.map((stageName) => {
+            {stagePosition.map((stageName) => {
               const isCurrent = stageName === currentStage;
               return (
                 <span
