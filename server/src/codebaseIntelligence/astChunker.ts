@@ -231,6 +231,34 @@ function symbolNameForNode(node: SyntaxNode): string | null {
     }
   }
 
+  // const/let/var Foo = …  /  export const Foo = …
+  if (
+    node.type === "lexical_declaration" ||
+    node.type === "variable_declaration" ||
+    node.type === "public_field_definition"
+  ) {
+    for (const child of node.namedChildren) {
+      if (child.type === "variable_declarator") {
+        const nested = symbolNameForNode(child);
+        if (nested) return nested;
+      }
+      const nested = symbolNameForNode(child);
+      if (nested) return nested;
+    }
+  }
+
+  if (node.type === "variable_declarator" || node.type === "pair") {
+    const key =
+      node.childForFieldName("name") ??
+      node.childForFieldName("key") ??
+      node.namedChildren.find((child) =>
+        ["identifier", "property_identifier", "string", "number"].includes(child.type)
+      );
+    if (key?.text) {
+      return key.text.replace(/^["']|["']$/g, "").trim() || null;
+    }
+  }
+
   const nameNode =
     node.childForFieldName("name") ??
     node.childForFieldName("identifier") ??
@@ -409,7 +437,7 @@ function fillGaps(content: string, spans: SemanticChunk[]): SemanticChunk[] {
           endLine: lineNumberAt(content, Math.max(cursor, span.startByte - 1)),
           spanType: "module_fragment",
           symbolName: null,
-          chunkStrategy: spans[0]?.chunkStrategy ?? "ast",
+          chunkStrategy: "fallback",
         });
       }
     }
@@ -428,7 +456,7 @@ function fillGaps(content: string, spans: SemanticChunk[]): SemanticChunk[] {
         endLine: lineNumberAt(content, content.length - 1),
         spanType: "module_fragment",
         symbolName: null,
-        chunkStrategy: spans[0]?.chunkStrategy ?? "ast",
+        chunkStrategy: "fallback",
       });
     }
   }

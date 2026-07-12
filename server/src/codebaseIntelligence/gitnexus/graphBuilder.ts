@@ -42,20 +42,55 @@ type FileRow = {
 };
 
 function moduleOf(filePath: string): string {
-  const parts = filePath.replace(/\\/g, "/").split("/");
-  return parts.length > 1 ? parts[0]! : "root";
+  const parts = filePath.replace(/\\/g, "/").split("/").filter(Boolean);
+  if (parts.length === 0) return "root";
+  if (parts.length === 1) return parts[0]!;
+  const top = parts[0]!.toLowerCase();
+  // Prefer src/features style labels over a flat "src" / "app" bucket.
+  if (["src", "app", "lib", "packages", "server", "client", "web", "api"].includes(top)) {
+    return parts.slice(0, Math.min(3, parts.length - (parts.length > 3 ? 1 : 0))).join("/");
+  }
+  return parts.slice(0, Math.min(2, parts.length)).join("/");
 }
 
 function symbolUid(kind: string, name: string, filePath: string, line: number): string {
   return `${kind}:${name}@${filePath}:${line}`;
 }
 
+function inferNameFromText(text: string): string | null {
+  const head = text.trim().slice(0, 400);
+  const patterns = [
+    /(?:export\s+)?(?:default\s+)?(?:async\s+)?function\s*\*?\s+([A-Za-z_$][\w$]*)/,
+    /(?:export\s+)?(?:default\s+)?class\s+([A-Za-z_$][\w$]*)/,
+    /(?:export\s+)?(?:default\s+)?(?:abstract\s+)?class\s+([A-Za-z_$][\w$]*)/,
+    /(?:export\s+)?(?:type|interface|enum)\s+([A-Za-z_$][\w$]*)/,
+    /(?:export\s+)?(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=/,
+    /(?:async\s+)?([A-Za-z_$][\w$]*)\s*\([^)]*\)\s*\{/,
+    /(?:async\s+)?([A-Za-z_$][\w$]*)\s*=\s*(?:async\s*)?\(/,
+  ];
+  for (const re of patterns) {
+    const m = head.match(re);
+    if (m?.[1] && m[1] !== "async" && m[1] !== "function") return m[1];
+  }
+  return null;
+}
+
+const SKIP_SPAN_TYPES = new Set([
+  "import_statement",
+  "module_fragment",
+  "line_block",
+  "merged_block",
+  "comment",
+  "expression_statement",
+]);
+
 function extractSymbols(file: FileRow): GnSymbol[] {
+  const fileName = file.filePath.split("/").pop() || file.filePath;
   const symbols: GnSymbol[] = [
     {
       uid: symbolUid("File", file.filePath, file.filePath, 1),
       kind: "File",
-      name: file.filePath.split("/").pop() || file.filePath,
+      name: fileName,
       filePath: file.filePath,
       startLine: 1,
       endLine: Math.max(1, file.content.split("\n").length),
@@ -63,19 +98,44 @@ function extractSymbols(file: FileRow): GnSymbol[] {
     },
   ];
 
+  const seenNames = new Set<string>();
+
   try {
     const chunks = buildSemanticChunks(file.filePath, file.content);
     for (const chunk of chunks) {
       if (chunk.chunkStrategy !== "ast") continue;
-      const name = chunk.symbolName || "anonymous";
-      const kindRaw = (chunk.spanType || "function").toLowerCase();
+      const spanType = (chunk.spanType || "").toLowerCase();
+      if (SKIP_SPAN_TYPES.has(spanType)) continue;
+
+      const name =
+        (chunk.symbolName && chunk.symbolName.trim()) ||
+        inferNameFromText(chunk.text) ||
+        null;
+      // Skip unnamed noise (imports/gaps previously became every node "anonymous").
+      if (!name || name === "anonymous") continue;
+      if (seenNames.has(`${name}:${chunk.startLine}`)) continue;
+      seenNames.add(`${name}:${chunk.startLine}`);
+
+      const kindRaw = spanType;
       let kind: GnSymbol["kind"] = "Function";
       if (kindRaw.includes("class")) kind = "Class";
       else if (kindRaw.includes("method")) kind = "Method";
       else if (kindRaw.includes("interface")) kind = "Interface";
-      else if (kindRaw.includes("type")) kind = "Type";
-      else if (kindRaw.includes("variable") || kindRaw.includes("const") || kindRaw.includes("lexical"))
+      else if (kindRaw.includes("type") || kindRaw.includes("enum")) kind = "Type";
+      else if (
+        kindRaw.includes("variable") ||
+        kindRaw.includes("lexical") ||
+        kindRaw.includes("const") ||
+        kindRaw.includes("export")
+      ) {
         kind = "Variable";
+        // Prefer Function when the lexical decl looks like a function/arrow.
+        if (/\([^)]*\)\s*=>|\bfunction\b/.test(chunk.text.slice(0, 200))) {
+          kind = "Function";
+        } else if (/^[A-Z]/.test(name) && /\bclass\b|\binterface\b/.test(chunk.text.slice(0, 120))) {
+          kind = kindRaw.includes("interface") ? "Interface" : "Class";
+        }
+      }
 
       const startLine = chunk.startLine ?? 1;
       symbols.push({
@@ -204,13 +264,33 @@ function buildClusters(symbols: GnSymbol[], relations: GnRelation[]): GnCluster[
   const clusters: GnCluster[] = [];
   for (const [cid, members] of buckets) {
     if (members.length < 2) continue;
+
     const mods = new Map<string, number>();
+    const nameVotes = new Map<string, number>();
     for (const uid of members) {
-      const mod = symbolMap.get(uid)?.module || "root";
+      const sym = symbolMap.get(uid);
+      if (!sym) continue;
+      const mod = sym.module || "root";
       mods.set(mod, (mods.get(mod) || 0) + 1);
+      if (sym.kind !== "File" && sym.name && sym.name !== "anonymous") {
+        nameVotes.set(sym.name, (nameVotes.get(sym.name) || 0) + 1);
+      }
     }
-    const label =
+
+    const topMod =
       [...mods.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || `community_${cid}`;
+    const topNames = [...nameVotes.entries()]
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+      .slice(0, 2)
+      .map(([n]) => n);
+    // Prefer readable module path; fall back to dominant symbol names.
+    const label =
+      topMod !== "root" && topMod !== "anonymous"
+        ? topMod
+        : topNames.length
+          ? topNames.join(" · ")
+          : `community_${cid}`;
+
     clusters.push({
       id: `cluster_${cid}`,
       heuristicLabel: label,

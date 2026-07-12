@@ -13,7 +13,14 @@ export default function ReviewQueuePanel({ items, loading }) {
     <Panel className="h-full border-warning/20 shadow-app-card">
       <PanelHeader
         kicker="Action required"
-        title={`Needs your review${hasItems ? ` (${items.length})` : ""}`}
+        title="Needs your review"
+        right={
+          hasItems ? (
+            <span className="inline-flex shrink-0 items-center rounded-full bg-warning/15 px-2.5 py-1 text-[11px] font-semibold tabular-nums text-warning">
+              {items.length}
+            </span>
+          ) : null
+        }
       />
       <div className="px-5 py-4 sm:px-6">
         {loading && !hasItems ? (

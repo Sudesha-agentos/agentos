@@ -32,7 +32,7 @@ function buildStatusMetrics(orgPath, counts, costToday = "—", passRate = "—"
     },
     {
       id: "review",
-      label: "Need review",
+      label: "Needs your review",
       value: String(counts.review),
       tone: "review",
       href: `${orgPath("pipelines")}?tab=review`,

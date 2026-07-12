@@ -25,7 +25,7 @@ function EmptyState({ onAnalyze, analyzing, error }) {
   return (
     <div className="flex h-full flex-col items-center justify-center gap-4 px-6 text-center">
       <div className="max-w-md rounded-app border border-app-border bg-app-surface px-8 py-10 shadow-app-card">
-        <p className="type-kicker">Knowledge graph</p>
+        <p className="type-kicker">Ananta Brain</p>
         <p className="mt-2 type-section-title">Not ready yet</p>
         <p className="mt-2 type-body">
           Analyze this repository to build clusters, symbols, processes, and call edges — then
@@ -297,7 +297,7 @@ function RightPanel({
 }
 
 /**
- * GitNexus explorer styled for AgentOS app chrome.
+ * Ananta Brain explorer (GitNexus-backed knowledge graph) styled for AgentOS app chrome.
  * Required Notice: Copyright Abhigyan Patwari (https://github.com/abhigyanpatwari/GitNexus)
  */
 export default function GitNexusExplorer({ branch = "main" }) {
@@ -416,8 +416,8 @@ export default function GitNexusExplorer({ branch = "main" }) {
   return (
     <Panel className="overflow-hidden">
       <PanelHeader
-        kicker="Knowledge graph"
-        title="GitNexus"
+        kicker="Ananta"
+        title="Ananta Brain"
         subtitle={`Explore clusters, symbols, and processes on ${branch}.`}
         right={
           <div className="flex flex-wrap items-center gap-1.5">
