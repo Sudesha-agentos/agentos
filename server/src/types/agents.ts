@@ -71,6 +71,14 @@ export interface ImplementationOutput {
   codingSummary?: string;
 }
 
+export interface TestCaseCitation {
+  /** PRD acceptance criterion (exact or normalized) */
+  criterion: string;
+  /** Code / API / DOM chunk this test was derived from */
+  sourceRef: string;
+  sourceType?: "code" | "api" | "dom" | "prd" | "other";
+}
+
 export interface TestCase {
   id: string;
   title: string;
@@ -80,6 +88,8 @@ export interface TestCase {
   steps: string[];
   expectedResult: string;
   priority: "critical" | "high" | "medium" | "low";
+  /** Required for new Neel output — cites criterion + retrieved source */
+  citations?: TestCaseCitation[];
 }
 
 export interface CoverageReport {
@@ -87,6 +97,14 @@ export interface CoverageReport {
   coveredCriteria: number;
   coveragePercent: number;
   uncoveredCriteria: string[];
+}
+
+export interface QaConfidenceBreakdownItem {
+  id: string;
+  label: string;
+  value: number;
+  weight: number;
+  contribution: number;
 }
 
 export interface QaOutput {
@@ -97,4 +115,44 @@ export interface QaOutput {
   automationRecommendations: string[];
   confidenceScore: number;
   confidenceReason: string;
+  /** Explainable multi-factor confidence (preferred over LLM-only score) */
+  confidenceBreakdown?: {
+    score: number;
+    scorePercent: number;
+    components: Record<string, number>;
+    breakdown: QaConfidenceBreakdownItem[];
+    testsNotExecuted: boolean;
+  };
+  /** Ranked gaps from change mapper */
+  coverageGaps?: Array<{
+    id: string;
+    criterion: string;
+    severity: string;
+    reason: string;
+    suggestedTestType: string;
+    relatedFiles: string[];
+  }>;
+  /** Lightweight req → code → test edges */
+  traceability?: Array<{
+    requirement: string;
+    codePaths: string[];
+    testIds: string[];
+    testFiles: string[];
+    lastRunStatus?: string;
+  }>;
+  playwrightSmoke?: {
+    attempted: boolean;
+    skipped: boolean;
+    skipReason?: string;
+    passed: boolean;
+  };
+  locatorHealProposals?: Array<{
+    testFile: string;
+    testName: string;
+    oldPrimary: string;
+    proposedPrimary: string;
+    confidence: number;
+    requiresHumanReview: boolean;
+    rationale: string;
+  }>;
 }

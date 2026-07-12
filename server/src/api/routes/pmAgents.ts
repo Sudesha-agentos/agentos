@@ -25,8 +25,8 @@ import { NotFoundError, ValidationError } from "../../utils/errors";
 import {
   isPmAnalysisRunning,
   startPmAnalysisInBackground,
-  requestPmAnalysisCancel,
 } from "../../agents/pm/backgroundRunner";
+import { clearPipelineCancelByJiraKey, stopWorkingSession } from "../../pipeline/cancelSession";
 
 const router = Router();
 
@@ -119,8 +119,8 @@ router.post("/analyze/:ticketId/resume", async (req, res, next) => {
       });
       return;
     }
-    if (existing.status !== "FAILED") {
-      throw new ValidationError("Only failed analyses can be resumed");
+    if (existing.status !== "FAILED" && existing.status !== "CANCELLED") {
+      throw new ValidationError("Only failed or stopped analyses can be resumed");
     }
 
     const resumeFrom = (req.body?.resumeFrom as PmStageId | undefined) ?? getPmResumeStage(existing);
@@ -128,6 +128,7 @@ router.post("/analyze/:ticketId/resume", async (req, res, next) => {
       throw new ValidationError("Could not determine which stage to resume from");
     }
 
+    clearPipelineCancelByJiraKey(jiraKey);
     startPmAnalysisInBackground(
       jiraKey,
       () => runPmAnalysisPipeline({ jiraKey, resumeFrom }),
@@ -211,6 +212,7 @@ router.post("/analyze/:ticketId", async (req, res, next) => {
       ticket?: Partial<PmTicketInput>;
       mode?: "interactive" | "auto";
     } | undefined;
+    clearPipelineCancelByJiraKey(jiraKey);
     startPmAnalysisInBackground(
       jiraKey,
       () =>
@@ -238,12 +240,16 @@ router.post("/analyze/:ticketId/cancel", async (req, res, next) => {
     const jiraKey = req.params.ticketId.trim().toUpperCase();
     if (!jiraKey) throw new ValidationError("ticketId is required");
 
-    const cancelled = requestPmAnalysisCancel(jiraKey);
-    if (!cancelled) {
+    const result = await stopWorkingSession(jiraKey);
+    if (
+      !result.virinCancelled &&
+      result.pipelinesStopped.length === 0 &&
+      result.queueItemsCancelled === 0
+    ) {
       res.status(409).json({
         jiraKey,
         error: "not_running",
-        message: "No active Virin session to cancel for this ticket",
+        message: result.message,
       });
       return;
     }
@@ -251,7 +257,10 @@ router.post("/analyze/:ticketId/cancel", async (req, res, next) => {
     res.json({
       jiraKey,
       status: "CANCELLED",
-      message: "Virin session stopped",
+      virinCancelled: result.virinCancelled,
+      pipelinesStopped: result.pipelinesStopped,
+      queueItemsCancelled: result.queueItemsCancelled,
+      message: result.message,
     });
   } catch (err) {
     next(err);

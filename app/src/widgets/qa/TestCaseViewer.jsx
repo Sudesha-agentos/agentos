@@ -50,6 +50,15 @@ export function TestCaseViewer({ testCases = [], compact = false }) {
               AC: {tc.linkedCriterion ?? tc.linkedCriteria?.join(", ")}
             </p>
           ) : null}
+          {tc.citations?.length ? (
+            <ul className="mt-2 space-y-1 text-[11px] text-app-ink-mute">
+              {tc.citations.map((c, i) => (
+                <li key={i}>
+                  Cite [{c.sourceType ?? "source"}]: {c.sourceRef}
+                </li>
+              ))}
+            </ul>
+          ) : null}
           {tc.steps?.length ? (
             <ol className="mt-3 list-decimal space-y-1 pl-5 text-[13px] text-app-ink-dim">
               {tc.steps.map((step, i) => (

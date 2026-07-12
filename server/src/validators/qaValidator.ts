@@ -21,6 +21,17 @@ const qaSchema = z.object({
         steps: z.array(z.string().min(2)).min(1),
         expectedResult: z.string().min(4),
         priority: z.enum(["critical", "high", "medium", "low"]),
+        citations: z
+          .array(
+            z.object({
+              criterion: z.string().min(2),
+              sourceRef: z.string().min(2),
+              sourceType: z
+                .enum(["code", "api", "dom", "prd", "other"])
+                .optional(),
+            })
+          )
+          .optional(),
       })
     )
     .min(1),
@@ -34,6 +45,19 @@ const qaSchema = z.object({
   automationRecommendations: z.array(z.string()),
   confidenceScore: z.number().min(0).max(1),
   confidenceReason: z.string().min(8),
+  confidenceBreakdown: z
+    .object({
+      score: z.number().min(0).max(1),
+      scorePercent: z.number(),
+      components: z.record(z.string(), z.number()),
+      breakdown: z.array(z.any()),
+      testsNotExecuted: z.boolean(),
+    })
+    .optional(),
+  coverageGaps: z.array(z.any()).optional(),
+  traceability: z.array(z.any()).optional(),
+  playwrightSmoke: z.any().optional(),
+  locatorHealProposals: z.array(z.any()).optional(),
 });
 
 const MIN_COVERAGE_PERCENT = 95;
@@ -124,11 +148,33 @@ export function validateQa(qa: unknown, prd: PrdOutput): ValidationResult {
     amberFlags.push("No critical-priority test cases. Verify scope is correct.");
   }
 
-  if (data.confidenceScore < 0.7) {
+  const missingCitations = data.testCases.filter(
+    (tc) => !tc.citations?.length || !tc.citations.some((c) => c.sourceRef?.trim())
+  );
+  if (missingCitations.length > 0) {
+    amberFlags.push(
+      `${missingCitations.length} test case(s) missing citations (criterion + sourceRef).`
+    );
+  }
+
+  // Prefer explainable breakdown when present
+  const effectiveConfidence =
+    data.confidenceBreakdown?.score ?? data.confidenceScore;
+
+  if (data.confidenceBreakdown?.testsNotExecuted) {
+    issues.push({
+      code: "TESTS_NOT_EXECUTED",
+      severity: "error",
+      message:
+        "Sandbox tests were not executed — cannot approve on plan-only confidence. Configure GITHUB_TOKEN or re-run QA.",
+    });
+  }
+
+  if (effectiveConfidence < 0.7) {
     issues.push({
       code: "LOW_CONFIDENCE",
       severity: "error",
-      message: `QA confidence ${data.confidenceScore} below 0.7 threshold.`,
+      message: `QA confidence ${effectiveConfidence} below 0.7 threshold.`,
     });
   }
 

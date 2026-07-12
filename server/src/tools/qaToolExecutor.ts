@@ -14,6 +14,17 @@ import {
   runSecurityScanInSandbox,
   type SecurityScanResult,
 } from "../qa/testing/securityScanner";
+import { analyseFailuresBatch } from "../qa/triage/failureTriage";
+import {
+  computeExplainableConfidence,
+  estimateModuleRiskFromText,
+} from "../qa/confidence/explainableConfidence";
+import {
+  runPlaywrightSmoke,
+  shouldEnablePlaywrightSmoke,
+} from "../qa/testing/playwrightSmoke";
+import { sandboxManager } from "../qa/testing/sandboxManager";
+import { proposeLocatorHeal, buildFingerprint } from "../qa/healing/locatorHeal";
 import { logger } from "../utils/logger";
 import type { ToolCallInput, ToolCallResult } from "./executor";
 
@@ -24,6 +35,12 @@ function stringValue(value: unknown, fallback = ""): string {
 function arrayOfStrings(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
   return value.filter((item): item is string => typeof item === "string");
+}
+
+function qaCoveragePercentFromInput(input: Record<string, unknown>): number | undefined {
+  const coverage = input.coverage_data as { coveragePercent?: number } | undefined;
+  if (typeof coverage?.coveragePercent === "number") return coverage.coveragePercent;
+  return undefined;
 }
 
 function defaultBranch(pipelineId: string, branchName?: string): string {
@@ -271,11 +288,77 @@ export async function executeQaToolCall(
           ? (toolCall.input.failures as Array<Record<string, unknown>>)
           : [];
         const criteria = arrayOfStrings(toolCall.input.acceptance_criteria);
-        const items = failures.map((failure, index) =>
-          analyseFailure(failure, criteria, index)
-        );
-        result = { items, analysedCount: items.length };
+        const items = analyseFailuresBatch(failures, criteria);
+        result = {
+          items,
+          analysedCount: items.length,
+          requiresHumanOverride: items.some((i) => i.requiresHumanOverride),
+        };
         resultsFound = items.length;
+        break;
+      }
+
+      case "map_coverage_gaps": {
+        const { mapCoverageGaps } = await import("../qa/gap/gapMapper");
+        const criteria = arrayOfStrings(toolCall.input.acceptance_criteria);
+        const changedFiles = arrayOfStrings(toolCall.input.changed_files);
+        const testCases = Array.isArray(toolCall.input.test_cases)
+          ? (toolCall.input.test_cases as Array<Record<string, unknown>>).map(
+              (tc, i) => ({
+                id: stringValue(tc.id, `TC-${String(i + 1).padStart(3, "0")}`),
+                linkedCriterion: stringValue(tc.linkedCriterion ?? tc.linked_criterion),
+                type: stringValue(tc.type),
+                title: stringValue(tc.title),
+              })
+            )
+          : [];
+        const gapMap = mapCoverageGaps({
+          acceptanceCriteria: criteria,
+          changedFiles,
+          testCases,
+          existingTestFiles: arrayOfStrings(toolCall.input.existing_test_files),
+          riskHints: arrayOfStrings(toolCall.input.risk_hints),
+        });
+        result = gapMap;
+        resultsFound = gapMap.gaps.length;
+        break;
+      }
+
+      case "propose_locator_heal": {
+        const fingerprint = buildFingerprint({
+          id: stringValue(toolCall.input.fingerprint_id) || undefined,
+          name: stringValue(toolCall.input.fingerprint_name) || undefined,
+          css: stringValue(toolCall.input.fingerprint_css) || undefined,
+          xpath: stringValue(toolCall.input.fingerprint_xpath) || undefined,
+          text: stringValue(toolCall.input.fingerprint_text) || undefined,
+          role: stringValue(toolCall.input.fingerprint_role) || undefined,
+        });
+        const candidates = Array.isArray(toolCall.input.candidates)
+          ? (toolCall.input.candidates as Array<Record<string, unknown>>).map((c) =>
+              buildFingerprint({
+                id: stringValue(c.id) || undefined,
+                name: stringValue(c.name) || undefined,
+                css: stringValue(c.css) || undefined,
+                xpath: stringValue(c.xpath) || undefined,
+                text: stringValue(c.text) || undefined,
+                role: stringValue(c.role) || undefined,
+              })
+            )
+          : [];
+        const proposal = proposeLocatorHeal({
+          testFile: stringValue(toolCall.input.test_file, "unknown"),
+          testName: stringValue(toolCall.input.test_name, "unknown"),
+          oldPrimary: stringValue(toolCall.input.old_primary),
+          fingerprint,
+          candidates,
+        });
+        const artifacts = getQaArtifacts(pipelineId);
+        artifacts.locatorHealProposals = [
+          ...(artifacts.locatorHealProposals ?? []),
+          proposal,
+        ];
+        result = proposal;
+        resultsFound = 1;
         break;
       }
 
@@ -290,11 +373,71 @@ export async function executeQaToolCall(
           (toolCall.input as { acceptance_criteria?: unknown })
             .acceptance_criteria
         );
+
+        // Optional Playwright smoke when ticket looks UI-facing
+        const smokeHint = stringValue(
+          (toolCall.input as { ticket_context?: unknown }).ticket_context,
+          summary
+        );
+        if (
+          shouldEnablePlaywrightSmoke(smokeHint) &&
+          artifacts.lastTestRun?.sandboxAvailable !== false &&
+          artifacts.implementationBranch
+        ) {
+          const smokeHandle = sandboxManager.create(`qa-smoke-${Date.now()}`);
+          try {
+            await sandboxManager.cloneBranch(
+              smokeHandle.sandboxDir,
+              artifacts.implementationBranch
+            );
+            const smoke = await runPlaywrightSmoke({
+              sandboxDir: smokeHandle.sandboxDir,
+              enabled: true,
+            });
+            artifacts.playwrightSmoke = smoke;
+          } catch (smokeErr) {
+            logger.warn(
+              { err: smokeErr instanceof Error ? smokeErr.message : String(smokeErr) },
+              "Playwright smoke lane failed to start"
+            );
+          } finally {
+            sandboxManager.destroy(smokeHandle.sandboxDir);
+          }
+        }
+
+        const testResults =
+          (toolCall.input.test_results as Record<string, unknown>) ??
+          artifacts.lastTestRun ??
+          {};
+        const testRun =
+          artifacts.lastTestRun ??
+          (typeof testResults === "object" &&
+          testResults !== null &&
+          "runId" in testResults
+            ? (testResults as unknown as TestRunResult)
+            : undefined);
+
+        const explainable = computeExplainableConfidence({
+          criteriaCoveragePercent:
+            criteria.length > 0
+              ? 100
+              : qaCoveragePercentFromInput(toolCall.input) ?? 100,
+          moduleRisk: estimateModuleRiskFromText(summary),
+          sandboxAvailable: testRun?.sandboxAvailable ?? false,
+          testRunStatus: testRun
+            ? testRun.sandboxAvailable === false
+              ? "error"
+              : testRun.status
+            : "skipped",
+          totalTests: testRun?.totalTests ?? 0,
+          failedTests: testRun?.failed ?? 0,
+          securityCriticalCount: artifacts.securityScan?.criticalCount ?? 0,
+          securityHighCount: artifacts.securityScan?.highCount ?? 0,
+        });
+
+        // If we have criteria, prefer report coverage after generateQaReport rebuilds it
         const report = generateQaReport({
-          testResults:
-            (toolCall.input.test_results as Record<string, unknown>) ??
-            artifacts.lastTestRun ??
-            {},
+          testResults,
           failureAnalysis: toolCall.input.failure_analysis as
             | { items?: FailureAnalysisItem[] }
             | undefined,
@@ -305,7 +448,32 @@ export async function executeQaToolCall(
           summary,
           acceptanceCriteria: criteria,
           securityScan: artifacts.securityScan,
+          explainableConfidence: explainable,
+          playwrightSmoke: artifacts.playwrightSmoke,
+          locatorHealProposals: artifacts.locatorHealProposals,
         });
+
+        // Recompute explainable with actual criteria coverage from the report
+        if (criteria.length > 0) {
+          const coveredPct =
+            (report.criteriaCoverage.covered / Math.max(report.criteriaCoverage.total, 1)) *
+            100;
+          report.explainableConfidence = computeExplainableConfidence({
+            criteriaCoveragePercent: coveredPct,
+            moduleRisk: estimateModuleRiskFromText(summary),
+            sandboxAvailable: testRun?.sandboxAvailable ?? false,
+            testRunStatus: testRun
+              ? testRun.sandboxAvailable === false
+                ? "error"
+                : testRun.status
+              : "skipped",
+            totalTests: testRun?.totalTests ?? 0,
+            failedTests: testRun?.failed ?? 0,
+            securityCriticalCount: artifacts.securityScan?.criticalCount ?? 0,
+            securityHighCount: artifacts.securityScan?.highCount ?? 0,
+          });
+        }
+
         artifacts.executionReport = report;
         result = report;
         resultsFound = 1;
@@ -450,49 +618,4 @@ function buildSuggestedTestStructure(
   }
   lines.push("});");
   return lines.join("\n");
-}
-
-function analyseFailure(
-  failure: Record<string, unknown>,
-  criteria: string[],
-  index: number
-): FailureAnalysisItem {
-  const message = stringValue(failure.error_message);
-  const testName = stringValue(failure.test_name, `failure-${index + 1}`);
-  const testId = stringValue(failure.test_id, `TC-FAIL-${index + 1}`);
-
-  const likelyCause: FailureAnalysisItem["likelyCause"] =
-    /expect|assert|toBe|toEqual/i.test(message)
-      ? "test"
-      : /ECONNREFUSED|timeout|ENOTFOUND/i.test(message)
-        ? "environment"
-        : message
-          ? "implementation"
-          : "unknown";
-
-  const severity: FailureAnalysisItem["severity"] =
-    /auth|security|permission|sql injection/i.test(message)
-      ? "critical"
-      : likelyCause === "implementation"
-        ? "high"
-        : "medium";
-
-  const violatedCriterion =
-    criteria.find((criterion) =>
-      message.toLowerCase().includes(criterion.toLowerCase().slice(0, 24))
-    ) ?? criteria[0];
-
-  return {
-    testId,
-    testName,
-    severity,
-    likelyCause,
-    violatedCriterion,
-    remediation:
-      likelyCause === "test"
-        ? "Fix the test assertion or test data setup."
-        : likelyCause === "environment"
-          ? "Verify test services, env vars, and sandbox connectivity."
-          : "Inspect implementation against the linked acceptance criterion.",
-  };
 }

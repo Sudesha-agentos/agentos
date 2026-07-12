@@ -154,7 +154,9 @@ Execute tests in an isolated sandbox. Returns pass/fail per test with errors and
   {
     name: "analyse_test_failures",
     description: `
-Analyse test failures for severity, root cause (test vs implementation), and remediation.
+Analyse test failures for severity and triage class:
+real_bug | flake | environment | stale_test | unknown.
+Low-confidence triage sets requiresHumanOverride=true.
     `.trim(),
     input_schema: {
       type: "object" as const,
@@ -166,6 +168,48 @@ Analyse test failures for severity, root cause (test vs implementation), and rem
         },
       },
       required: ["failures", "acceptance_criteria"],
+    },
+  },
+  {
+    name: "map_coverage_gaps",
+    description: `
+Map acceptance criteria against changed files and planned/existing tests.
+Returns ranked coverage gaps and req→code→test traceability edges.
+Call early in PHASE 2 before writing tests.
+    `.trim(),
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        acceptance_criteria: { type: "array", items: { type: "string" } },
+        changed_files: { type: "array", items: { type: "string" } },
+        test_cases: { type: "array", items: { type: "object" } },
+        existing_test_files: { type: "array", items: { type: "string" } },
+        risk_hints: { type: "array", items: { type: "string" } },
+      },
+      required: ["acceptance_criteria", "changed_files"],
+    },
+  },
+  {
+    name: "propose_locator_heal",
+    description: `
+Propose a self-heal for a stale e2e locator using a multi-attribute fingerprint.
+Never silent — proposals with confidence < 0.8 require human review.
+    `.trim(),
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        test_file: { type: "string" },
+        test_name: { type: "string" },
+        old_primary: { type: "string" },
+        fingerprint_id: { type: "string" },
+        fingerprint_name: { type: "string" },
+        fingerprint_css: { type: "string" },
+        fingerprint_xpath: { type: "string" },
+        fingerprint_text: { type: "string" },
+        fingerprint_role: { type: "string" },
+        candidates: { type: "array", items: { type: "object" } },
+      },
+      required: ["test_file", "test_name", "old_primary", "candidates"],
     },
   },
   {

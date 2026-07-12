@@ -70,9 +70,16 @@ router.get("/pipeline-reports/:pipelineId", async (req, res, next) => {
     const qa = out?.qa;
     const execReport = out?.executionReport as {
       overallRecommendation?: string;
+      executionStatus?: string;
+      executionMessage?: string;
+      requiresHumanOverride?: boolean;
       testRun?: { passed?: number; failed?: number; skipped?: number; totalTests?: number; duration?: number; coverage?: number; testResults?: Array<{ id: string; status: string }> };
-      failureAnalysis?: Array<{ testId: string; testName: string; severity?: string; likelyCause?: string; violatedCriterion?: string; remediation?: string }>;
+      failureAnalysis?: Array<{ testId: string; testName: string; severity?: string; likelyCause?: string; violatedCriterion?: string; remediation?: string; triageClass?: string; triageConfidence?: number; requiresHumanOverride?: boolean; evidence?: string[] }>;
       securityScan?: { criticalCount?: number; highCount?: number; findings?: Array<{ title: string; severity: string; description?: string }> };
+      gapMap?: { gaps?: unknown[]; edges?: unknown[] };
+      playwrightSmoke?: unknown;
+      locatorHealProposals?: unknown[];
+      explainableConfidence?: unknown;
     } | undefined;
 
     // Merge per-test-case pass/fail status from execution report
@@ -90,11 +97,21 @@ router.get("/pipeline-reports/:pipelineId", async (req, res, next) => {
       coverageReport: qa?.coverageReport,
       riskAreas: qa?.riskAreas ?? [],
       confidenceScore: qa?.confidenceScore,
+      confidenceBreakdown: qa?.confidenceBreakdown ?? null,
+      confidenceReason: qa?.confidenceReason ?? null,
+      coverageGaps: qa?.coverageGaps ?? execReport?.gapMap?.gaps ?? [],
+      traceability: qa?.traceability ?? execReport?.gapMap?.edges ?? [],
       testSummary: qa?.testSummary,
       recommendation: execReport?.overallRecommendation ?? null,
       testRun: execReport?.testRun ?? null,
       failureAnalysis: execReport?.failureAnalysis ?? [],
       securityScan: execReport?.securityScan ?? null,
+      executionStatus: execReport?.executionStatus ?? null,
+      executionMessage: execReport?.executionMessage ?? null,
+      requiresHumanOverride: execReport?.requiresHumanOverride ?? false,
+      playwrightSmoke: qa?.playwrightSmoke ?? execReport?.playwrightSmoke ?? null,
+      locatorHealProposals:
+        qa?.locatorHealProposals ?? execReport?.locatorHealProposals ?? [],
       completedAt: stage.completedAt?.toISOString(),
     });
   } catch (err) {

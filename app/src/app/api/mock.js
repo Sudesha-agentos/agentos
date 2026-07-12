@@ -2438,7 +2438,11 @@ export const mockApi = {
       currentStage: null,
       error: "Cancelled by user",
     };
-    return { jiraKey: key, status: "CANCELLED", message: "Virin session stopped (mock)" };
+    return {
+      jiraKey: key,
+      status: "CANCELLED",
+      message: "Session stopped. Open this ticket in Virin and click Analyze to start again.",
+    };
   },
   async resumePmTicket(ticketId) {
     markUsed();

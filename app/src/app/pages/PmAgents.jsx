@@ -18,6 +18,7 @@ import {
   VIRIN_NAME,
 } from "../../entities/pm-agents";
 import { useJiraSyncIssues } from "../../entities/jira-sync";
+import { usePipelineLive } from "../../entities/pipeline";
 import { usePipelineIntakeTickets } from "../../entities/pipeline-jira";
 import { VirinWorkspace } from "../../widgets/pm-analysis/VirinWorkspace";
 import VirinWorkspaceTabs from "../../widgets/pm-analysis/VirinWorkspaceTabs";
@@ -76,9 +77,18 @@ export default function PmAgents() {
   });
   const { data: intake } = usePipelineIntakeTickets(true, { pollMs: 30000 });
   const { data: syncedIssues } = useJiraSyncIssues({ limit: 20 });
+  const { active: livePipeline } = usePipelineLive({
+    jiraKey: activeKey,
+    pollMs: activeKey ? 3000 : undefined,
+    skip: !activeKey,
+  });
 
   const intakeTickets = intake?.items ?? [];
   const syncedTickets = syncedIssues?.items ?? [];
+
+  const isStopped = analysis?.status === "CANCELLED";
+  const pipelineLive =
+    livePipeline?.status === "RUNNING" || livePipeline?.status === "PAUSED";
 
   const isRunning =
     analysis?.status === "RUNNING" ||
@@ -86,8 +96,18 @@ export default function PmAgents() {
     analysis?.status === "AWAITING_INPUT" ||
     analysis?.status === "AWAITING_CONFIRMATION";
 
+  const canStop = isRunning || pipelineLive;
+
   const needsAttention =
     analysis?.status === "AWAITING_INPUT" || analysis?.status === "AWAITING_CONFIRMATION";
+
+  const analyzeLabel = (() => {
+    if (isRunning && !needsAttention) return `${VIRIN_NAME} is working…`;
+    if (needsAttention) return "Session in progress";
+    if (pipelineLive) return "Pipeline in progress";
+    if (isStopped || analysis?.status === "FAILED") return `Start again with ${VIRIN_NAME}`;
+    return `Analyze with ${VIRIN_NAME}`;
+  })();
 
   useEffect(() => {
     if (ticketFromUrl) {
@@ -182,12 +202,16 @@ export default function PmAgents() {
     setCancelBusy(true);
     setError(null);
     try {
-      await cancelPmAnalysis(key);
+      const result = await cancelPmAnalysis(key);
       setAnalyzing(false);
       await refetchAnalysis();
       await refetchCatalogs();
+      setError(
+        result?.message ??
+          "Session stopped. Select this ticket and click Analyze to start again."
+      );
     } catch (err) {
-      setError(err.message ?? "Failed to stop Virin session");
+      setError(err.message ?? "Failed to stop session");
     } finally {
       setCancelBusy(false);
     }
@@ -300,23 +324,19 @@ export default function PmAgents() {
               placeholder="PLT-1287"
               className="mt-1.5 w-full rounded-app-sm border border-app-border bg-app-surface px-4 py-2.5 font-mono text-sm text-app-ink outline-none transition focus:border-indigo/40 focus:ring-2 focus:ring-indigo/10"
               onKeyDown={(e) => {
-                if (e.key === "Enter" && !isRunning) handleAnalyze();
+                if (e.key === "Enter" && !canStop) handleAnalyze();
               }}
             />
           </label>
           <button
             type="button"
-            disabled={isRunning || !ticketInput.trim()}
+            disabled={canStop || !ticketInput.trim()}
             onClick={handleAnalyze}
             className="app-btn-primary shrink-0 disabled:opacity-50"
           >
-            {isRunning && !needsAttention
-              ? `${VIRIN_NAME} is working…`
-              : needsAttention
-                ? "Session in progress"
-                : `Analyze with ${VIRIN_NAME}`}
+            {analyzeLabel}
           </button>
-          {isRunning ? (
+          {canStop ? (
             <button
               type="button"
               disabled={cancelBusy}
@@ -327,6 +347,13 @@ export default function PmAgents() {
             </button>
           ) : null}
         </div>
+
+        {isStopped ? (
+          <p className="border-t border-app-border bg-app-surface-muted/30 px-5 py-3 text-[13px] text-app-ink-dim sm:px-6">
+            Session stopped. Keep this ticket selected and click <strong>Start again with {VIRIN_NAME}</strong> to
+            run it manually — it will not auto-resume.
+          </p>
+        ) : null}
 
         {(syncedTickets.length > 0 || intakeTickets.length > 0) && (
           <div className="border-t border-app-border px-5 py-4 sm:px-6">
