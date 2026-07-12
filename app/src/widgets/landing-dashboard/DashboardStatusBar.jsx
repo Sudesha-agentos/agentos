@@ -39,7 +39,7 @@ export default function DashboardStatusBar({ metrics, loading }) {
             >
               {metric.value}
             </p>
-            <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-app-ink-mute">
+            <p className="mt-2 text-[11px] font-medium leading-snug text-app-ink-mute">
               {metric.label}
             </p>
           </>

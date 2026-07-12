@@ -39,11 +39,13 @@ export function PanelHeader({
       className={`border-b ${styles.headerBorder} px-5 py-4 sm:px-6 sm:py-5 ${className}`}
     >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           {kicker ? <p className={styles.kicker}>{kicker}</p> : null}
           <h2
             className={
-              variant === "light" ? `mt-1 ${styles.title}` : `mt-2 flex items-center gap-2 ${styles.title}`
+              variant === "light"
+                ? `mt-1 break-words ${styles.title}`
+                : `mt-2 flex flex-wrap items-center gap-2 break-words ${styles.title}`
             }
           >
             {info ? <TitleWithInfo info={info}>{title}</TitleWithInfo> : title}
@@ -52,7 +54,7 @@ export function PanelHeader({
             <p className={`mt-1.5 max-w-2xl ${styles.subtitle}`}>{subtitle}</p>
           ) : null}
         </div>
-        {right}
+        {right ? <div className="shrink-0">{right}</div> : null}
       </div>
     </header>
   );

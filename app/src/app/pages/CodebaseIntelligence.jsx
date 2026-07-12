@@ -33,7 +33,7 @@ export default function CodebaseIntelligence() {
             runId={indexRunId ?? undefined}
             branch={branch}
             enabled
-            title="Building knowledge graph"
+            title="Building Ananta Brain"
           />
         ) : null}
 

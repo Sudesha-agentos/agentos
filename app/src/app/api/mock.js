@@ -1562,7 +1562,7 @@ export const mockApi = {
         },
         {
           id: "review",
-          label: "Need review",
+          label: "Needs your review",
           value: String(review),
           tone: "review",
           href: `${mockOrgPath("pipelines")}?tab=review`,
