@@ -213,7 +213,7 @@ export default function KnowledgeGraphView({
           </span>
         ) : null}
       </div>
-      <div className="relative h-[520px] overflow-hidden rounded-app border border-app-border bg-[#0b0b12]">
+      <div className="relative h-[min(68vh,700px)] overflow-hidden rounded-app border border-app-border bg-[#0b0b12]">
         <canvas ref={canvasRef} className="h-full w-full" />
       </div>
       {selected ? (
