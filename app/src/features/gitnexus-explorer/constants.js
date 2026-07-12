@@ -37,12 +37,12 @@ export const NODE_SIZES = {
 };
 
 export const EDGE_COLORS = {
-  CALLS: "rgba(16, 185, 129, 0.45)",
-  IMPORTS: "rgba(59, 130, 246, 0.35)",
-  EXTENDS: "rgba(245, 158, 11, 0.5)",
+  CALLS: "rgba(16, 185, 129, 0.55)",
+  IMPORTS: "rgba(59, 130, 246, 0.45)",
+  EXTENDS: "rgba(245, 158, 11, 0.55)",
   IMPLEMENTS: "rgba(236, 72, 153, 0.5)",
-  CONTAINS: "rgba(99, 102, 241, 0.3)",
-  MEMBER_OF: "rgba(129, 140, 248, 0.25)",
+  CONTAINS: "rgba(99, 102, 241, 0.35)",
+  MEMBER_OF: "rgba(129, 140, 248, 0.35)",
   CLUSTER_LINK: "rgba(139, 124, 246, 0.4)",
 };
 
