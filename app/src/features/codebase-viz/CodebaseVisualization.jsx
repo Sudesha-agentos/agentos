@@ -9,6 +9,7 @@ import { consumeMapHighlights } from "../../widgets/codebase-search/codebaseSear
 import TreemapCanvas from "./TreemapCanvas";
 import MapMinimap from "./MapMinimap";
 import ModuleGraphView from "./ModuleGraphView";
+import KnowledgeGraphView from "./KnowledgeGraphView";
 import TourOverlay from "./TourOverlay";
 import ActivityTimeSlider from "./ActivityTimeSlider";
 import FileInteriorView from "./FileInteriorView";
@@ -302,6 +303,9 @@ export default function CodebaseVisualization({
             <ViewToggle active={view === "graph"} onClick={() => setView("graph")}>
               Relationships
             </ViewToggle>
+            <ViewToggle active={view === "knowledge"} onClick={() => setView("knowledge")}>
+              Knowledge
+            </ViewToggle>
           </div>
 
           <span
@@ -452,6 +456,10 @@ export default function CodebaseVisualization({
               }}
             />
           </>
+        ) : view === "knowledge" ? (
+          <div className="min-h-0 flex-1 overflow-auto p-3">
+            <KnowledgeGraphView branch={branch} highlightIds={highlights} />
+          </div>
         ) : (
           <ModuleGraphView
             nodes={fileNodes}

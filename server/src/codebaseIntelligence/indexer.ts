@@ -277,6 +277,19 @@ async function runFullIndexInner(
         logger.warn({ err, branchName }, "tour/knowledge generation after full index failed");
       });
 
+    void import("./gitnexus")
+      .then(({ runGitNexusAnalyzeForScope }) =>
+        runGitNexusAnalyzeForScope({
+          organizationId: options.organizationId,
+          repoOwner,
+          repoName,
+          branchName,
+        })
+      )
+      .catch((err) => {
+        logger.warn({ err, branchName }, "gitnexus analyze after full index failed");
+      });
+
     return {
       filesIndexed,
       filesUpdated,
@@ -414,6 +427,22 @@ async function runIncrementalIndexInner(input: {
       await visualizationCache.refresh(input.branchName).catch((err) => {
         logger.warn({ err, branchName: input.branchName }, "viz refresh after incremental index failed");
       });
+
+      void import("./gitnexus")
+        .then(({ runGitNexusAnalyzeForScope }) =>
+          runGitNexusAnalyzeForScope({
+            organizationId: input.organizationId,
+            repoOwner,
+            repoName,
+            branchName: input.branchName,
+          })
+        )
+        .catch((err) => {
+          logger.warn(
+            { err, branchName: input.branchName },
+            "gitnexus analyze after incremental index failed"
+          );
+        });
     }
 
     logger.info(

@@ -30,6 +30,8 @@ server/dist
 server/src/generated
 server/data
 server/.env
+server/vendor/gitnexus-upstream
+server/vendor/LICENSE.GitNexus.tmp
 
 # App build
 app/dist

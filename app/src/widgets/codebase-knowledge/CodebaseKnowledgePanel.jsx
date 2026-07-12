@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
+  fetchGitNexusWiki,
   generateCodebaseKnowledge,
   useCodebaseKnowledge,
 } from "../../entities/codebase";
@@ -10,6 +11,7 @@ import { Panel, PanelHeader } from "../../shared/ui/Panel";
 
 const SECTIONS = [
   { id: "architecture", label: "Architecture" },
+  { id: "wiki", label: "Graph wiki" },
   { id: "components", label: "Components" },
   { id: "runbooks", label: "Runbooks" },
 ];
@@ -147,8 +149,23 @@ export default function CodebaseKnowledgePanel({ branch = "main" }) {
   const { data, loading, error, refetch } = useCodebaseKnowledge({ branch });
   const [section, setSection] = useState("architecture");
   const [generating, setGenerating] = useState(false);
+  const [wiki, setWiki] = useState(null);
   const navigate = useNavigate();
   const [params] = useSearchParams();
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchGitNexusWiki(branch)
+      .then((w) => {
+        if (!cancelled) setWiki(w);
+      })
+      .catch(() => {
+        if (!cancelled) setWiki(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [branch]);
 
   function openInExplorer(filePath) {
     const parent = filePath.split("/").slice(0, -1).join("/");
@@ -165,6 +182,8 @@ export default function CodebaseKnowledgePanel({ branch = "main" }) {
     try {
       await generateCodebaseKnowledge(branch);
       await refetch();
+      const w = await fetchGitNexusWiki(branch).catch(() => null);
+      setWiki(w);
     } finally {
       setGenerating(false);
     }
@@ -237,6 +256,38 @@ export default function CodebaseKnowledgePanel({ branch = "main" }) {
       <div className="px-5 py-6 sm:px-6">
         {section === "architecture" ? (
           <ArchitectureView doc={data?.architecture} onOpenFile={openInExplorer} />
+        ) : null}
+        {section === "wiki" ? (
+          wiki ? (
+            <article className="space-y-6">
+              <div>
+                <h3 className="font-display text-xl text-ink">Graph wiki</h3>
+                <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.12em] text-ink-mute">
+                  {wiki.source} · knowledge graph
+                </p>
+                <p className="mt-3 whitespace-pre-wrap text-[14px] leading-relaxed text-ink-dim">
+                  {wiki.overview}
+                </p>
+              </div>
+              {(wiki.pages ?? []).map((page) => (
+                <section key={page.id} className="rounded-xl border border-hairline bg-surface/30 px-4 py-4">
+                  <h4 className="font-display text-lg text-ink">{page.title}</h4>
+                  <p className="mt-2 whitespace-pre-wrap text-[13px] text-ink-dim">{page.body}</p>
+                  {page.fileRefs?.length ? (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {page.fileRefs.map((ref) => (
+                        <FileRefLink key={ref} path={ref} onOpen={openInExplorer} />
+                      ))}
+                    </div>
+                  ) : null}
+                </section>
+              ))}
+            </article>
+          ) : (
+            <p className="text-[13px] text-ink-dim">
+              Graph wiki unavailable — run index / gn analyze first.
+            </p>
+          )
         ) : null}
         {section === "components" ? (
           <ComponentsView components={data?.components} onOpenFile={openInExplorer} />

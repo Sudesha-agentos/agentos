@@ -110,6 +110,50 @@ const restCodebaseAdapter = {
       headers: headers({ "Content-Type": "application/json" }),
       body: JSON.stringify({ branchName: branch }),
     }),
+  gnGraph: (branch = "main", { collapse = true, limit } = {}) => {
+    const qs = new URLSearchParams({ branch });
+    if (!collapse) qs.set("collapse", "false");
+    if (limit) qs.set("limit", String(limit));
+    return fetchJson(apiPath("/api", `/codebase/gn/graph?${qs}`), { headers: headers() });
+  },
+  gnAnalyze: (branch = "main") =>
+    fetchJson(apiPath("/api/codebase/gn/analyze"), {
+      method: "POST",
+      headers: headers({ "Content-Type": "application/json" }),
+      body: JSON.stringify({ branchName: branch }),
+    }),
+  gnQuery: (payload) =>
+    fetchJson(apiPath("/api/codebase/gn/query"), {
+      method: "POST",
+      headers: headers({ "Content-Type": "application/json" }),
+      body: JSON.stringify(payload),
+    }),
+  gnContext: (payload) =>
+    fetchJson(apiPath("/api/codebase/gn/context"), {
+      method: "POST",
+      headers: headers({ "Content-Type": "application/json" }),
+      body: JSON.stringify(payload),
+    }),
+  gnImpact: (payload) =>
+    fetchJson(apiPath("/api/codebase/gn/impact"), {
+      method: "POST",
+      headers: headers({ "Content-Type": "application/json" }),
+      body: JSON.stringify(payload),
+    }),
+  gnDetectChanges: (payload) =>
+    fetchJson(apiPath("/api/codebase/gn/detect_changes"), {
+      method: "POST",
+      headers: headers({ "Content-Type": "application/json" }),
+      body: JSON.stringify(payload),
+    }),
+  gnWiki: (branch = "main") =>
+    fetchJson(apiPath("/api", `/codebase/gn/wiki?branch=${encodeURIComponent(branch)}`), {
+      headers: headers(),
+    }),
+  gnStatus: (branch = "main") =>
+    fetchJson(apiPath("/api", `/codebase/gn/status?branch=${encodeURIComponent(branch)}`), {
+      headers: headers(),
+    }),
 };
 
 const mockCodebaseAdapter = {
@@ -130,9 +174,33 @@ const mockCodebaseAdapter = {
   generateTour: (branch) => mockApi.generateCodebaseTour(branch),
   health: (branch) => mockApi.codebaseHealth(branch),
   healthTimeline: (branch, days) => mockApi.codebaseHealthTimeline(branch, days),
-  impact: (payload) => mockApi.codebaseImpact(payload),
+  knowledge: (payload) => mockApi.codebaseImpact(payload),
   knowledge: (branch) => mockApi.codebaseKnowledge(branch),
   generateKnowledge: (branch) => mockApi.generateCodebaseKnowledge(branch),
+  gnGraph: async () => ({
+    view: "clusters",
+    nodes: [
+      { id: "c1", label: "auth", kind: "Cluster", size: 20, memberCount: 12 },
+      { id: "c2", label: "api", kind: "Cluster", size: 16, memberCount: 8 },
+    ],
+    edges: [{ id: "e1", source: "c1", target: "c2", type: "CLUSTER_LINK" }],
+    meta: { symbolCount: 20, edgeCount: 30, clusterCount: 2, processCount: 1 },
+    source: "mock",
+  }),
+  gnAnalyze: async () => ({ ok: true, meta: { symbolCount: 20 } }),
+  gnQuery: async () => ({ processes: [], process_symbols: [], definitions: [] }),
+  gnContext: async () => ({ error: "symbol_not_found" }),
+  gnImpact: async () => ({ depths: {} }),
+  gnDetectChanges: async () => ({
+    summary: { changed_count: 0, affected_count: 0, changed_files: 0, risk_level: "low" },
+  }),
+  gnWiki: async () => ({
+    overview: "Mock knowledge graph wiki",
+    pages: [],
+    source: "heuristic",
+    generatedAt: new Date().toISOString(),
+  }),
+  gnStatus: async () => ({ ready: true, symbolCount: 20 }),
 };
 
 export const codebaseAdapter =
@@ -305,4 +373,32 @@ export function useCodebaseKnowledge(options = {}) {
 
 export async function generateCodebaseKnowledge(branch = "main") {
   return codebaseAdapter.generateKnowledge(branch);
+}
+
+export function fetchGitNexusGraph(branch = "main", options = {}) {
+  return codebaseAdapter.gnGraph(branch, options);
+}
+
+export async function analyzeGitNexusGraph(branch = "main") {
+  return codebaseAdapter.gnAnalyze(branch);
+}
+
+export async function gitNexusQuery(payload) {
+  return codebaseAdapter.gnQuery(payload);
+}
+
+export async function gitNexusImpact(payload) {
+  return codebaseAdapter.gnImpact(payload);
+}
+
+export async function gitNexusDetectChanges(payload) {
+  return codebaseAdapter.gnDetectChanges(payload);
+}
+
+export function fetchGitNexusWiki(branch = "main") {
+  return codebaseAdapter.gnWiki(branch);
+}
+
+export function fetchGitNexusStatus(branch = "main") {
+  return codebaseAdapter.gnStatus(branch);
 }
