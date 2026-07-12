@@ -23,6 +23,7 @@ export interface QaInboxItem {
 export interface QaInboxResponse {
   running: QaInboxItem[];
   blocked: QaInboxItem[];
+  failed: QaInboxItem[];
   completed: QaInboxItem[];
 }
 
@@ -75,43 +76,58 @@ function mapCompletedReport(stage: {
 }
 
 /**
- * Neel inbox: running QA, blocked before handoff (impl gate), and completed reports.
+ * Neel inbox: running QA, blocked before/at Neel gates, failed QA, completed reports.
  */
 export async function getQaInbox(organizationId: string): Promise<QaInboxResponse> {
-  const [runningPipelines, blockedPipelines, completedStages] = await Promise.all([
-    prisma.pipeline.findMany({
-      where: {
-        organizationId,
-        status: "RUNNING",
-        currentStage: { in: ["QA_AGENT", "QA_VALIDATION"] },
-      },
-      orderBy: { startedAt: "desc" },
-      take: 30,
-      include: { ticket: true },
-    }),
-    prisma.pipeline.findMany({
-      where: {
-        organizationId,
-        status: "PAUSED",
-        currentStage: "IMPLEMENTATION_VALIDATION",
-      },
-      orderBy: { startedAt: "desc" },
-      take: 30,
-      include: { ticket: true },
-    }),
-    prisma.pipelineStageLog.findMany({
-      where: {
-        stage: "QA_AGENT",
-        status: "COMPLETED",
-        pipeline: { organizationId },
-      },
-      orderBy: { completedAt: "desc" },
-      take: 50,
-      include: {
-        pipeline: { include: { ticket: true } },
-      },
-    }),
-  ]);
+  const [runningPipelines, blockedPipelines, failedPipelines, completedStages] =
+    await Promise.all([
+      prisma.pipeline.findMany({
+        where: {
+          organizationId,
+          status: "RUNNING",
+          currentStage: { in: ["QA_AGENT", "QA_VALIDATION", "OUTPUT"] },
+        },
+        orderBy: { startedAt: "desc" },
+        take: 30,
+        include: { ticket: true },
+      }),
+      prisma.pipeline.findMany({
+        where: {
+          organizationId,
+          status: "PAUSED",
+          currentStage: {
+            in: ["IMPLEMENTATION_VALIDATION", "QA_AGENT", "QA_VALIDATION"],
+          },
+        },
+        orderBy: { startedAt: "desc" },
+        take: 30,
+        include: { ticket: true },
+      }),
+      prisma.pipeline.findMany({
+        where: {
+          organizationId,
+          status: "FAILED",
+          currentStage: {
+            in: ["QA_AGENT", "QA_VALIDATION", "OUTPUT", "IMPLEMENTATION_VALIDATION"],
+          },
+        },
+        orderBy: { startedAt: "desc" },
+        take: 30,
+        include: { ticket: true },
+      }),
+      prisma.pipelineStageLog.findMany({
+        where: {
+          stage: "QA_AGENT",
+          status: "COMPLETED",
+          pipeline: { organizationId },
+        },
+        orderBy: { completedAt: "desc" },
+        take: 50,
+        include: {
+          pipeline: { include: { ticket: true } },
+        },
+      }),
+    ]);
 
   const running: QaInboxItem[] = runningPipelines.map((p) => ({
     pipelineId: p.id,
@@ -124,11 +140,34 @@ export async function getQaInbox(organizationId: string): Promise<QaInboxRespons
     message:
       p.currentStage === "QA_VALIDATION"
         ? "Neel finished tests — QA validation gate"
-        : "Neel is writing and running tests",
+        : p.currentStage === "OUTPUT"
+          ? "Writing results back to Jira"
+          : "Neel is writing and running tests",
     updatedAt: (p.completedAt ?? p.startedAt)?.toISOString() ?? null,
   }));
 
-  const blocked: QaInboxItem[] = blockedPipelines.map((p) => ({
+  const blocked: QaInboxItem[] = blockedPipelines.map((p) => {
+    let message =
+      "Paused at implementation gate — resume or override to hand off to Neel";
+    if (p.currentStage === "QA_VALIDATION") {
+      message = "Paused at QA validation — resume or override to finish";
+    } else if (p.currentStage === "QA_AGENT") {
+      message = "Paused during Neel QA — resume to continue";
+    }
+    return {
+      pipelineId: p.id,
+      jiraKey: p.ticket.jiraKey,
+      ticketId: p.ticketId,
+      summary: ticketSummary(p.ticket.normalizedData, p.ticket.jiraKey),
+      status: p.status,
+      currentStage: p.currentStage,
+      currentStageLabel: pipelineStageLabel(p.currentStage),
+      message,
+      updatedAt: (p.completedAt ?? p.startedAt)?.toISOString() ?? null,
+    };
+  });
+
+  const failed: QaInboxItem[] = failedPipelines.map((p) => ({
     pipelineId: p.id,
     jiraKey: p.ticket.jiraKey,
     ticketId: p.ticketId,
@@ -136,12 +175,11 @@ export async function getQaInbox(organizationId: string): Promise<QaInboxRespons
     status: p.status,
     currentStage: p.currentStage,
     currentStageLabel: pipelineStageLabel(p.currentStage),
-    message:
-      "Paused at implementation gate — resume or override to hand off to Neel",
+    message: `Failed at ${pipelineStageLabel(p.currentStage)} — open pipeline or resume to retry`,
     updatedAt: (p.completedAt ?? p.startedAt)?.toISOString() ?? null,
   }));
 
   const completed = completedStages.map(mapCompletedReport);
 
-  return { running, blocked, completed };
+  return { running, blocked, failed, completed };
 }

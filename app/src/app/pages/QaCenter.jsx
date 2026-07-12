@@ -276,6 +276,13 @@ function UncoveredCriteria({ coverageReport }) {
 }
 
 function PipelineQaDetail({ report }) {
+  const emptyReport = !(report?.testCases?.length > 0) && !report?.testRun;
+  const inProgress =
+    report?.inProgress ||
+    report?.executionStatus === "running" ||
+    report?.executionStatus === "pending" ||
+    report?.executionStatus === "paused";
+
   return (
     <Panel>
       <PanelHeader
@@ -283,6 +290,17 @@ function PipelineQaDetail({ report }) {
         title={report.jiraKey ?? "Pipeline report"}
         subtitle={report.testSummary}
       />
+      {emptyReport && inProgress ? (
+        <div className="mx-5 mt-4 rounded-app-sm border border-indigo/25 bg-indigo/5 px-4 py-3 text-[13px] text-app-ink-dim">
+          {report.executionMessage ||
+            "Neel is still working — coverage and pass rates appear when the QA stage completes."}
+        </div>
+      ) : null}
+      {emptyReport && report?.executionStatus === "failed" ? (
+        <div className="mx-5 mt-4 rounded-app-sm border border-danger/30 bg-danger/5 px-4 py-3 text-[13px] text-app-ink-dim">
+          {report.executionMessage || "QA failed before producing a report."}
+        </div>
+      ) : null}
       <RecommendationBanner recommendation={report.recommendation} />
       {report.requiresHumanOverride ? (
         <div className="mx-5 mt-3 rounded-app-sm border border-warning/40 bg-warning/10 px-4 py-2 text-xs text-warning">
@@ -441,6 +459,11 @@ function QaInboxList({
                         Needs handoff
                       </span>
                     ) : null}
+                    {variant === "failed" ? (
+                      <span className="rounded-full border border-danger/30 bg-danger/10 px-1.5 py-0.5 text-[10px] font-semibold text-danger">
+                        Failed
+                      </span>
+                    ) : null}
                   </div>
                   <p className="mt-0.5 truncate text-[13px] text-app-ink">{item.summary}</p>
                   <p className="mt-1 text-[12px] text-app-ink-dim">{item.message}</p>
@@ -452,7 +475,7 @@ function QaInboxList({
                   ) : null}
                 </button>
                 <div className="flex shrink-0 flex-wrap items-center gap-2">
-                  {variant === "blocked" ? (
+                  {variant === "blocked" || variant === "failed" ? (
                     <>
                       <button
                         type="button"
@@ -460,7 +483,11 @@ function QaInboxList({
                         onClick={() => onResume?.(item.pipelineId)}
                         className="rounded-full border border-indigo/40 bg-indigo/10 px-3 py-1.5 text-[12px] font-medium text-indigo transition hover:bg-indigo/15 disabled:opacity-50"
                       >
-                        {resumeBusyId === item.pipelineId ? "Resuming…" : "Continue to Neel"}
+                        {resumeBusyId === item.pipelineId
+                          ? "Resuming…"
+                          : variant === "failed"
+                            ? "Retry"
+                            : "Continue to Neel"}
                       </button>
                       <Link
                         to={orgPath("pipelines", item.pipelineId, "override")}
@@ -519,7 +546,9 @@ export default function QaCenter() {
   const { data: coverage } = useQaCoverage();
   const { data: heatmap } = useQaHeatmap();
   const { data: failures } = useQaFailures();
-  const { data: inbox, refetch: refetchInbox } = useQaInbox({ pollMs: 8_000 });
+  const { data: inbox, refetch: refetchInbox, error: inboxError } = useQaInbox({
+    pollMs: 8_000,
+  });
   // Poll while a pipeline is selected and might still be running QA
   const { data: pipelineReport } = useQaPipelineReport(selectedPipelineId, { pollMs: 5_000 });
   const { data: canaryData, refetch: refetchCanary } = useCanaryRuns({ pollMs: 15_000 });
@@ -527,9 +556,13 @@ export default function QaCenter() {
 
   const running = inbox?.running ?? [];
   const blocked = inbox?.blocked ?? [];
+  const failed = inbox?.failed ?? [];
   const completed = inbox?.completed ?? [];
   const inboxEmpty =
-    running.length === 0 && blocked.length === 0 && completed.length === 0;
+    running.length === 0 &&
+    blocked.length === 0 &&
+    failed.length === 0 &&
+    completed.length === 0;
 
   async function handleContinueToNeel(pipelineId) {
     setResumeBusyId(pipelineId);
@@ -605,13 +638,21 @@ export default function QaCenter() {
 
       {tab === "overview" ? (
         <>
+          {inboxError ? (
+            <Panel className="border-danger/30 bg-danger/5">
+              <p className="px-5 py-4 text-[13px] text-danger sm:px-6">
+                Could not load Neel inbox: {inboxError.message ?? String(inboxError)}
+              </p>
+            </Panel>
+          ) : null}
+
           {inboxEmpty ? (
             <Panel className="border-indigo/20 bg-indigo/[0.03]">
               <p className="px-5 py-5 text-[13px] leading-relaxed text-app-ink-dim sm:px-6">
                 {AGENT_NAMES.NEEL} runs after Ananta&apos;s implementation check passes. If a ticket
                 is paused at the implementation gate, use <strong>Continue to Neel</strong> below
                 (or pipeline override) to hand off. Finished reports appear here once the QA stage
-                completes.
+                completes — in-progress work shows under Running.
               </p>
             </Panel>
           ) : null}
@@ -635,13 +676,26 @@ export default function QaCenter() {
 
           <QaInboxList
             kicker="Handoff"
-            title="Blocked before Neel"
+            title="Blocked before / during Neel"
             items={blocked}
-            empty="No tickets paused at the implementation gate."
+            empty="No tickets paused at implementation or QA gates."
             selectedPipelineId={selectedPipelineId}
             onSelect={setSelectedPipelineId}
             orgPath={orgPath}
             variant="blocked"
+            onResume={handleContinueToNeel}
+            resumeBusyId={resumeBusyId}
+          />
+
+          <QaInboxList
+            kicker="Needs attention"
+            title="Failed before or during QA"
+            items={failed}
+            empty="No failed QA pipelines."
+            selectedPipelineId={selectedPipelineId}
+            onSelect={setSelectedPipelineId}
+            orgPath={orgPath}
+            variant="failed"
             onResume={handleContinueToNeel}
             resumeBusyId={resumeBusyId}
           />
