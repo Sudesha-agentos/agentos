@@ -102,7 +102,7 @@ router.post("/:pipelineId/resume", async (req, res, next) => {
       ) {
         throw new ValidationError("Ticket already active or queued");
       }
-      const result = resumePipelineInBackground(
+      const result = await resumePipelineInBackground(
         ticket.id,
         ticket.jiraKey,
         pipeline.id,
