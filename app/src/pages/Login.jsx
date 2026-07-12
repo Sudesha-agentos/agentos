@@ -16,7 +16,7 @@ export default function Login() {
   const [password, setPassword] = useState(isSignup ? "" : DEMO_CREDENTIAL_HINT.password);
   const [pending, setPending] = useState(false);
   const [googlePending, setGooglePending] = useState(false);
-  const [googleAvailable, setGoogleAvailable] = useState(false);
+  const [googleAvailable, setGoogleAvailable] = useState(null);
   const [error, setError] = useState("");
 
   const destination = useMemo(() => {
@@ -28,9 +28,13 @@ export default function Login() {
 
   useEffect(() => {
     let cancelled = false;
-    void getGoogleAuthStatus().then((status) => {
-      if (!cancelled) setGoogleAvailable(Boolean(status?.googleAvailable));
-    });
+    void getGoogleAuthStatus()
+      .then((status) => {
+        if (!cancelled) setGoogleAvailable(Boolean(status?.googleAvailable));
+      })
+      .catch(() => {
+        if (!cancelled) setGoogleAvailable(false);
+      });
     return () => {
       cancelled = true;
     };
@@ -68,8 +72,14 @@ export default function Login() {
   }
 
   function handleGoogleSignIn() {
-    setGooglePending(true);
     setError("");
+    if (googleAvailable !== true) {
+      setError(
+        "Google sign-in isn’t configured on the API. Add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET to the server environment (local `.env` or Render), then restart the API."
+      );
+      return;
+    }
+    setGooglePending(true);
     window.location.href = getGoogleAuthStartUrl(destination);
   }
 
@@ -121,12 +131,6 @@ export default function Login() {
               </div>
             ) : null}
 
-            {error ? (
-              <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-[13px] text-red-700">
-                {error}
-              </p>
-            ) : null}
-
             <button
               type="submit"
               disabled={pending || googlePending}
@@ -136,25 +140,27 @@ export default function Login() {
             </button>
           </form>
 
-          {googleAvailable ? (
-            <>
-              <div className="my-6 flex items-center gap-3">
-                <div className="h-px flex-1 bg-[#E8E4DE]" />
-                <span className="text-[12px] font-medium uppercase tracking-wide text-[#6B6B6B]">
-                  or
-                </span>
-                <div className="h-px flex-1 bg-[#E8E4DE]" />
-              </div>
-              <button
-                type="button"
-                disabled={pending || googlePending}
-                onClick={handleGoogleSignIn}
-                className="flex w-full items-center justify-center gap-3 rounded-2xl border border-[#E8E4DE] bg-white px-4 py-3.5 text-[15px] font-semibold text-[#2B2D33] transition hover:border-[#2B2D33]/20 disabled:opacity-50"
-              >
-                <GoogleMark />
-                {googlePending ? "Redirecting to Google…" : "Continue with Google"}
-              </button>
-            </>
+          <div className="my-6 flex items-center gap-3">
+            <div className="h-px flex-1 bg-[#E8E4DE]" />
+            <span className="text-[12px] font-medium uppercase tracking-wide text-[#6B6B6B]">
+              or
+            </span>
+            <div className="h-px flex-1 bg-[#E8E4DE]" />
+          </div>
+          <button
+            type="button"
+            disabled={pending || googlePending}
+            onClick={handleGoogleSignIn}
+            className="flex w-full items-center justify-center gap-3 rounded-2xl border border-[#E8E4DE] bg-white px-4 py-3.5 text-[15px] font-semibold text-[#2B2D33] transition hover:border-[#2B2D33]/20 disabled:opacity-50"
+          >
+            <GoogleMark />
+            {googlePending ? "Redirecting to Google…" : "Continue with Google"}
+          </button>
+
+          {error ? (
+            <p className="mt-5 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-[13px] text-red-700">
+              {error}
+            </p>
           ) : null}
 
           <div className="mt-6 text-center text-[13px] text-[#6B6B6B]">
