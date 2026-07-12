@@ -18,6 +18,11 @@ import {
 import { VIRIN_BEHAVIOR, VIRIN_SYSTEM_PROMPT } from "./persona";
 import { resolveDiscoveryBudget } from "./discoveryBudget";
 import {
+  buildAlreadyBuiltFlag,
+  isAlreadyShipped,
+  mergeOverlapIntoAnalysis,
+} from "./alreadyBuiltAssessment";
+import {
   PROMPT_CODEBASE_ANALYSIS,
   PROMPT_HANDOFF,
   PROMPT_INFER_ANSWER,
@@ -331,6 +336,13 @@ function syncLegacyFields(
           okrAlignment: solution?.alignmentNotes ?? solution?.companyValidationSummary ?? "",
           redFlags: [
             ...(qm?.flagsRaised ?? []),
+            ...(codebase?.overlapVerdict === "already_shipped" ||
+            codebase?.overlapVerdict === "partial_overlap"
+              ? [
+                  codebase.alreadyShippedNote?.trim() ||
+                    `Codebase overlap: ${codebase.overlapVerdict}`,
+                ]
+              : []),
             ...(solution?.businessFit === "misaligned"
               ? [`Business misalignment: ${solution.companyValidationSummary ?? solution.alignmentNotes ?? "see solutioning"}`]
               : []),
@@ -822,8 +834,37 @@ async function runCodebaseAnalysis(
     prompt,
     STAGE_TOKENS.CODEBASE_ANALYSIS
   );
-  pmAnalysisStore.update(jiraKey, { codebaseAnalysis: analysis });
-  syncLegacyFields(jiraKey, record, record.neelIntake, record.questionMode, analysis);
+  const merged = mergeOverlapIntoAnalysis(analysis);
+  const flag = buildAlreadyBuiltFlag(merged, merged.overlapVerdict ?? "net_new");
+  const qm = record.questionMode;
+  const flagsRaised = [...(qm?.flagsRaised ?? [])];
+  if (flag && !flagsRaised.some((f) => f.startsWith("Already built in codebase"))) {
+    flagsRaised.push(flag);
+  }
+  pmAnalysisStore.update(jiraKey, {
+    codebaseAnalysis: merged,
+    questionMode: qm ? { ...qm, flagsRaised } : qm,
+  });
+  const latest = pmAnalysisStore.get(jiraKey) ?? record;
+  syncLegacyFields(
+    jiraKey,
+    latest,
+    latest.neelIntake,
+    latest.questionMode,
+    merged
+  );
+
+  if (merged.overlapVerdict === "already_shipped" || merged.overlapVerdict === "partial_overlap") {
+    logger.info(
+      {
+        jiraKey,
+        overlapVerdict: merged.overlapVerdict,
+        alreadyExists: merged.alreadyExists?.length ?? 0,
+        gapsToBuild: merged.gapsToBuild?.length ?? 0,
+      },
+      "Virin codebase analysis flagged existing capability"
+    );
+  }
 }
 
 function deriveComplexityScore(record: PmAnalysisRecord): number {

@@ -151,6 +151,10 @@ When to stop early:
 - If you can write a clear problem statement, success definition, and MVP scope for THIS feature → action "ready" with discoverySummary (do not pad with extra questions).
 - If remaining turns are low and only non-blocking polish is left → action "ready".
 
+Already-built check (mandatory — use CODEBASE INTELLIGENCE):
+- If candidate files / modules / similar tickets strongly suggest the feature or bugfix is ALREADY implemented in the product → action "flag" with a clear flag (cite paths). You may still ask one verification question (action "ask") only if you need to confirm staging vs prod or a thin delta.
+- Do NOT keep discovering as if the feature is greenfield when the codebase already has matching UI/API/flows.
+
 If contradiction or scope problem → action "flag" with flag message; you may include one focused follow-up question if action is "ask".
 
 Output JSON:
@@ -226,8 +230,13 @@ Tasks:
 4. Does the code suggest the reported problem has a different root cause than stakeholders think?
 5. Pressure-test the proposed direction with technical risks
 6. Draft testable acceptance criteria (precise enough for engineers to write tests)
-7. Separate what ALREADY EXISTS in the repo vs what GAPS must be built for this ticket
-8. If the ticket is a document/content deliverable (curriculum, policy, playbook, documentation, markdown):
+7. Separate what ALREADY EXISTS in the repo vs what GAPS must be built for this ticket — this is mandatory and must be honest
+8. Decide overlapVerdict:
+   - "already_shipped" if candidate files / modules implement the ticket's core ask (UI, API, or flow already present) and gapsToBuild is empty or only polish
+   - "partial_overlap" if substantial pieces exist but a clear delta remains
+   - "net_new" only if the repo does not already provide the capability
+9. If overlapVerdict is already_shipped or partial_overlap, set alreadyShippedNote with a clear recommendation (verify/close vs thin delta only — do NOT recommend a full rebuild)
+10. If the ticket is a document/content deliverable (curriculum, policy, playbook, documentation, markdown):
    - gapsToBuild MUST cite concrete doc file paths (e.g. docs/curriculum/q1.md)
    - suggestedFirstFile MUST be an existing or new doc path (.md preferred)
    - set suggestedImplementationMode to "content"
@@ -238,7 +247,9 @@ Output JSON:
   "relevantModules": [{"path": "...", "reason": "...", "role": "primary|secondary|config|test"}],
   "reuseOpportunities": ["..."],
   "alreadyExists": ["concrete capability already in codebase — cite file paths"],
-  "gapsToBuild": ["concrete net-new work required — cite what's missing"],
+  "gapsToBuild": ["concrete net-new work required — cite what's missing; empty array if already shipped"],
+  "overlapVerdict": "already_shipped|partial_overlap|net_new",
+  "alreadyShippedNote": "required when overlapVerdict is not net_new — what to do instead of rebuilding",
   "technicalDebt": ["..."],
   "architectureConstraints": ["..."],
   "rootCauseMismatch": "null or explanation if code suggests different root cause",
@@ -277,11 +288,16 @@ Write 2-3 paragraphs covering:
 - Explicit non-goals (specific, not vague)
 - Open risks
 
+If codebase_analysis_json.overlapVerdict is "already_shipped" OR alreadyExists is substantial with empty gapsToBuild:
+- recommendedApproach MUST lead with: do NOT rebuild; verify in the live product / close as duplicate / only ship a documented thin delta
+- explicitNonGoals MUST include "full re-implementation of existing capability"
+- companyValidationSummary MUST say building from scratch is the wrong call
+
 Then assess business fit vs company strategy and revenue model:
 - strong: clearly advances strategic goals and revenue
 - moderate: useful but not core to revenue or strategy
 - weak: marginal value; question whether to prioritize
-- misaligned: conflicts with ICP, non-goals, or revenue model — flag clearly
+- misaligned: conflicts with ICP, non-goals, or revenue model — OR the capability already ships and rebuilding wastes capacity
 
 Output JSON:
 {

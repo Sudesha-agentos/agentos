@@ -73,6 +73,10 @@ export interface CodebaseAnalysisOutput {
   reuseOpportunities: string[];
   alreadyExists?: string[];
   gapsToBuild?: string[];
+  /** Whether the ticket is already in the repo vs net-new work. */
+  overlapVerdict?: "already_shipped" | "partial_overlap" | "net_new";
+  /** Human-readable recommendation when overlap is high. */
+  alreadyShippedNote?: string;
   technicalDebt: string[];
   architectureConstraints: string[];
   rootCauseMismatch?: string | null;
