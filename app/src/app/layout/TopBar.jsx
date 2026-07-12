@@ -1,11 +1,13 @@
 import { Link } from "react-router-dom";
 import NotificationCenter from "../../shared/components/NotificationCenter";
+import { useAppTheme } from "../../shared/hooks/useAppTheme";
 import { useOrg } from "../../shared/providers/OrgRouteProvider";
 import { useCodebaseCommandPalette } from "../../widgets/codebase-search/useCodebaseCommandPalette";
 
 export default function TopBar() {
   const { openPalette } = useCodebaseCommandPalette();
   const { orgPath } = useOrg();
+  const { isDark, toggleTheme } = useAppTheme();
 
   return (
     <header className="sticky top-0 z-20 flex h-[4.25rem] items-center gap-3 border-b border-app-border bg-app-surface px-4 sm:px-6 lg:px-8">
@@ -28,6 +30,15 @@ export default function TopBar() {
       </button>
 
       <div className="ml-auto flex shrink-0 items-center gap-2">
+        <button
+          type="button"
+          onClick={toggleTheme}
+          className="flex size-10 items-center justify-center rounded-lg border border-app-border bg-app-surface text-app-ink-dim transition-colors hover:border-app-ink/12 hover:text-app-ink"
+          aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
+          title={isDark ? "Light mode" : "Dark mode"}
+        >
+          {isDark ? <IconSun /> : <IconMoon />}
+        </button>
         <Link
           to={orgPath("settings")}
           className="flex size-10 items-center justify-center rounded-lg border border-app-border bg-app-surface text-app-ink-dim transition-colors hover:border-app-ink/12 hover:text-app-ink md:hidden"
@@ -44,5 +55,33 @@ export default function TopBar() {
         <NotificationCenter />
       </div>
     </header>
+  );
+}
+
+function IconMoon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M21 14.3A8.5 8.5 0 0 1 9.7 3 7 7 0 1 0 21 14.3Z"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function IconSun() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <circle cx="12" cy="12" r="4" stroke="currentColor" strokeWidth="1.6" />
+      <path
+        d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.1 5.1l1.6 1.6M17.3 17.3l1.6 1.6M17.3 6.7l1.6-1.6M5.1 18.9l1.6-1.6"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+      />
+    </svg>
   );
 }

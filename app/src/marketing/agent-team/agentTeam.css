@@ -312,21 +312,11 @@
 }
 
 .agent-team .at-marketing-logo-mark {
-  display: flex;
   width: 36px;
   height: 36px;
-  align-items: center;
-  justify-content: center;
+  flex-shrink: 0;
   border-radius: 16px;
-  background: #2b2d33;
-  color: #fff;
-  font-weight: 700;
-  transition: background-color 200ms ease, color 200ms ease;
-}
-
-.agent-team .at-marketing-logo-mark.at-marketing-logo-light {
-  background: #fff;
-  color: #2b2d33;
+  object-fit: cover;
 }
 
 .agent-team .at-marketing-logo-text {

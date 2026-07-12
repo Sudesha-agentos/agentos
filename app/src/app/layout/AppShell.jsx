@@ -2,6 +2,7 @@ import { Suspense, useEffect } from "react";
 import { motion } from "framer-motion";
 import { EASE } from "../../lib/motion";
 import { SidebarProvider, useSidebarCollapsed } from "../../shared/hooks/useSidebarCollapsed";
+import { AppThemeProvider } from "../../shared/hooks/useAppTheme";
 import AppPageFallback from "../../shared/ui/AppPageFallback";
 import AppPageTransition from "../../shared/ui/AppPageTransition";
 import RouteErrorBoundary from "../../shared/ui/RouteErrorBoundary";
@@ -46,19 +47,25 @@ function AppShellContent() {
 export default function AppShell() {
   useEffect(() => {
     document.documentElement.classList.add("app-theme");
-    return () => document.documentElement.classList.remove("app-theme");
+    return () => {
+      document.documentElement.classList.remove("app-theme");
+      document.documentElement.classList.remove("app-theme-dark");
+      document.documentElement.style.removeProperty("color-scheme");
+    };
   }, []);
 
   return (
-    <CodebaseCommandPaletteProvider>
-      <SidebarProvider>
-        <div className="app-shell app-shell-gradient min-h-screen text-app-ink">
-          <GithubOAuthRedirect />
-          <JiraOAuthRedirect />
-          <IntakeAssignmentListener />
-          <AppShellContent />
-        </div>
-      </SidebarProvider>
-    </CodebaseCommandPaletteProvider>
+    <AppThemeProvider>
+      <CodebaseCommandPaletteProvider>
+        <SidebarProvider>
+          <div className="app-shell app-shell-gradient min-h-screen text-app-ink">
+            <GithubOAuthRedirect />
+            <JiraOAuthRedirect />
+            <IntakeAssignmentListener />
+            <AppShellContent />
+          </div>
+        </SidebarProvider>
+      </CodebaseCommandPaletteProvider>
+    </AppThemeProvider>
   );
 }

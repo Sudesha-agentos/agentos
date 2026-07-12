@@ -1,15 +1,62 @@
 /**
- * Light theme overrides for /app routes.
+ * Light / dark theme for /app routes.
  * Remaps legacy dark tokens (text-ink, bg-surface, etc.) inside the app shell.
  */
 
+:root {
+  --app-canvas: 249 249 247;
+  --app-surface: 255 255 255;
+  --app-surface-muted: 244 244 242;
+  --app-ink: 26 26 26;
+  --app-ink-dim: 92 92 92;
+  --app-ink-mute: 138 138 138;
+  --app-border-rgb: 26 26 26;
+  --app-border-alpha: 0.08;
+  --app-lavender: 232 224 248;
+  --app-peach: 252 232 220;
+  --app-mint: 228 245 234;
+  --app-butter: 253 246 227;
+  --app-accent: 139 124 246;
+  --app-charcoal: 26 26 26;
+}
+
 html.app-theme {
   color-scheme: light;
+  --app-canvas: 249 249 247;
+  --app-surface: 255 255 255;
+  --app-surface-muted: 244 244 242;
+  --app-ink: 26 26 26;
+  --app-ink-dim: 92 92 92;
+  --app-ink-mute: 138 138 138;
+  --app-border-rgb: 26 26 26;
+  --app-border-alpha: 0.08;
+  --app-lavender: 232 224 248;
+  --app-peach: 252 232 220;
+  --app-mint: 228 245 234;
+  --app-butter: 253 246 227;
+  --app-charcoal: 26 26 26;
+}
+
+html.app-theme.app-theme-dark {
+  color-scheme: dark;
+  --app-canvas: 12 12 18;
+  --app-surface: 18 18 28;
+  --app-surface-muted: 26 26 38;
+  --app-ink: 240 238 232;
+  --app-ink-dim: 160 160 174;
+  --app-ink-mute: 107 107 123;
+  --app-border-rgb: 240 238 232;
+  --app-border-alpha: 0.1;
+  --app-lavender: 48 42 72;
+  --app-peach: 64 48 40;
+  --app-mint: 36 56 48;
+  --app-butter: 56 52 36;
+  --app-charcoal: 240 238 232;
 }
 
 html.app-theme body {
-  background-color: #f9f9f7;
-  color: #1a1a1a;
+  background-color: rgb(var(--app-canvas));
+  color: rgb(var(--app-ink));
 }
 
 html.app-theme body::before {
@@ -18,15 +65,49 @@ html.app-theme body::before {
 
 html.app-theme ::selection {
   background: rgba(139, 124, 246, 0.25);
-  color: #1a1a1a;
+  color: rgb(var(--app-ink));
 }
 
 html.app-theme ::-webkit-scrollbar-thumb {
-  background: rgba(26, 26, 26, 0.15);
+  background: rgb(var(--app-ink) / 0.15);
 }
 
 html.app-theme ::-webkit-scrollbar-thumb:hover {
-  background: rgba(26, 26, 26, 0.25);
+  background: rgb(var(--app-ink) / 0.25);
+}
+
+html.app-theme.app-theme-dark .app-shell-gradient {
+  background-color: rgb(var(--app-canvas));
+}
+
+html.app-theme.app-theme-dark .app-glass {
+  background: rgb(var(--app-surface) / 0.82);
+}
+
+html.app-theme.app-theme-dark .app-btn-primary {
+  background-color: rgb(var(--app-ink));
+  color: rgb(var(--app-canvas));
+}
+
+html.app-theme.app-theme-dark .shadow-app-card {
+  --tw-shadow: 0 4px 24px -4px rgba(0, 0, 0, 0.45), 0 1px 3px rgba(0, 0, 0, 0.3);
+  --tw-shadow-colored: 0 4px 24px -4px var(--tw-shadow-color), 0 1px 3px var(--tw-shadow-color);
+  box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000),
+    var(--tw-shadow);
+}
+
+html.app-theme.app-theme-dark .shadow-app-float {
+  --tw-shadow: 0 8px 32px -8px rgba(0, 0, 0, 0.55), 0 2px 8px rgba(0, 0, 0, 0.35);
+  --tw-shadow-colored: 0 8px 32px -8px var(--tw-shadow-color), 0 2px 8px var(--tw-shadow-color);
+  box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000),
+    var(--tw-shadow);
+}
+
+html.app-theme.app-theme-dark .shadow-app-nav-active {
+  --tw-shadow: 0 2px 12px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.25);
+  --tw-shadow-colored: 0 2px 12px var(--tw-shadow-color), 0 1px 3px var(--tw-shadow-color);
+  box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000),
+    var(--tw-shadow);
 }
 
 @layer components {
@@ -56,120 +137,138 @@ html.app-theme ::-webkit-scrollbar-thumb:hover {
     }
   }
 
-  /* Typography */
+  /* Typography — legacy tokens */
   .app-shell .text-ink {
-    color: #1a1a1a;
+    color: rgb(var(--app-ink));
   }
   .app-shell .text-ink-dim {
-    color: #5c5c5c;
+    color: rgb(var(--app-ink-dim));
   }
   .app-shell .text-ink-mute {
-    color: #8a8a8a;
+    color: rgb(var(--app-ink-mute));
   }
 
-  /* Surfaces */
+  /* Surfaces — legacy tokens */
   .app-shell .bg-canvas {
-    background-color: #f4f4f2;
+    background-color: rgb(var(--app-surface-muted));
   }
   .app-shell .bg-canvas\/30 {
-    background-color: rgba(244, 244, 242, 0.95);
+    background-color: rgb(var(--app-surface-muted) / 0.95);
   }
   .app-shell .bg-canvas\/35 {
-    background-color: rgba(244, 244, 242, 0.92);
+    background-color: rgb(var(--app-surface-muted) / 0.92);
   }
   .app-shell .bg-canvas\/40 {
-    background-color: rgba(244, 244, 242, 0.88);
+    background-color: rgb(var(--app-surface-muted) / 0.88);
   }
   .app-shell .bg-canvas\/50 {
-    background-color: rgba(244, 244, 242, 0.85);
+    background-color: rgb(var(--app-surface-muted) / 0.85);
   }
   .app-shell .bg-canvas\/80 {
-    background-color: rgba(255, 255, 255, 0.92);
+    background-color: rgb(var(--app-surface) / 0.92);
   }
   .app-shell .bg-canvas\/90 {
-    background-color: rgba(255, 255, 255, 0.96);
+    background-color: rgb(var(--app-surface) / 0.96);
   }
 
   .app-shell .bg-surface {
-    background-color: #ffffff;
+    background-color: rgb(var(--app-surface));
   }
   .app-shell .bg-surface-2 {
-    background-color: #f4f4f2;
+    background-color: rgb(var(--app-surface-muted));
   }
   .app-shell .bg-surface-elevated {
-    background-color: #ffffff;
+    background-color: rgb(var(--app-surface));
   }
   .app-shell .bg-surface\/20 {
-    background-color: rgba(255, 255, 255, 0.72);
+    background-color: rgb(var(--app-surface) / 0.72);
   }
   .app-shell .bg-surface\/25 {
-    background-color: rgba(255, 255, 255, 0.78);
+    background-color: rgb(var(--app-surface) / 0.78);
   }
   .app-shell .bg-surface\/30 {
-    background-color: rgba(255, 255, 255, 0.85);
+    background-color: rgb(var(--app-surface) / 0.85);
   }
   .app-shell .bg-surface\/35 {
-    background-color: rgba(255, 255, 255, 0.88);
+    background-color: rgb(var(--app-surface) / 0.88);
   }
   .app-shell .bg-surface\/40 {
-    background-color: rgba(255, 255, 255, 0.92);
+    background-color: rgb(var(--app-surface) / 0.92);
   }
   .app-shell .bg-surface\/50 {
-    background-color: rgba(255, 255, 255, 0.95);
+    background-color: rgb(var(--app-surface) / 0.95);
   }
 
-  /* Borders */
+  /* Borders — legacy tokens */
   .app-shell .border-hairline {
-    border-color: rgba(26, 26, 26, 0.08);
+    border-color: rgb(var(--app-border-rgb) / var(--app-border-alpha));
   }
   .app-shell .border-hairline-strong {
-    border-color: rgba(26, 26, 26, 0.14);
+    border-color: rgb(var(--app-border-rgb) / 0.16);
   }
   .app-shell .border-hairline\/70,
   .app-shell .border-hairline\/80,
   .app-shell .border-hairline\/90 {
-    border-color: rgba(26, 26, 26, 0.1);
+    border-color: rgb(var(--app-border-rgb) / 0.12);
   }
 
   /* Panels that used dark editorial styling inside app */
   .app-shell .editorial-panel {
-    box-shadow: 0 4px 24px -4px rgba(26, 26, 26, 0.06);
-    background-color: #ffffff;
-    border-color: rgba(26, 26, 26, 0.08);
+    box-shadow: 0 4px 24px -4px rgb(var(--app-ink) / 0.06);
+    background-color: rgb(var(--app-surface));
+    border-color: rgb(var(--app-border-rgb) / var(--app-border-alpha));
+  }
+
+  html.app-theme-dark .app-shell .editorial-panel {
+    box-shadow: 0 4px 24px -4px rgba(0, 0, 0, 0.4);
   }
 
   /* Form controls */
   .app-shell input:not([type="checkbox"]):not([type="radio"]),
   .app-shell textarea,
   .app-shell select {
-    background-color: #ffffff;
-    color: #1a1a1a;
-    border-color: rgba(26, 26, 26, 0.12);
+    background-color: rgb(var(--app-surface));
+    color: rgb(var(--app-ink));
+    border-color: rgb(var(--app-border-rgb) / 0.14);
   }
 
   .app-shell input::placeholder,
   .app-shell textarea::placeholder {
-    color: #8a8a8a;
+    color: rgb(var(--app-ink-mute));
   }
 
   .app-shell pre,
   .app-shell code {
-    color: #5c5c5c;
+    color: rgb(var(--app-ink-dim));
   }
 
   .app-shell .hover\:bg-canvas\/35:hover {
-    background-color: rgba(244, 244, 242, 0.95);
+    background-color: rgb(var(--app-surface-muted) / 0.95);
   }
   .app-shell .hover\:bg-canvas\/50:hover {
-    background-color: rgba(244, 244, 242, 0.98);
+    background-color: rgb(var(--app-surface-muted) / 0.98);
   }
   .app-shell .hover\:bg-surface\/40:hover {
-    background-color: #ffffff;
+    background-color: rgb(var(--app-surface));
   }
   .app-shell .hover\:border-hairline-strong:hover {
-    border-color: rgba(26, 26, 26, 0.16);
+    border-color: rgb(var(--app-border-rgb) / 0.18);
   }
   .app-shell .hover\:text-ink:hover {
-    color: #1a1a1a;
+    color: rgb(var(--app-ink));
+  }
+
+  /* Hardcoded whites used in older app pages */
+  html.app-theme-dark .app-shell .bg-white {
+    background-color: rgb(var(--app-surface));
+  }
+  html.app-theme-dark .app-shell .hover\:bg-white:hover {
+    background-color: rgb(var(--app-surface-muted));
+  }
+  html.app-theme-dark .app-shell .hover\:bg-white\/70:hover {
+    background-color: rgb(var(--app-surface) / 0.7);
+  }
+  html.app-theme-dark .app-shell .text-black {
+    color: rgb(var(--app-ink));
   }
 }

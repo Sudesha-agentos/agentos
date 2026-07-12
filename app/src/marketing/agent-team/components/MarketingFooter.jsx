@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import BrandLogo from "../../../shared/ui/BrandLogo";
 import { AGENTS } from "../constants";
 
 export default function MarketingFooter() {
@@ -6,12 +7,11 @@ export default function MarketingFooter() {
     <footer className="at-page-footer relative w-full bg-[#2B2D33] text-white">
       <div className="mx-auto grid max-w-6xl gap-10 px-5 py-16 sm:grid-cols-2 lg:grid-cols-4 sm:px-8">
         <div>
-          <div className="flex items-center gap-2">
-            <span className="flex size-9 items-center justify-center rounded-2xl bg-white/10 font-bold">
-              A
-            </span>
-            <span className="font-[Poppins] text-lg font-semibold">AgentOX</span>
-          </div>
+          <BrandLogo
+            size={36}
+            withWordmark
+            wordmarkClassName="font-[Poppins] text-lg font-semibold text-white"
+          />
           <p className="mt-4 max-w-xs text-[14px] leading-relaxed text-white/60">
             From Jira ticket to shipped code — Virin, Ananta, and Neel run your pipeline with
             validation gates that ensure what gets built is exactly what was specified.

@@ -1,5 +1,5 @@
 import { NavLink, useLocation, useSearchParams } from "react-router-dom";
-import Logo from "../../components/Logo";
+import Logo, { LogoMark } from "../../components/Logo";
 import { usePipelineList } from "../../entities/pipeline";
 import { derivePipelineCounts } from "../../shared/lib/pipelineCounts";
 import { useSidebarCollapsed } from "../../shared/hooks/useSidebarCollapsed";
@@ -93,7 +93,7 @@ export default function Sidebar() {
       <div className={`shrink-0 py-3 ${collapsed ? "flex justify-center px-0" : "px-1"}`}>
         {collapsed ? (
           <NavLink to={orgPath()} aria-label="AgentOX home" className="inline-flex">
-            <LogoMark />
+            <LogoMark size={26} />
           </NavLink>
         ) : (
           <Logo variant="light" href={orgPath()} />
@@ -356,17 +356,6 @@ function IconExpandChevron({ open }) {
         strokeLinecap="round"
         strokeLinejoin="round"
       />
-    </svg>
-  );
-}
-
-function LogoMark() {
-  return (
-    <svg width="22" height="22" viewBox="0 0 32 32" fill="none" aria-hidden="true">
-      <circle cx="9" cy="16" r="2.6" fill="#8B7CF6" />
-      <circle cx="16" cy="16" r="2.6" className="fill-app-ink" />
-      <circle cx="23" cy="16" r="2.6" fill="#8B7CF6" />
-      <path d="M11.6 16 H13.4 M18.6 16 H20.4" stroke="#8B7CF6" strokeWidth="1.2" />
     </svg>
   );
 }

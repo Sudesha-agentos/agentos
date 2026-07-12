@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { DEMO_CREDENTIAL_HINT, getGoogleAuthStartUrl } from "../entities/auth";
 import MarketingGridBackground from "../marketing/agent-team/components/MarketingGridBackground";
+import BrandLogo from "../shared/ui/BrandLogo";
 import { useAuth } from "../shared/providers/useAuth";
 import { DATA_MODE } from "../shared/config/app";
 import { sessionHomePath, migrateAppPath } from "../shared/routing/orgPaths";
@@ -81,12 +82,13 @@ export default function Login() {
 
       <div className="relative z-[1] w-full max-w-md">
         <div className="at-card p-8 sm:p-10">
-          <Link to="/" className="flex items-center justify-center gap-2">
-            <span className="flex size-10 items-center justify-center rounded-2xl bg-[#2B2D33] font-bold text-white">
-              A
-            </span>
-            <span className="font-[Poppins] text-xl font-semibold text-[#2B2D33]">AgentOX</span>
-          </Link>
+          <BrandLogo
+            href="/"
+            size={40}
+            withWordmark
+            className="justify-center"
+            wordmarkClassName="font-[Poppins] text-xl font-semibold text-[#2B2D33]"
+          />
 
           <h1 className="mt-8 text-center text-2xl font-bold text-[#2B2D33]">
             {isSignup ? "Create your account" : "Welcome back"}
