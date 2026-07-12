@@ -22,3 +22,5 @@ It is **not** a Testsigma-class test-automation SaaS.
 - Citations on generated tests
 - Optional Playwright `@smoke` lane when the repo already has Playwright
 - Light locator heal proposals for e2e (reviewable, not invisible)
+
+See [HANDOFF.md](./HANDOFF.md) for how Ananta hands off to Neel and how to verify stuck pipelines.

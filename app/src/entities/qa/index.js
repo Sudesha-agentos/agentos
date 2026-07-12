@@ -8,6 +8,7 @@ const restQaAdapter = {
   coverage: () => fetchJson(apiPath("/api/qa/coverage")),
   heatmap: () => fetchJson(apiPath("/api/qa/heatmap")),
   failures: () => fetchJson(apiPath("/api/qa/failures")),
+  inbox: () => fetchJson(apiPath("/api/qa/inbox")),
   reports: () => fetchJson(apiPath("/api/qa/pipeline-reports")),
   report: (pipelineId) => fetchJson(apiPath(`/api/qa/pipeline-reports/${pipelineId}`)),
   pipelineReports: () => fetchJson(apiPath("/api/qa/pipeline-reports")),
@@ -19,8 +20,11 @@ const mockQaAdapter = {
   coverage: () => mockApi.qaCoverage(),
   heatmap: () => mockApi.qaHeatmap(),
   failures: () => mockApi.qaFailures(),
+  inbox: () => mockApi.qaInbox?.() ?? Promise.resolve({ running: [], blocked: [], completed: [] }),
   reports: () => mockApi.qaReports(),
   report: (ticketId) => mockApi.qaReport(ticketId),
+  pipelineReports: () => mockApi.qaReports(),
+  pipelineReport: (pipelineId) => mockApi.qaReport(pipelineId),
 };
 
 export const qaAdapter = DATA_MODE === "rest" ? restQaAdapter : mockQaAdapter;
@@ -35,6 +39,10 @@ export function useQaHeatmap(options = {}) {
 
 export function useQaFailures(options = {}) {
   return useResource(() => qaAdapter.failures(), [], { pollMs: options.pollMs });
+}
+
+export function useQaInbox(options = {}) {
+  return useResource(() => qaAdapter.inbox(), [], { pollMs: options.pollMs });
 }
 
 export function useQaReports(options = {}) {

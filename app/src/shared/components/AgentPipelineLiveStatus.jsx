@@ -4,9 +4,13 @@ import StageRail from "./StageRail";
 import StatusPill from "../../app/components/StatusPill";
 import { PipelineBlockingAlert } from "../../widgets/pm-analysis/VirinThoughtProcessPanel";
 import { formatRelativeTime } from "../lib/format";
-import { pipelineMatchesAgentStage } from "../lib/agentPipelineStages";
+import {
+  implementationGateNextStepMessage,
+  pipelineMatchesAgentStage,
+} from "../lib/agentPipelineStages";
 import { useOrgPathBuilder } from "../providers/OrgRouteProvider";
 import { Panel, PanelHeader } from "../ui/Panel";
+import { AGENT_NAMES } from "../config/app";
 
 function stageTone(status) {
   if (status === "COMPLETED") return "bg-success";
@@ -45,6 +49,23 @@ export default function AgentPipelineLiveStatus({ agentKey, className = "" }) {
         <PipelineBlockingAlert live={isPaused ? active : null} />
 
         <p className="text-sm text-app-ink">{active.summary}</p>
+
+        {agentKey === "ananta" && active.currentStage === "IMPLEMENTATION_VALIDATION" ? (
+          <p className="rounded-app-sm border border-warning/25 bg-warning/5 px-3 py-2 text-[13px] text-app-ink-dim">
+            {implementationGateNextStepMessage(active.status)}
+            {active.status === "PAUSED" ? (
+              <>
+                {" "}
+                <Link
+                  to={orgPath("pipelines", active.pipelineId, "override")}
+                  className="font-medium text-indigo hover:underline"
+                >
+                  Continue to {AGENT_NAMES.NEEL} →
+                </Link>
+              </>
+            ) : null}
+          </p>
+        ) : null}
 
         <div>
           <p className="text-[13px] leading-relaxed text-app-ink-dim">

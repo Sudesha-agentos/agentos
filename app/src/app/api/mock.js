@@ -1606,6 +1606,57 @@ export const mockApi = {
     await delay(100);
     return MOCK_QA_FAILURES;
   },
+  async qaInbox() {
+    markUsed();
+    await delay(100);
+    const now = Date.now();
+    return {
+      running: [
+        {
+          pipelineId: "pipe_qa_running",
+          jiraKey: "PLT-1290",
+          ticketId: "t_1290",
+          summary: "Session expiry hardening",
+          status: "RUNNING",
+          currentStage: "QA_AGENT",
+          currentStageLabel: "Neel (QA)",
+          message: "Neel is writing and running tests",
+          updatedAt: new Date(now - 120_000).toISOString(),
+        },
+      ],
+      blocked: [
+        {
+          pipelineId: "pipe_qa_blocked",
+          jiraKey: "PLT-1288",
+          ticketId: "t_1288",
+          summary: "Invite flow edge cases",
+          status: "PAUSED",
+          currentStage: "IMPLEMENTATION_VALIDATION",
+          currentStageLabel: "Implementation gate (before Neel)",
+          message:
+            "Paused at implementation gate — resume or override to hand off to Neel",
+          updatedAt: new Date(now - 600_000).toISOString(),
+        },
+      ],
+      completed: [
+        {
+          pipelineId: "pipe_qa_done",
+          jiraKey: "PLT-1287",
+          ticketId: "t_1287",
+          summary: "Auth refresh tokens",
+          status: "COMPLETED",
+          currentStage: "QA_AGENT",
+          currentStageLabel: "Neel (QA)",
+          message: "QA report ready",
+          updatedAt: new Date(now - 3600_000).toISOString(),
+          testCount: 12,
+          passRate: 94,
+          testSummary: "Strong coverage with two conditional findings",
+          completedAt: new Date(now - 3600_000).toISOString(),
+        },
+      ],
+    };
+  },
   async qaReports() {
     markUsed();
     await delay(100);
@@ -2136,7 +2187,7 @@ export const mockApi = {
       PRODUCT_AGENT: "Virin (Product)",
       PRD_VALIDATION: "PRD validation gate",
       ENGINEERING_AGENT: "Ananta (Engineering)",
-      IMPLEMENTATION_VALIDATION: "Implementation gate",
+      IMPLEMENTATION_VALIDATION: "Implementation gate (before Neel)",
       QA_AGENT: "Neel (QA)",
       QA_VALIDATION: "QA validation gate",
       OUTPUT: "Jira writeback",
