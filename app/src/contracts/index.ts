@@ -130,7 +130,7 @@ export const RunPipelineResponseSchema = z.object({
   sourceKey: z.string().optional(),
   enqueued: z.number().optional(),
   skipped: z.number().optional(),
-  started: z.boolean(),
+  started: z.boolean().default(false),
   groups: z
     .array(
       z.object({
@@ -145,13 +145,19 @@ export const RunPipelineResponseSchema = z.object({
   pipelineId: z.string().optional(),
   queued: z.boolean().optional(),
   message: z.string().optional(),
+  position: z.number().optional(),
+  activeTicketId: z.string().nullable().optional(),
+  activeJiraKey: z.string().nullable().optional(),
 });
 
 export const ResumePipelineResponseSchema = z.object({
   pipelineId: z.string(),
-  started: z.boolean(),
+  started: z.boolean().default(false),
   queued: z.boolean().optional(),
   position: z.number().optional(),
+  activeTicketId: z.string().nullable().optional(),
+  activeJiraKey: z.string().nullable().optional(),
+  message: z.string().optional(),
 });
 
 export const SubmitOverrideRequestSchema = z.object({
