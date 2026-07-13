@@ -216,8 +216,8 @@ Never silent — proposals with confidence < 0.8 require human review.
     name: "run_security_scan",
     description: `
 Run mandatory static vulnerability checks in the sandbox: npm/pnpm audit,
-optional package.json security script, and security-tagged tests.
-Always call this after run_tests and before generate_qa_report.
+optional package.json security script, security-tagged tests, and Semgrep
+(when installed). Always call this after run_tests and before generate_qa_report.
     `.trim(),
     input_schema: {
       type: "object" as const,
@@ -226,6 +226,40 @@ Always call this after run_tests and before generate_qa_report.
           type: "string",
           description: "Optional — omit to use implementation branch",
         },
+        timeout_seconds: { type: "number" },
+      },
+      required: [],
+    },
+  },
+  {
+    name: "run_cover_agent",
+    description: `
+Optional: run Codium Cover-Agent to generate unit tests targeting higher coverage
+for a source file. Soft-skips if cover-agent CLI is not installed.
+    `.trim(),
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        branch_name: { type: "string" },
+        source_file_path: { type: "string" },
+        test_file_path: { type: "string" },
+        test_command: { type: "string" },
+        desired_coverage: { type: "number" },
+        timeout_seconds: { type: "number" },
+      },
+      required: ["source_file_path", "test_file_path"],
+    },
+  },
+  {
+    name: "run_hypothesis_tests",
+    description: `
+Optional: run pytest with Hypothesis statistics when the repo has a Python test layout.
+Soft-skips if pytest/hypothesis are missing.
+    `.trim(),
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        branch_name: { type: "string" },
         timeout_seconds: { type: "number" },
       },
       required: [],

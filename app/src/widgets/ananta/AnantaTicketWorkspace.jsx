@@ -11,6 +11,7 @@ import { useOrgPathBuilder } from "../../shared/providers/OrgRouteProvider";
 import { Panel } from "../../shared/ui/Panel";
 import ValidationPanelWidget from "../validation-panel/ValidationPanelWidget";
 import AnantaStageStepper from "./AnantaStageStepper";
+import ToolArtifactsPanel from "../tool-artifacts/ToolArtifactsPanel";
 import DeliverableChecklist from "./DeliverableChecklist";
 import MarkdownPreview from "./MarkdownPreview";
 import {
@@ -497,6 +498,10 @@ export default function AnantaTicketWorkspace({
           <AnantaStageStepper stages={run.anantaStages} />
         </div>
       </header>
+
+      <div className="mt-4">
+        <ToolArtifactsPanel pipelineId={run.pipelineId} lane="engineering" />
+      </div>
 
       {hasDeliverables ? (
         <div className="mt-4">

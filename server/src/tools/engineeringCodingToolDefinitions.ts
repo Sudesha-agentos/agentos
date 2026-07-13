@@ -83,10 +83,11 @@ More precise than search_codebase for exact matches.
   {
     name: "edit_file",
     description: `
-Apply an exact string replacement to an existing file.
+Apply an exact string replacement to an existing file (Aider-compatible matching).
 Prefer this over write_file when modifying an existing file — it is safer and
 shows the reviewer exactly what changed.
-The old_string must match verbatim (including whitespace and indentation).
+The old_string must match verbatim when possible (including whitespace).
+If exact match fails, AgentOX applies Aider whitespace-tolerant SEARCH/REPLACE matching.
 To delete a block, set new_string to an empty string.
     `.trim(),
     input_schema: {
@@ -107,6 +108,62 @@ To delete a block, set new_string to an empty string.
         },
       },
       required: ["file_path", "old_string", "new_string", "summary"],
+    },
+  },
+
+  {
+    name: "apply_aider_edits",
+    description: `
+Apply one or more Aider-format SEARCH/REPLACE blocks in a single call.
+Pass either \`blocks\` (structured) or \`raw\` text containing:
+
+path/to/file.ext
+<<<<<<< SEARCH
+old code
+=======
+new code
+>>>>>>> REPLACE
+
+Use for coordinated multi-file Mentat-style changes.
+    `.trim(),
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        raw: {
+          type: "string",
+          description: "Raw Aider SEARCH/REPLACE text (optional if blocks provided)",
+        },
+        blocks: {
+          type: "array",
+          description: "Structured edit blocks",
+          items: {
+            type: "object",
+            properties: {
+              file_path: { type: "string" },
+              search: { type: "string" },
+              replace: { type: "string" },
+            },
+            required: ["file_path", "search", "replace"],
+          },
+        },
+        summary: { type: "string", description: "What this batch of edits achieves" },
+      },
+      required: ["summary"],
+    },
+  },
+
+  {
+    name: "get_file_symbols",
+    description: `
+Tree-sitter / AST symbol outline for a file (functions, classes, methods).
+Call before editing unfamiliar files — mini-SWE ACI style: understand structure first.
+    `.trim(),
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        file_path: { type: "string", description: "Repo-relative file path" },
+      },
+      required: ["file_path"],
     },
   },
 

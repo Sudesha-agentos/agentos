@@ -93,6 +93,31 @@ export async function runCanaryCycle(input: CanaryRunInput): Promise<CanaryRunRe
       orientation: input.orientation,
     });
 
+    // Always attempt Locust + ZAP (soft-skip if missing) — fills "optional only" gap
+    const { runCanaryOssAdapters } = await import("../integrations/runCanaryOssAdapters");
+    const ossArtifacts = await runCanaryOssAdapters({
+      targetUrl,
+      pipelineId: input.pipelineId,
+      runId: run.id,
+    });
+    for (const a of ossArtifacts) {
+      if (a.status === "failed" && a.findings.length) {
+        exploration.findings.push(
+          ...a.findings.map((f) => ({
+            severity: (f.severity === "info" ? "low" : f.severity || "medium") as
+              | "critical"
+              | "high"
+              | "medium"
+              | "low",
+            category: a.toolId,
+            title: f.title,
+            description: f.detail || a.summary,
+            evidence: { toolId: a.toolId, runId: a.runId },
+          }))
+        );
+      }
+    }
+
     emitCanaryPhase(input.pipelineId, "synthesis", input.jiraKey);
     await canaryRunRepo.updateProgress(run.id, { phase: "synthesis" });
     const { summary, findings } = await synthesizeReport({

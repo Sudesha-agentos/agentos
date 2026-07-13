@@ -69,6 +69,33 @@ export async function runQaAgentic(
     });
 
     const artifacts = getQaArtifacts(input.pipelineId);
+
+    // Mandatory QA OSS suite for every ticket (Semgrep, Playwright, Cover-Agent, Hypothesis)
+    try {
+      const { runQaOssAdapters } = await import("../integrations/runQaOssAdapters");
+      const { sandboxManager } = await import("../qa/testing/sandboxManager");
+      const handle = sandboxManager.create(`qa-oss-${Date.now()}`);
+      try {
+        await sandboxManager.cloneBranch(handle.sandboxDir, branchName);
+        const changed = [
+          ...(input.implementation.targetFiles ?? []),
+          ...(input.implementation.codeChanges ?? []).map((c) => c.filePath),
+        ].filter((p): p is string => Boolean(p));
+        await runQaOssAdapters({
+          cwd: handle.sandboxDir,
+          pipelineId: input.pipelineId,
+          changedFiles: [...new Set(changed)],
+        });
+      } finally {
+        sandboxManager.destroy(handle.sandboxDir);
+      }
+    } catch (ossErr) {
+      logger.warn(
+        { err: ossErr instanceof Error ? ossErr.message : String(ossErr) },
+        "mandatory QA OSS suite failed"
+      );
+    }
+
     const qaOutput = enrichQaOutput({
       qa: parseDiscoveryJson<QaOutput>(loop.finalResponse, "qaAgent"),
       prd: input.prd,

@@ -12,6 +12,9 @@ import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { promisify } from "node:util";
 import { gitClient } from "../integrations/gitProvider";
 import { normalizeRepoPath } from "../integrations/git/normalizePushFiles";
+import {
+  applyAiderReplace,
+} from "../integrations/aider/editblock";
 import { SANDBOX_BASE, sandboxManager } from "../qa/testing/sandboxManager";
 import { logger } from "../utils/logger";
 
@@ -281,6 +284,7 @@ export function workspaceListDir(workspaceDir: string, dirPath: string): string[
 
 /**
  * Apply a string find-and-replace edit to an existing file.
+ * Uses Aider SEARCH/REPLACE matching (whitespace-tolerant) when exact match fails.
  * Returns how many occurrences were replaced.
  */
 export function workspaceApplyEdit(
@@ -288,7 +292,7 @@ export function workspaceApplyEdit(
   filePath: string,
   oldString: string,
   newString: string
-): { replaced: boolean; occurrences: number } {
+): { replaced: boolean; occurrences: number; strategy?: "exact" | "aider" } {
   const abs = guardPath(workspaceDir, filePath);
   if (!existsSync(abs)) {
     throw new Error(`File not found: ${filePath}`);
@@ -299,13 +303,61 @@ export function workspaceApplyEdit(
   const normOld = oldString.replace(/\r\n/g, "\n");
   const normNew = newString.replace(/\r\n/g, "\n");
   const occurrences = normOriginal.split(normOld).length - 1;
-  if (occurrences === 0) return { replaced: false, occurrences: 0 };
-  let updated = normOriginal.split(normOld).join(normNew);
-  if (usesCrLf) {
-    updated = updated.replace(/\n/g, "\r\n");
+  if (occurrences > 0) {
+    let updated = normOriginal.split(normOld).join(normNew);
+    if (usesCrLf) updated = updated.replace(/\n/g, "\r\n");
+    writeFileSync(abs, updated, "utf8");
+    return { replaced: true, occurrences, strategy: "exact" };
   }
-  writeFileSync(abs, updated, "utf8");
-  return { replaced: true, occurrences };
+
+  // Aider flexible match (Apache-2.0 — see vendor/aider)
+  const aiderUpdated = applyAiderReplace(normOriginal, normOld, normNew);
+  if (aiderUpdated != null && aiderUpdated !== normOriginal) {
+    let updated = aiderUpdated;
+    if (usesCrLf) updated = updated.replace(/\n/g, "\r\n");
+    writeFileSync(abs, updated, "utf8");
+    return { replaced: true, occurrences: 1, strategy: "aider" };
+  }
+
+  return { replaced: false, occurrences: 0 };
+}
+
+/**
+ * Apply one or more Aider SEARCH/REPLACE blocks to the workspace.
+ */
+export function workspaceApplyAiderBlocks(
+  workspaceDir: string,
+  blocks: Array<{ filePath: string; search: string; replace: string }>
+): Array<{ filePath: string; ok: boolean; error?: string }> {
+  const out: Array<{ filePath: string; ok: boolean; error?: string }> = [];
+  for (const block of blocks) {
+    try {
+      const abs = guardPath(workspaceDir, block.filePath);
+      if (!existsSync(abs) && !block.search.trim()) {
+        workspaceWriteFile(workspaceDir, block.filePath, block.replace);
+        out.push({ filePath: block.filePath, ok: true });
+        continue;
+      }
+      const result = workspaceApplyEdit(
+        workspaceDir,
+        block.filePath,
+        block.search,
+        block.replace
+      );
+      out.push({
+        filePath: block.filePath,
+        ok: result.replaced,
+        error: result.replaced ? undefined : "SEARCH block did not match file contents",
+      });
+    } catch (err) {
+      out.push({
+        filePath: block.filePath,
+        ok: false,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+  return out;
 }
 
 export function workspaceFileExists(workspaceDir: string, filePath: string): boolean {

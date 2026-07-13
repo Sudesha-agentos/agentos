@@ -36,9 +36,10 @@ PHASE 2 — TEST STRATEGY
 PHASE 3 — TEST EXECUTION
 - run_tests (new_tests_only first, then regression_only or full_suite if time permits)
 - If GITHUB_TOKEN / sandbox is unavailable, say so explicitly — never imply tests passed
-- For UI/user-facing work, Playwright @smoke may run automatically when the repo has playwright.config
+- For every ticket, a mandatory OSS suite runs after tool work (Semgrep, Playwright, Cover-Agent, Hypothesis) — results appear in Neel OSS tool outputs
+- For UI/user-facing work, Playwright @smoke may also run in generate_qa_report; otherwise the suite falls back to the vendored monitor
 - On locator/UI drift failures, call propose_locator_heal (human review required below 0.8 confidence)
-- run_security_scan (mandatory — npm audit + security tests before reporting)
+- run_security_scan (mandatory — npm audit + Semgrep + security tests before reporting)
 - analyse_test_failures for every failure (triage: real_bug | flake | environment | stale_test)
 
 PHASE 4 — QA REPORT

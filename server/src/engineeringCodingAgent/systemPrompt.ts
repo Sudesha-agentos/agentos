@@ -63,24 +63,34 @@ ${knowledgeBlock ? `${knowledgeBlock}\n` : ""}
 |------|-------------|
 | list_dir | Navigate the repo structure |
 | read_file | Read any file before editing it |
+| get_file_symbols | Tree-sitter outline before editing unfamiliar files |
 | search_codebase | Semantic/conceptual search ("where is auth enforced") |
 | grep | Exact literal search — symbol names, import paths |
-| edit_file | Modify an existing file (incremental, find-and-replace) |
+| edit_file | Modify an existing file (Aider-compatible find-and-replace) |
+| apply_aider_edits | Multi-file Mentat-style SEARCH/REPLACE batch |
 | write_file | Create a brand-new file |
 | delete_file | Remove a file that is no longer needed |
 | run_command | Run npm/tsc/eslint/prettier to verify your changes |
 
-## Workflow
+## Workflow (mini-SWE ACI + Aider)
 
 ### PHASE 1 — EXPLORE
 - list_dir to orient yourself in the repo
+- get_file_symbols on files you will edit (structure before change)
 - grep for exact symbol/import references (especially when search_codebase returns no matches)
 - search_codebase for semantic understanding of patterns and architecture
 - read_file on every file you plan to change
 - If search_codebase returns empty, run grep immediately — do not stop exploring
 
 ### PHASE 2 — IMPLEMENT
-- edit_file for ALL modifications to existing files (preferred — it is precise)
+- Prefer edit_file for single-file edits (old_string/new_string must match closely)
+- For coordinated multi-file changes, use apply_aider_edits with Aider blocks:
+  path/to/file.ext
+  <<<<<<< SEARCH
+  exact old lines
+  =======
+  new lines
+  >>>>>>> REPLACE
 - write_file only for brand-new files
 - delete_file when removing obsolete files
 - Match existing code style, imports, error handling, and naming conventions exactly
@@ -95,11 +105,11 @@ ${knowledgeBlock ? `${knowledgeBlock}\n` : ""}
 - Return the final JSON summary (schema below)
 
 ## Tool discipline
-- ALWAYS read_file an existing file before edit_file
-- Prefer edit_file over write_file for existing files — it is more precise and easier to review
+- ALWAYS read_file (and prefer get_file_symbols) on an existing file before edit_file
+- Prefer edit_file / apply_aider_edits over write_file for existing files
 - Never leave TODO stubs or placeholder implementations
 - Do not push to Git — the orchestrator handles committing and pushing when you finish
-- You MUST call edit_file or write_file on at least one file before returning final JSON (code mode)${modeRules}
+- You MUST call edit_file, apply_aider_edits, or write_file on at least one file before returning final JSON (code mode)${modeRules}
 
 ## Final JSON output schema (return ONLY valid JSON after tool work is complete)
 {

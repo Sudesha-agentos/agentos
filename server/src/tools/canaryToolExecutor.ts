@@ -8,6 +8,7 @@ import { resolveCanaryAuthHeader } from "../canaryAgent/config";
 import type { CanaryFindingDraft } from "../canaryAgent/types";
 import { logger } from "../utils/logger";
 import type { ToolCallInput, ToolCallResult } from "./executor";
+import path from "node:path";
 
 interface HttpResult {
   status: number;
@@ -89,6 +90,8 @@ export async function executeCanaryToolCall(
   pipelineId?: string
 ): Promise<ToolCallResult> {
   const startTime = Date.now();
+  /** Scope key for ToolArtifact store — pipeline when present, else canary run id */
+  const artifactScopeId = pipelineId || runId;
   logger.info({ tool: toolCall.name, runId }, "canary tool call executing");
 
   try {
@@ -262,6 +265,38 @@ export async function executeCanaryToolCall(
         }
         result = { updated: Boolean(h), hypothesisId: id, status };
         resultsFound = h ? 1 : 0;
+        break;
+      }
+
+      case "run_locust_load": {
+        const { runLocustLoad } = await import("../integrations/locust/runLocust");
+        const locustCwd =
+          process.env.CANARY_LOCUST_CWD?.trim() ||
+          path.join(process.cwd(), "vendor", "locust");
+        const locust = await runLocustLoad({
+          host: baseUrl,
+          cwd: locustCwd,
+          users: typeof toolCall.input.users === "number" ? toolCall.input.users : 5,
+          spawnRate:
+            typeof toolCall.input.spawn_rate === "number" ? toolCall.input.spawn_rate : 1,
+          runTime: toolCall.input.run_time ? String(toolCall.input.run_time) : "30s",
+          pipelineId: artifactScopeId,
+        });
+        result = locust;
+        resultsFound = locust.findings.length;
+        break;
+      }
+
+      case "run_zap_baseline": {
+        const { runZapBaseline } = await import("../integrations/zap/runZap");
+        const path = String(toolCall.input.path ?? "/");
+        const targetUrl = new URL(path.startsWith("/") ? path : `/${path}`, baseUrl).toString();
+        const zap = await runZapBaseline({
+          targetUrl,
+          pipelineId: artifactScopeId,
+        });
+        result = zap;
+        resultsFound = zap.findings.length;
         break;
       }
 

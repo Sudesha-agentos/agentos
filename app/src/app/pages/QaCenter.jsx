@@ -23,6 +23,7 @@ import { AgentPageHeader } from "../../widgets/agent-chat/AgentPageHeader";
 import AgentPipelineLiveStatus from "../../shared/components/AgentPipelineLiveStatus";
 import { AGENT_NAMES } from "../../shared/config/app";
 import { pipelineAdapter } from "../../entities/pipeline";
+import ToolArtifactsPanel from "../../widgets/tool-artifacts/ToolArtifactsPanel";
 
 const RECOMMENDATION_STYLES = {
   approve: { border: "border-success/40 bg-success/10", text: "text-success", icon: "✓", label: "Approved — ready to merge" },
@@ -326,6 +327,20 @@ function PipelineQaDetail({ report }) {
       <HealProposalsSection proposals={report.locatorHealProposals} />
       <UncoveredCriteria coverageReport={report.coverageReport} />
       <SecurityScanSection securityScan={report.securityScan} />
+      {report.playwrightSmoke ? (
+        <div className="border-t border-app-border px-5 py-4">
+          <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-app-ink-mute">
+            Playwright smoke
+          </p>
+          <p className="text-xs text-app-ink-dim">
+            {report.playwrightSmoke.skipped
+              ? report.playwrightSmoke.skipReason || "Skipped"
+              : report.playwrightSmoke.passed
+                ? `Passed (${report.playwrightSmoke.durationMs ?? 0}ms)`
+                : "Failed — see tool artifacts"}
+          </p>
+        </div>
+      ) : null}
       {report.riskAreas?.length ? (
         <div className="border-t border-app-border px-5 py-4">
           <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-app-ink-mute">
@@ -804,6 +819,22 @@ export default function QaCenter() {
           {selectedPipelineId && pipelineReport ? (
             <PipelineQaDetail report={pipelineReport} />
           ) : null}
+
+          {selectedPipelineId ? (
+            <ToolArtifactsPanel
+              pipelineId={selectedPipelineId}
+              lane="qa"
+              title="OSS tool outputs (Neel)"
+            />
+          ) : null}
+
+          {selectedPipelineId && canaryPhase ? (
+            <ToolArtifactsPanel
+              pipelineId={selectedPipelineId}
+              lane="canary"
+              title="OSS tool outputs (Canary)"
+            />
+          ) : null}
         </>
       ) : (
         <>
@@ -872,47 +903,54 @@ export default function QaCenter() {
           </Panel>
 
           {selectedRun ? (
-            <Panel>
-              <PanelHeader
-                kicker="Findings"
-                title={selectedRun.jiraKey ? `Run for ${selectedRun.jiraKey}` : selectedRun.id}
-                subtitle={`${selectedRun.environment} · ${selectedRun.scope} · ${selectedRun.targetUrl}`}
+            <>
+              <Panel>
+                <PanelHeader
+                  kicker="Findings"
+                  title={selectedRun.jiraKey ? `Run for ${selectedRun.jiraKey}` : selectedRun.id}
+                  subtitle={`${selectedRun.environment} · ${selectedRun.scope} · ${selectedRun.targetUrl}`}
+                />
+                {(selectedRun.findings ?? []).length === 0 ? (
+                  <p className="px-5 py-6 text-[13px] text-app-ink-dim">
+                    No confirmed findings for this run.
+                  </p>
+                ) : (
+                  <ul className="divide-y divide-app-border">
+                    {selectedRun.findings.map((finding) => (
+                      <li key={finding.id} className="px-5 py-4">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span
+                            className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase ${
+                              SEVERITY_STYLES[finding.severity] ?? SEVERITY_STYLES.medium
+                            }`}
+                          >
+                            {finding.severity}
+                          </span>
+                          <span className="type-kicker">{finding.category}</span>
+                        </div>
+                        <p className="mt-2 text-[14px] font-medium text-app-ink">{finding.title}</p>
+                        <p className="mt-1.5 text-[13px] text-app-ink-dim">{finding.description}</p>
+                        {finding.reproductionSteps ? (
+                          <pre className="mt-3 whitespace-pre-wrap rounded-app-sm border border-app-border bg-app-surface-muted/30 p-3 font-mono text-[11px] text-app-ink-dim">
+                            {finding.reproductionSteps}
+                          </pre>
+                        ) : null}
+                        {finding.suggestedFix ? (
+                          <p className="mt-2 text-[12px] text-indigo">
+                            Suggested fix: {finding.suggestedFix}
+                          </p>
+                        ) : null}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </Panel>
+              <ToolArtifactsPanel
+                pipelineId={selectedRun.pipelineId || selectedRun.id}
+                lane="canary"
+                title="OSS tool outputs (Canary)"
               />
-              {(selectedRun.findings ?? []).length === 0 ? (
-                <p className="px-5 py-6 text-[13px] text-app-ink-dim">
-                  No confirmed findings for this run.
-                </p>
-              ) : (
-                <ul className="divide-y divide-app-border">
-                  {selectedRun.findings.map((finding) => (
-                    <li key={finding.id} className="px-5 py-4">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span
-                          className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase ${
-                            SEVERITY_STYLES[finding.severity] ?? SEVERITY_STYLES.medium
-                          }`}
-                        >
-                          {finding.severity}
-                        </span>
-                        <span className="type-kicker">{finding.category}</span>
-                      </div>
-                      <p className="mt-2 text-[14px] font-medium text-app-ink">{finding.title}</p>
-                      <p className="mt-1.5 text-[13px] text-app-ink-dim">{finding.description}</p>
-                      {finding.reproductionSteps ? (
-                        <pre className="mt-3 whitespace-pre-wrap rounded-app-sm border border-app-border bg-app-surface-muted/30 p-3 font-mono text-[11px] text-app-ink-dim">
-                          {finding.reproductionSteps}
-                        </pre>
-                      ) : null}
-                      {finding.suggestedFix ? (
-                        <p className="mt-2 text-[12px] text-indigo">
-                          Suggested fix: {finding.suggestedFix}
-                        </p>
-                      ) : null}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </Panel>
+            </>
           ) : null}
         </>
       )}
