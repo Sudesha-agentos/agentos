@@ -169,6 +169,23 @@ export async function runEngineeringCodingAgentic(
       "engineering coding agent completed"
     );
 
+    // Mandatory Engineering OSS suite (Tree-sitter + Aider + mini-SWE artifacts)
+    try {
+      const { runEngineeringOssAdapters } = await import(
+        "../integrations/runEngineeringOssAdapters"
+      );
+      await runEngineeringOssAdapters({
+        pipelineId: input.pipelineId,
+        workspaceDir: workspace?.workspaceDir,
+        changedFiles: codeChanges.map((c) => c.filePath),
+      });
+    } catch (ossErr) {
+      logger.warn(
+        { err: ossErr instanceof Error ? ossErr.message : String(ossErr) },
+        "engineering OSS suite failed"
+      );
+    }
+
     return {
       raw: loop.finalResponse,
       codingSummary:

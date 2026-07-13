@@ -21,7 +21,6 @@ import {
 } from "../qa/confidence/explainableConfidence";
 import {
   runPlaywrightSmoke,
-  shouldEnablePlaywrightSmoke,
 } from "../qa/testing/playwrightSmoke";
 import { sandboxManager } from "../qa/testing/sandboxManager";
 import { proposeLocatorHeal, buildFingerprint } from "../qa/healing/locatorHeal";
@@ -275,11 +274,74 @@ export async function executeQaToolCall(
         const scan = await runSecurityScanInSandbox({
           branchName: branch,
           timeoutSeconds,
+          pipelineId,
         });
         artifacts.securityScan = scan;
         result = scan;
         resultsFound = scan.findings.length;
         metaQuery = `security-scan:${branch}`;
+        break;
+      }
+
+      case "run_cover_agent": {
+        const { runCoverAgent } = await import("../integrations/coverAgent/runCoverAgent");
+        const branch = defaultBranch(pipelineId, stringValue(toolCall.input.branch_name));
+        const sourceFilePath = stringValue(toolCall.input.source_file_path);
+        const testFilePath = stringValue(toolCall.input.test_file_path);
+        if (!sourceFilePath || !testFilePath) {
+          throw new Error("source_file_path and test_file_path are required");
+        }
+        const timeoutSeconds =
+          typeof toolCall.input.timeout_seconds === "number"
+            ? toolCall.input.timeout_seconds
+            : 300;
+        const handle = sandboxManager.create(`qa-cover-${Date.now()}`);
+        try {
+          await sandboxManager.cloneBranch(handle.sandboxDir, branch);
+          const cover = await runCoverAgent({
+            cwd: handle.sandboxDir,
+            sourceFilePath,
+            testFilePath,
+            testCommand: stringValue(toolCall.input.test_command) || undefined,
+            desiredCoverage:
+              typeof toolCall.input.desired_coverage === "number"
+                ? toolCall.input.desired_coverage
+                : undefined,
+            pipelineId,
+            timeoutMs: timeoutSeconds * 1000,
+          });
+          result = cover;
+          resultsFound = cover.findings.length;
+          metaQuery = `cover-agent:${sourceFilePath}`;
+        } finally {
+          sandboxManager.destroy(handle.sandboxDir);
+        }
+        break;
+      }
+
+      case "run_hypothesis_tests": {
+        const { runHypothesisTests } = await import(
+          "../integrations/hypothesis/runHypothesis"
+        );
+        const branch = defaultBranch(pipelineId, stringValue(toolCall.input.branch_name));
+        const timeoutSeconds =
+          typeof toolCall.input.timeout_seconds === "number"
+            ? toolCall.input.timeout_seconds
+            : 180;
+        const handle = sandboxManager.create(`qa-hyp-${Date.now()}`);
+        try {
+          await sandboxManager.cloneBranch(handle.sandboxDir, branch);
+          const hyp = await runHypothesisTests({
+            cwd: handle.sandboxDir,
+            pipelineId,
+            timeoutMs: timeoutSeconds * 1000,
+          });
+          result = hyp;
+          resultsFound = hyp.findings.length;
+          metaQuery = `hypothesis:${branch}`;
+        } finally {
+          sandboxManager.destroy(handle.sandboxDir);
+        }
         break;
       }
 
@@ -374,16 +436,8 @@ export async function executeQaToolCall(
             .acceptance_criteria
         );
 
-        // Optional Playwright smoke when ticket looks UI-facing
-        const smokeHint = stringValue(
-          (toolCall.input as { ticket_context?: unknown }).ticket_context,
-          summary
-        );
-        if (
-          shouldEnablePlaywrightSmoke(smokeHint) &&
-          artifacts.lastTestRun?.sandboxAvailable !== false &&
-          artifacts.implementationBranch
-        ) {
+        // Always run Playwright for every ticket
+        if (artifacts.implementationBranch) {
           const smokeHandle = sandboxManager.create(`qa-smoke-${Date.now()}`);
           try {
             await sandboxManager.cloneBranch(
@@ -393,6 +447,7 @@ export async function executeQaToolCall(
             const smoke = await runPlaywrightSmoke({
               sandboxDir: smokeHandle.sandboxDir,
               enabled: true,
+              pipelineId,
             });
             artifacts.playwrightSmoke = smoke;
           } catch (smokeErr) {

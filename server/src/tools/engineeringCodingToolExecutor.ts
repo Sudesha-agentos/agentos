@@ -4,6 +4,7 @@ import { buildEnrichedCodebaseContext } from "../codebaseIntelligence/enrichedCo
 import { emitEngineeringCodingEvent } from "../engineering/codingEventsHub";
 import {
   getEngWorkspace,
+  workspaceApplyAiderBlocks,
   workspaceApplyEdit,
   workspaceDeleteFile,
   workspaceFileExists,
@@ -13,6 +14,9 @@ import {
   workspaceRunCommand,
   workspaceWriteFile,
 } from "../engineering/engineeringWorkspace";
+import { parseAiderEditBlocks } from "../integrations/aider/editblock";
+import { buildSemanticChunks } from "../codebaseIntelligence/astChunker";
+import { saveToolArtifact } from "../integrations/toolArtifacts";
 import { githubClient } from "../integrations/githubClient";
 import { resolveToolFilePath } from "../integrations/git/normalizePushFiles";
 import { resolveRepoScope } from "../codebaseIntelligence/repoScope";
@@ -42,6 +46,10 @@ function buildDisplayLabel(toolName: string, input: Record<string, unknown>): st
       return filePath ? `Writing ${fileName}` : "Writing file";
     case "edit_file":
       return filePath ? `Editing ${fileName}` : "Editing file";
+    case "apply_aider_edits":
+      return "Applying Aider SEARCH/REPLACE batch";
+    case "get_file_symbols":
+      return filePath ? `Symbols in ${fileName}` : "Reading symbols";
     case "delete_file":
       return filePath ? `Deleting ${fileName}` : "Deleting file";
     case "list_dir": {
@@ -368,6 +376,97 @@ export async function executeEngineeringCodingToolCall(
         }
         result = { filePath, summary, ...editResult };
         resultsFound = editResult.replaced ? 1 : 0;
+        break;
+      }
+
+      case "apply_aider_edits": {
+        if (!workspace) {
+          result = { error: "No workspace available — apply_aider_edits requires a local workspace." };
+          break;
+        }
+        const summary = stringValue(toolCall.input.summary);
+        let blocks: Array<{ filePath: string; search: string; replace: string }> = [];
+        const raw = stringValue(toolCall.input.raw);
+        if (raw.trim()) {
+          try {
+            blocks = parseAiderEditBlocks(raw).map((b) => ({
+              filePath: b.filePath,
+              search: b.search,
+              replace: b.replace,
+            }));
+          } catch (err) {
+            result = {
+              error: err instanceof Error ? err.message : "Failed to parse Aider blocks",
+            };
+            break;
+          }
+        } else if (Array.isArray(toolCall.input.blocks)) {
+          blocks = (toolCall.input.blocks as Array<Record<string, unknown>>).map((b) => ({
+            filePath: stringValue(b.file_path || b.filePath),
+            search: stringValue(b.search),
+            replace: stringValue(b.replace),
+          }));
+        }
+        if (!blocks.length) {
+          result = { error: "Provide raw Aider text or blocks[]" };
+          break;
+        }
+        const applied = workspaceApplyAiderBlocks(workspace.workspaceDir, blocks);
+        for (const row of applied.filter((a) => a.ok)) {
+          markCodingFileWritten(pipelineId, row.filePath);
+          emitEngineeringCodingEvent({
+            type: "file_staged",
+            pipelineId,
+            filePath: row.filePath,
+            action: "modify",
+            summary,
+            contentLength: 0,
+            timestamp: new Date().toISOString(),
+          });
+        }
+        saveToolArtifact({
+          toolId: "aider",
+          lane: "engineering",
+          pipelineId,
+          runId: `aider-${Date.now()}`,
+          status: applied.every((a) => a.ok) ? "completed" : "failed",
+          summary: summary || `Applied ${applied.filter((a) => a.ok).length}/${applied.length} Aider blocks`,
+          findings: applied.map((a, i) => ({
+            id: `aider-${i}`,
+            title: a.filePath,
+            severity: a.ok ? "info" : "high",
+            path: a.filePath,
+            detail: a.error,
+          })),
+          createdAt: new Date().toISOString(),
+        });
+        result = { summary, applied, okCount: applied.filter((a) => a.ok).length };
+        resultsFound = applied.filter((a) => a.ok).length;
+        break;
+      }
+
+      case "get_file_symbols": {
+        const required = requireFilePath(toolCall);
+        if ("error" in required) {
+          result = { error: required.error };
+          break;
+        }
+        if (!workspace) {
+          result = { error: "No workspace available" };
+          break;
+        }
+        const content = workspaceReadFile(workspace.workspaceDir, required.filePath);
+        const chunks = buildSemanticChunks(required.filePath, content);
+        const symbols = chunks
+          .filter((c) => c.symbolName)
+          .map((c) => ({
+            name: c.symbolName,
+            kind: c.spanType,
+            startLine: c.startLine,
+            endLine: c.endLine,
+          }));
+        result = { filePath: required.filePath, symbols, count: symbols.length };
+        resultsFound = symbols.length;
         break;
       }
 

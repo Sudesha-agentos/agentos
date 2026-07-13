@@ -6,6 +6,7 @@ import {
 import {
   subscribeEngineeringCodingEvents,
 } from "../../engineering/codingEventsHub";
+import { listToolArtifacts } from "../../integrations/toolArtifacts";
 import { NotFoundError } from "../../utils/errors";
 import {
   requireOrganizationUser,
@@ -37,6 +38,26 @@ router.get("/runs/:pipelineId", async (req, res, next) => {
       const run = await getEngineeringRun(req.params.pipelineId);
       if (!run) throw new NotFoundError("Engineering run not found");
       res.json(run);
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get("/runs/:pipelineId/tool-artifacts", async (req, res, next) => {
+  try {
+    const user = requireOrganizationUser(req, res);
+    if (!user?.organizationId) return;
+
+    await withOrganizationContext(user.organizationId, async () => {
+      const lane =
+        typeof req.query.lane === "string"
+          ? (req.query.lane as "engineering" | "qa" | "canary" | "codebase")
+          : undefined;
+      res.json({
+        pipelineId: req.params.pipelineId,
+        artifacts: listToolArtifacts(req.params.pipelineId, lane),
+      });
     });
   } catch (err) {
     next(err);

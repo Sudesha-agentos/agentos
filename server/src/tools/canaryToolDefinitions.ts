@@ -117,4 +117,37 @@ export const CANARY_TOOL_DEFINITIONS: Anthropic.Tool[] = [
       required: ["hypothesis_id", "status"],
     },
   },
+  {
+    name: "run_locust_load",
+    description: `
+Run Locust headless load test against the canary base URL when locustfile.py exists.
+Soft-skips if Locust CLI or locustfile is missing.
+    `.trim(),
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        users: { type: "number" },
+        spawn_rate: { type: "number" },
+        run_time: { type: "string", description: "e.g. 30s" },
+      },
+      required: [],
+    },
+  },
+  {
+    name: "run_zap_baseline",
+    description: `
+Run OWASP ZAP baseline scan against the canary target URL.
+Soft-skips if zap-baseline.py / Docker ZAP image is unavailable.
+    `.trim(),
+    input_schema: {
+      type: "object" as const,
+      properties: {
+        path: {
+          type: "string",
+          description: "Optional path appended to base URL, default /",
+        },
+      },
+      required: [],
+    },
+  },
 ];

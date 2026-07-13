@@ -2,6 +2,7 @@ import { exec } from "node:child_process";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { promisify } from "node:util";
+import { runSemgrepScan } from "../../integrations/semgrep/runSemgrep";
 import { logger } from "../../utils/logger";
 import { sandboxManager } from "./sandboxManager";
 
@@ -11,7 +12,7 @@ export interface SecurityFinding {
   id: string;
   title: string;
   severity: "critical" | "high" | "medium" | "low";
-  source: "npm_audit" | "security_test" | "script";
+  source: "npm_audit" | "security_test" | "script" | "semgrep" | "hypothesis";
   detail: string;
 }
 
@@ -33,6 +34,7 @@ export function isQaSecurityGateStrict(): boolean {
 export async function runSecurityScanInSandbox(input: {
   branchName: string;
   timeoutSeconds?: number;
+  pipelineId?: string;
 }): Promise<SecurityScanResult> {
   const runId = `sec-${Date.now()}`;
   const findings: SecurityFinding[] = [];
@@ -64,6 +66,24 @@ export async function runSecurityScanInSandbox(input: {
 
     const securityTestFindings = await runSecurityTaggedTests(sandboxDir, timeout);
     findings.push(...securityTestFindings);
+
+    // Semgrep (soft-skip if CLI missing) — see vendor/INTEGRATIONS.md
+    if (process.env.QA_SEMGREP !== "0") {
+      const semgrep = await runSemgrepScan({
+        cwd: sandboxDir,
+        pipelineId: input.pipelineId,
+        timeoutMs: Math.min(timeout, 180_000),
+      });
+      for (const f of semgrep.findings) {
+        findings.push({
+          id: f.id,
+          title: f.title,
+          severity: (f.severity === "info" ? "low" : f.severity) || "medium",
+          source: "semgrep",
+          detail: [f.path, f.ruleId, f.detail].filter(Boolean).join(" · "),
+        });
+      }
+    }
 
     const criticalCount = findings.filter((f) => f.severity === "critical").length;
     const highCount = findings.filter((f) => f.severity === "high").length;
