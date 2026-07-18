@@ -91,20 +91,52 @@ export function VirinTicketGraphSection({ relatedContext, defaultOpen = false })
 }
 
 /** Org-intelligence signals filtered for this ticket's area. */
-export function VirinOrgIntelligenceSection({ summary }) {
+export function VirinOrgIntelligenceSection({ summary, applied = false }) {
   if (!summary?.trim()) return null;
   if (/no recent|unavailable|not configured/i.test(summary)) return null;
+  const signals = summary
+    .split("\n")
+    .map((line) => line.replace(/^\s*-\s*/, "").trim())
+    .filter(Boolean);
 
   return (
     <Panel className="border-warning/20">
       <PanelHeader
         kicker="Org intelligence"
         title="Signals in this area"
-        subtitle="Past QA failures, overrides, canary findings, and pipeline outcomes"
+        subtitle={
+          applied
+            ? "Applied to codebase overlap, build gaps, technical risks, and acceptance criteria"
+            : "Past QA failures, overrides, canary findings, and pipeline outcomes"
+        }
+        right={
+          applied ? (
+            <span className="rounded-full border border-success/30 bg-success/5 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-success">
+              Used in analysis
+            </span>
+          ) : null
+        }
       />
-      <pre className="max-h-72 overflow-auto whitespace-pre-wrap px-5 py-4 font-mono text-[11px] leading-relaxed text-app-ink-dim sm:px-6">
-        {summary}
-      </pre>
+      <div className="px-5 py-4 sm:px-6">
+        <div className="grid gap-2 sm:grid-cols-2">
+          {signals.slice(0, 12).map((signal, index) => {
+            const source = /^(QA_FAILURE|OVERRIDE|CANARY|PIPELINE_COMPLETE)/.exec(signal)?.[1];
+            return (
+              <article
+                key={`${index}-${signal}`}
+                className="rounded-app-sm border border-app-border bg-app-surface-muted/30 p-3"
+              >
+                {source ? (
+                  <span className="font-mono text-[10px] font-semibold text-warning">
+                    {source.replace(/_/g, " ")}
+                  </span>
+                ) : null}
+                <p className="mt-1 text-[12px] leading-relaxed text-app-ink-dim">{signal}</p>
+              </article>
+            );
+          })}
+        </div>
+      </div>
     </Panel>
   );
 }

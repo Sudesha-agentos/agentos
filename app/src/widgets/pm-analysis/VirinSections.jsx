@@ -20,6 +20,53 @@ function formatDiscoverySummary(summary) {
   return String(summary);
 }
 
+/** True while Virin is generating the next discovery/intake question (or first one). */
+export function isVirinThinkingAboutQuestion(analysis, interactionBusy = false) {
+  if (interactionBusy) return true;
+  if (!analysis || analysis.status !== "RUNNING") return false;
+  if (analysis.pendingQuestion) return false;
+  const stage = analysis.currentStage;
+  return (
+    stage === "QUESTION_MODE" ||
+    stage === "INTAKE" ||
+    analysis.pendingQuestionStage === "INTAKE" ||
+    analysis.pendingQuestionStage === "QUESTION_MODE"
+  );
+}
+
+export function VirinThinkingBanner({
+  label = `${VIRIN_NAME} is thinking…`,
+  subtitle = "Working on the next question in the background.",
+  prominent = false,
+}) {
+  return (
+    <Panel
+      className={
+        prominent
+          ? "border-indigo/30 bg-gradient-to-br from-indigo/5 via-app-surface to-app-surface shadow-lg"
+          : "border-indigo/20 bg-indigo/[0.03]"
+      }
+      role="status"
+      aria-live="polite"
+      aria-busy="true"
+    >
+      <div className="flex items-center gap-4 px-5 py-5 sm:px-6">
+        <div className="relative flex size-10 shrink-0 items-center justify-center">
+          <span className="absolute inset-0 animate-ping rounded-full bg-indigo/20" />
+          <span className="absolute inset-1 animate-pulse rounded-full border-2 border-indigo/40 border-t-indigo" />
+          <span className="relative font-display text-sm text-indigo">V</span>
+        </div>
+        <div className="min-w-0">
+          <p className="text-[15px] font-medium text-app-ink">{label}</p>
+          {subtitle ? (
+            <p className="mt-0.5 text-[13px] text-app-ink-dim">{subtitle}</p>
+          ) : null}
+        </div>
+      </div>
+    </Panel>
+  );
+}
+
 export function DiscoveryQuestionProgress({ analysis, compact = false }) {
   const discovery = getDiscoveryQuestionProgress(analysis);
   const intake = getIntakeClarifyingProgress(analysis);
@@ -57,6 +104,7 @@ export function VirinConversationPanel({ analysis, onAnswer, onConfirm, busy, pr
   const pendingQuestion = analysis?.pendingQuestion;
   const intakeProgress = getIntakeClarifyingProgress(analysis);
   const discoveryProgress = getDiscoveryQuestionProgress(analysis);
+  const thinking = isVirinThinkingAboutQuestion(analysis, busy);
 
   if (status === "AWAITING_INPUT" && pendingQuestion) {
     const isIntake = analysis.pendingQuestionStage === "INTAKE";
@@ -66,23 +114,47 @@ export function VirinConversationPanel({ analysis, onAnswer, onConfirm, busy, pr
     const maxTurns = isIntake ? intakeProgress?.max ?? 1 : VIRIN_MAX_DISCOVERY_TURNS;
 
     return (
-      <VirinInputPanel
+      <div className="space-y-3">
+        <VirinInputPanel
+          prominent={prominent}
+          kicker={`${VIRIN_NAME} asks`}
+          title={isIntake ? "Clarify ticket type" : "Discovery question"}
+          subtitle={
+            isIntake
+              ? intakeProgress?.label
+              : discoveryProgress?.label ?? `Question ${turnNumber} of up to ${maxTurns}`
+          }
+          prompt={pendingQuestion}
+          options={analysis?.pendingQuestionOptions}
+          placeholder="Type your answer…"
+          submitLabel="Send answer"
+          onSubmit={onAnswer}
+          busy={busy}
+          turnNumber={turnNumber}
+          maxTurns={maxTurns}
+        />
+        {busy ? (
+          <VirinThinkingBanner
+            prominent={false}
+            label={`${VIRIN_NAME} is thinking…`}
+            subtitle="Your answer was sent — preparing the next question."
+          />
+        ) : null}
+      </div>
+    );
+  }
+
+  if (thinking && status !== "AWAITING_CONFIRMATION") {
+    const hasTurns = (analysis?.questionMode?.conversation?.length ?? 0) > 0;
+    return (
+      <VirinThinkingBanner
         prominent={prominent}
-        kicker={`${VIRIN_NAME} asks`}
-        title={isIntake ? "Clarify ticket type" : "Discovery question"}
+        label={`${VIRIN_NAME} is thinking…`}
         subtitle={
-          isIntake
-            ? intakeProgress?.label
-            : discoveryProgress?.label ?? `Question ${turnNumber} of up to ${maxTurns}`
+          hasTurns
+            ? "Working on the next discovery question."
+            : "Preparing the next question in the background."
         }
-        prompt={pendingQuestion}
-        options={analysis?.pendingQuestionOptions}
-        placeholder="Type your answer…"
-        submitLabel="Send answer"
-        onSubmit={onAnswer}
-        busy={busy}
-        turnNumber={turnNumber}
-        maxTurns={maxTurns}
       />
     );
   }
@@ -513,6 +585,31 @@ export function VirinCodebaseSection({ analysis: codebaseAnalysis, expanded = fa
   const criteria = expanded
     ? codebaseAnalysis.testableAcceptanceCriteria
     : codebaseAnalysis.testableAcceptanceCriteria?.slice(0, 6);
+  const alreadyExists = codebaseAnalysis.alreadyExists ?? [];
+  const gapsToBuild = codebaseAnalysis.gapsToBuild ?? [];
+  const reuseOpportunities = codebaseAnalysis.reuseOpportunities ?? [];
+  const evidenceItems = alreadyExists.length + gapsToBuild.length;
+  const existingPercent =
+    codebaseAnalysis.overlapVerdict === "already_shipped" && gapsToBuild.length === 0
+      ? 100
+      : evidenceItems > 0
+        ? Math.round((alreadyExists.length / evidenceItems) * 100)
+        : codebaseAnalysis.overlapVerdict === "partial_overlap"
+          ? 50
+          : 0;
+  const buildPercent = 100 - existingPercent;
+  const verdictLabel =
+    codebaseAnalysis.overlapVerdict === "already_shipped"
+      ? "Already shipped"
+      : codebaseAnalysis.overlapVerdict === "partial_overlap"
+        ? "Extend existing"
+        : "Net-new build";
+  const verdictTone =
+    codebaseAnalysis.overlapVerdict === "already_shipped"
+      ? "text-success border-success/30 bg-success/5"
+      : codebaseAnalysis.overlapVerdict === "partial_overlap"
+        ? "text-warning border-warning/30 bg-warning/5"
+        : "text-indigo border-indigo/30 bg-indigo/5";
 
   return (
     <Panel>
@@ -526,6 +623,64 @@ export function VirinCodebaseSection({ analysis: codebaseAnalysis, expanded = fa
         }
       />
       <div className="space-y-5 px-5 py-5 sm:px-6">
+        <section className="rounded-app border border-app-border bg-app-surface-muted/20 p-4 sm:p-5">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="type-kicker">Implementation footprint</p>
+              <h3 className="mt-1 text-[17px] font-semibold text-app-ink">
+                What exists vs what this ticket must add
+              </h3>
+              <p className="mt-1 max-w-2xl text-[12px] leading-relaxed text-app-ink-mute">
+                Evidence estimate based on the concrete capabilities Virin identified, not lines
+                of code. Open the modules below to verify the cited implementation paths.
+              </p>
+            </div>
+            <span className={`rounded-full border px-3 py-1 text-[11px] font-semibold ${verdictTone}`}>
+              {verdictLabel}
+            </span>
+          </div>
+
+          <div className="mt-5 grid gap-3 sm:grid-cols-3">
+            <div className="rounded-app-sm border border-success/25 bg-success/5 p-3">
+              <p className="type-kicker text-success">Already present</p>
+              <p className="mt-1 text-2xl font-semibold text-app-ink">{existingPercent}%</p>
+              <p className="mt-1 text-[11px] text-app-ink-mute">
+                {alreadyExists.length} evidenced capabilit{alreadyExists.length === 1 ? "y" : "ies"}
+              </p>
+            </div>
+            <div className="rounded-app-sm border border-indigo/25 bg-indigo/5 p-3">
+              <p className="type-kicker text-indigo">Still to build</p>
+              <p className="mt-1 text-2xl font-semibold text-app-ink">{buildPercent}%</p>
+              <p className="mt-1 text-[11px] text-app-ink-mute">
+                {gapsToBuild.length} scoped gap{gapsToBuild.length === 1 ? "" : "s"}
+              </p>
+            </div>
+            <div className="rounded-app-sm border border-app-border bg-app-surface p-3">
+              <p className="type-kicker">Reuse leverage</p>
+              <p className="mt-1 text-2xl font-semibold text-app-ink">
+                {reuseOpportunities.length}
+              </p>
+              <p className="mt-1 text-[11px] text-app-ink-mute">extension opportunities</p>
+            </div>
+          </div>
+
+          <div
+            className="mt-4 flex h-2.5 overflow-hidden rounded-full bg-app-surface-muted"
+            aria-label={`${existingPercent}% already present, ${buildPercent}% still to build`}
+          >
+            {existingPercent > 0 ? (
+              <div className="bg-success" style={{ width: `${existingPercent}%` }} />
+            ) : null}
+            {buildPercent > 0 ? (
+              <div className="bg-indigo" style={{ width: `${buildPercent}%` }} />
+            ) : null}
+          </div>
+          <div className="mt-2 flex items-center justify-between text-[11px] text-app-ink-mute">
+            <span>Existing implementation</span>
+            <span>Ticket delta</span>
+          </div>
+        </section>
+
         {codebaseAnalysis.rootCauseMismatch && (
           <div className="flex gap-3 rounded-app-sm border border-warning/35 bg-warning/8 p-4">
             <span className="text-lg" aria-hidden>
@@ -574,27 +729,53 @@ export function VirinCodebaseSection({ analysis: codebaseAnalysis, expanded = fa
           </div>
         ) : null}
 
-        {codebaseAnalysis.alreadyExists?.length > 0 && (
-          <div>
-            <p className="type-kicker mb-2">Already exists</p>
-            <ul className="list-disc space-y-1 pl-4 text-[13px] text-app-ink-dim">
-              {codebaseAnalysis.alreadyExists.map((item) => (
-                <li key={item}>{item}</li>
-              ))}
-            </ul>
-          </div>
-        )}
+        <div className="grid gap-4 lg:grid-cols-2">
+          <section className="overflow-hidden rounded-app border border-success/25 bg-success/[0.03]">
+            <div className="border-b border-success/20 px-4 py-3">
+              <p className="type-kicker text-success">Keep and extend</p>
+              <p className="mt-1 text-[13px] font-medium text-app-ink">Already in the codebase</p>
+            </div>
+            {alreadyExists.length > 0 ? (
+              <ol className="divide-y divide-success/15">
+                {alreadyExists.map((item, index) => (
+                  <li key={item} className="flex gap-3 px-4 py-3 text-[13px] text-app-ink-dim">
+                    <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-success/10 font-mono text-[10px] text-success">
+                      {index + 1}
+                    </span>
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ol>
+            ) : (
+              <p className="px-4 py-5 text-[13px] text-app-ink-mute">
+                No existing capability was evidenced for this ticket.
+              </p>
+            )}
+          </section>
 
-        {codebaseAnalysis.gapsToBuild?.length > 0 && (
-          <div>
-            <p className="type-kicker mb-2">Gaps to build</p>
-            <ul className="list-disc space-y-1 pl-4 text-[13px] text-app-ink-dim">
-              {codebaseAnalysis.gapsToBuild.map((item) => (
-                <li key={item}>{item}</li>
-              ))}
-            </ul>
-          </div>
-        )}
+          <section className="overflow-hidden rounded-app border border-indigo/25 bg-indigo/[0.03]">
+            <div className="border-b border-indigo/20 px-4 py-3">
+              <p className="type-kicker text-indigo">Engineering delta</p>
+              <p className="mt-1 text-[13px] font-medium text-app-ink">What must be built</p>
+            </div>
+            {gapsToBuild.length > 0 ? (
+              <ol className="divide-y divide-indigo/15">
+                {gapsToBuild.map((item, index) => (
+                  <li key={item} className="flex gap-3 px-4 py-3 text-[13px] text-app-ink-dim">
+                    <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-indigo/10 font-mono text-[10px] text-indigo">
+                      {index + 1}
+                    </span>
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ol>
+            ) : (
+              <p className="px-4 py-5 text-[13px] text-success">
+                No material build gap identified — verify the existing behavior before shipping.
+              </p>
+            )}
+          </section>
+        </div>
 
         {modules?.length > 0 && (
           <div>
@@ -606,7 +787,14 @@ export function VirinCodebaseSection({ analysis: codebaseAnalysis, expanded = fa
                   className="flex flex-col gap-1 rounded-app-sm border border-app-border bg-app-surface-muted/30 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between"
                 >
                   <code className="font-mono text-[12px] text-indigo">{m.path}</code>
-                  <span className="text-[12px] text-app-ink-dim">{m.reason}</span>
+                  <div className="min-w-0 text-right">
+                    {m.role ? (
+                      <span className="mb-1 inline-block rounded-full border border-app-border px-1.5 py-0.5 font-mono text-[9px] uppercase text-app-ink-mute">
+                        {m.role}
+                      </span>
+                    ) : null}
+                    <p className="text-[12px] text-app-ink-dim">{m.reason}</p>
+                  </div>
                 </li>
               ))}
             </ul>
@@ -623,6 +811,48 @@ export function VirinCodebaseSection({ analysis: codebaseAnalysis, expanded = fa
             </ul>
           </div>
         )}
+
+        <div className="grid gap-4 lg:grid-cols-2">
+          {(codebaseAnalysis.architectureConstraints?.length > 0 ||
+            codebaseAnalysis.technicalDebt?.length > 0) && (
+            <section className="rounded-app-sm border border-app-border p-4">
+              <p className="type-kicker">Constraints to preserve</p>
+              <ul className="mt-2 space-y-1.5 text-[13px] text-app-ink-dim">
+                {[
+                  ...(codebaseAnalysis.architectureConstraints ?? []),
+                  ...(codebaseAnalysis.technicalDebt ?? []),
+                ].map((item) => (
+                  <li key={item} className="flex gap-2">
+                    <span className="text-app-ink-mute">—</span>
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+          {codebaseAnalysis.technicalRisks?.length > 0 && (
+            <section className="rounded-app-sm border border-warning/30 bg-warning/5 p-4">
+              <p className="type-kicker text-warning">Regression risks</p>
+              <ul className="mt-2 space-y-1.5 text-[13px] text-app-ink-dim">
+                {codebaseAnalysis.technicalRisks.map((item) => (
+                  <li key={item} className="flex gap-2">
+                    <span className="text-warning">⚠</span>
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+        </div>
+
+        {codebaseAnalysis.suggestedFirstFile ? (
+          <div className="rounded-app-sm border border-indigo/25 bg-indigo/5 px-4 py-3">
+            <p className="type-kicker text-indigo">Recommended starting point</p>
+            <p className="mt-1 font-mono text-[12px] text-app-ink">
+              {codebaseAnalysis.suggestedFirstFile}
+            </p>
+          </div>
+        ) : null}
 
         {criteria?.length > 0 && (
           <div>

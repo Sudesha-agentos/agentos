@@ -1,12 +1,16 @@
 # Render Blueprint — deploy from repo with rootDir = server (or link this file).
 # https://render.com/docs/blueprint-spec
+#
+# OSS adapters (Semgrep, Cover-Agent, Locust, Playwright) need host CLIs.
+# Prefer instance type ≥1GB RAM (2GB+ recommended). 512MB will soft-fail / OOM.
 
 services:
   - type: web
     name: agentos-api
     runtime: node
     rootDir: server
-    buildCommand: npm install && npm run build
+    plan: standard
+    buildCommand: npm install && npm run build && bash scripts/install-oss-tools.sh
     startCommand: npm start
     healthCheckPath: /healthz
     envVars:
@@ -24,7 +28,10 @@ services:
         value: https://agentos-blue.vercel.app
       - key: PUBLIC_API_URL
         value: https://agentos-sc05.onrender.com
-      # Skip npm install in Ananta workspace on 512MB instances (content tickets skip automatically).
-      # Set to "1" to force-skip for all tickets; upgrade to 1GB+ for code-mode npm install + typecheck.
+      # Missing Semgrep/Playwright/etc. → failed artifacts (not quiet skip) in production
+      - key: OSS_TOOLS_REQUIRED
+        value: "1"
+      # Skip npm install in Ananta workspace on small instances (content tickets skip automatically).
+      # With OSS tools enabled, keep plan ≥1GB and prefer ENGINEERING_SKIP_NPM_INSTALL=0 when possible.
       - key: ENGINEERING_SKIP_NPM_INSTALL
         value: "1"

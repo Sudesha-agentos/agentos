@@ -113,8 +113,9 @@ export async function runAgenticLoop(
           model,
           maxTokens: 6000,
           messages: [{ role: "system", content: systemPrompt }, ...messages],
-          tools: forcedWrapUp ? undefined : openaiTools,
-          tool_choice: forcedWrapUp ? "none" : "auto",
+          ...(forcedWrapUp || openaiTools.length === 0
+            ? {}
+            : { tools: openaiTools, tool_choice: "auto" as const }),
         }),
       {
         maxAttempts: 3,

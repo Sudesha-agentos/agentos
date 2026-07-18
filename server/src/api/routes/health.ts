@@ -1,11 +1,24 @@
 import { Router } from "express";
 import { getPrisma } from "../../db/client";
 import { getQueueStats } from "../../queue/inProcessRunner";
+import { isOssToolsRequired } from "../../integrations/cliSoftSkip";
+import { getOssToolStatus } from "../../integrations/ossStatus";
 
 const router = Router();
 
 router.get("/healthz", async (_req, res) => {
   const stats = await getQueueStats();
+  let ossSummary: { required: boolean; ready: boolean; installed: string[] } | undefined;
+  try {
+    const oss = await getOssToolStatus();
+    ossSummary = {
+      required: oss.required,
+      ready: oss.ready,
+      installed: oss.tools.filter((t) => t.installed).map((t) => t.id),
+    };
+  } catch {
+    ossSummary = { required: isOssToolsRequired(), ready: false, installed: [] };
+  }
   res.json({
     status: "ok",
     timestamp: new Date().toISOString(),
@@ -15,6 +28,7 @@ router.get("/healthz", async (_req, res) => {
       active: stats.active,
       completed: stats.completed,
     },
+    ossTools: ossSummary,
   });
 });
 

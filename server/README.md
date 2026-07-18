@@ -212,21 +212,30 @@ npm run build
 | `PUBLIC_API_URL` | Public URL for Jira webhooks |
 | `PIPELINE_COMPLETION_STATUS` | Default Jira status after pipeline (e.g. `Done`) |
 | `PIPELINE_INTAKE_POLL_MS` | AI Worker scan interval (default `120000`) |
+| `OSS_TOOLS_REQUIRED` | `1` in production — missing Semgrep/Playwright/etc. fail loudly |
+
+### OSS CLIs on the API host
+
+Do **not** vendor full Semgrep/Cover-Agent/Locust/ZAP repos. Build runs [`scripts/install-oss-tools.sh`](scripts/install-oss-tools.sh). Use **≥1GB RAM** (2GB+ recommended). See [`vendor/INTEGRATIONS.md`](vendor/INTEGRATIONS.md).
+
+- `GET /healthz` → `ossTools.ready` / `ossTools.installed`
+- `GET /api/integrations/oss-status` (auth) → per-CLI install status
 
 ### Deploy steps
 
-1. Merge to `main` and deploy `agentos-api` via [`render.yaml`](render.yaml).
+1. Merge to `main` and deploy `agentos-api` via [`render.yaml`](render.yaml) (standard plan or larger).
 2. Run `npx prisma migrate deploy` against production Postgres.
 3. In **Jira Integration**: connect Jira, map AI Worker column, set completion status via `PUT /pipeline-jira/completion-settings`.
 4. Register webhook (automatic on connect when `PUBLIC_API_URL` is set).
+5. Confirm `/healthz` shows `ossTools.ready: true` after build installs CLIs.
 
 ### Post-deploy smoke test
 
 1. Move a test ticket into the AI Worker column — it should enqueue within 2 minutes (webhook or intake poll).
 2. Confirm **Pipeline Queue** shows one active ticket, others FIFO-queued.
 3. On completion: Jira receives PRD/QA/RCA comments, description update, and status transition.
-4. Check `/healthz` for `pipelineQueue` stats.
-5. Open **QA Center** and **Org Intelligence** for test cases and learning signals.
+4. Check `/healthz` for `pipelineQueue` stats and `ossTools`.
+5. Open **QA Center** / Ananta — OSS tool checklist should show completed/failed (not only skipped).
 
 ### SQLite persistence
 

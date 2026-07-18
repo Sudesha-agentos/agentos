@@ -224,9 +224,14 @@ function FailureAnalysisSection({ failures }) {
 }
 
 function SecurityScanSection({ securityScan }) {
+  const [expanded, setExpanded] = useState(false);
   if (!securityScan) return null;
   const { criticalCount = 0, highCount = 0, findings = [] } = securityScan;
   const clean = criticalCount === 0 && highCount === 0;
+  const limit = expanded ? 25 : 8;
+  const visible = findings.slice(0, limit);
+  const hasMore = findings.length > limit || (!expanded && findings.length > 8);
+
   return (
     <div className="border-t border-app-border px-5 py-4">
       <div className="flex items-center gap-3 mb-3">
@@ -240,19 +245,130 @@ function SecurityScanSection({ securityScan }) {
         >
           {clean ? "Clean" : `${criticalCount} critical · ${highCount} high`}
         </span>
+        {findings.length > 0 ? (
+          <span className="text-[11px] text-app-ink-mute">{findings.length} finding(s)</span>
+        ) : null}
       </div>
       {findings.length > 0 ? (
-        <ul className="space-y-1.5">
-          {findings.slice(0, 5).map((f, i) => (
-            <li key={i} className={`rounded-app-sm border px-3 py-2 text-xs ${SEVERITY_STYLES[f.severity] ?? SEVERITY_STYLES.medium}`}>
-              <p className="font-medium">{f.title}</p>
-              {f.description ? <p className="mt-0.5 opacity-80">{f.description}</p> : null}
-            </li>
-          ))}
-        </ul>
+        <>
+          <ul className="space-y-1.5">
+            {visible.map((f, i) => {
+              const detail = f.detail || f.description || "";
+              const path =
+                f.path ||
+                (typeof detail === "string" && detail.includes(" · ")
+                  ? detail.split(" · ")[0]
+                  : null);
+              return (
+                <li
+                  key={f.id ?? i}
+                  className={`rounded-app-sm border px-3 py-2 text-xs ${SEVERITY_STYLES[f.severity] ?? SEVERITY_STYLES.medium}`}
+                >
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-semibold uppercase tracking-wide opacity-80">
+                      {f.severity ?? "medium"}
+                    </span>
+                    {f.source ? (
+                      <span className="rounded-full border border-current/20 px-1.5 py-0.5 text-[10px]">
+                        {f.source}
+                      </span>
+                    ) : null}
+                  </div>
+                  <p className="mt-1 font-medium">{f.title}</p>
+                  {path ? (
+                    <p className="mt-0.5 font-mono text-[11px] opacity-70">{path}</p>
+                  ) : null}
+                  {detail ? <p className="mt-0.5 opacity-80">{detail}</p> : null}
+                </li>
+              );
+            })}
+          </ul>
+          {hasMore ? (
+            <button
+              type="button"
+              onClick={() => setExpanded((v) => !v)}
+              className="mt-2 text-[11px] font-medium text-indigo"
+            >
+              {expanded
+                ? "Show fewer"
+                : `Show more (${Math.min(findings.length, 25) - visible.length} more)`}
+            </button>
+          ) : null}
+        </>
       ) : (
         <p className="text-xs text-app-ink-dim">No security findings.</p>
       )}
+    </div>
+  );
+}
+
+function PlaywrightSmokeSection({ playwrightSmoke }) {
+  const [showOutput, setShowOutput] = useState(false);
+  if (!playwrightSmoke) return null;
+  const {
+    skipped,
+    skipReason,
+    passed,
+    durationMs = 0,
+    attempted,
+    output = "",
+  } = playwrightSmoke;
+  const statusLabel = skipped
+    ? "Skipped"
+    : passed
+      ? "Passed"
+      : "Failed";
+  const statusClass = skipped
+    ? "border-warning/30 text-warning"
+    : passed
+      ? "border-success/30 text-success"
+      : "border-danger/30 text-danger";
+
+  return (
+    <div className="border-t border-app-border px-5 py-4">
+      <div className="mb-2 flex flex-wrap items-center gap-2">
+        <p className="text-[10px] font-semibold uppercase tracking-wider text-app-ink-mute">
+          Playwright smoke
+        </p>
+        <span
+          className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase ${statusClass}`}
+        >
+          {statusLabel}
+        </span>
+        {attempted != null ? (
+          <span className="text-[11px] text-app-ink-mute">
+            {attempted ? "attempted" : "not attempted"}
+          </span>
+        ) : null}
+        {!skipped ? (
+          <span className="text-[11px] text-app-ink-mute">{durationMs}ms</span>
+        ) : null}
+      </div>
+      {skipped && skipReason ? (
+        <p className="text-xs text-app-ink-dim">{skipReason}</p>
+      ) : null}
+      {!skipped && !passed ? (
+        <p className="text-xs text-danger">Failed — see output below or OSS tool artifacts.</p>
+      ) : null}
+      {!skipped && passed ? (
+        <p className="text-xs text-app-ink-dim">Smoke lane completed successfully.</p>
+      ) : null}
+      {output ? (
+        <>
+          <button
+            type="button"
+            onClick={() => setShowOutput((v) => !v)}
+            className="mt-2 text-[11px] font-medium text-indigo"
+          >
+            {showOutput ? "Hide output" : "Show output"}
+          </button>
+          {showOutput ? (
+            <pre className="mt-2 max-h-48 overflow-auto whitespace-pre-wrap rounded-app-sm border border-app-border bg-app-surface-muted/30 p-3 font-mono text-[11px] text-app-ink-dim">
+              {String(output).slice(0, 4000)}
+            </pre>
+          ) : null}
+        </>
+      ) : null}
     </div>
   );
 }
@@ -327,20 +443,7 @@ function PipelineQaDetail({ report }) {
       <HealProposalsSection proposals={report.locatorHealProposals} />
       <UncoveredCriteria coverageReport={report.coverageReport} />
       <SecurityScanSection securityScan={report.securityScan} />
-      {report.playwrightSmoke ? (
-        <div className="border-t border-app-border px-5 py-4">
-          <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-app-ink-mute">
-            Playwright smoke
-          </p>
-          <p className="text-xs text-app-ink-dim">
-            {report.playwrightSmoke.skipped
-              ? report.playwrightSmoke.skipReason || "Skipped"
-              : report.playwrightSmoke.passed
-                ? `Passed (${report.playwrightSmoke.durationMs ?? 0}ms)`
-                : "Failed — see tool artifacts"}
-          </p>
-        </div>
-      ) : null}
+      <PlaywrightSmokeSection playwrightSmoke={report.playwrightSmoke} />
       {report.riskAreas?.length ? (
         <div className="border-t border-app-border px-5 py-4">
           <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-app-ink-mute">

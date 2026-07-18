@@ -827,6 +827,7 @@ async function runCodebaseAnalysis(
     candidate_files_list: ctx.candidateFilesList,
     recent_commit_summary: ctx.recentCommitSummary,
     affected_components: ctx.affectedComponents,
+    org_intelligence: ctx.orgIntelligenceSummary,
   });
   const analysis = await runVirinStage<CodebaseAnalysisOutput>(
     jiraKey,
