@@ -24,8 +24,10 @@ import { logger } from "./utils/logger";
 import { runMigrationsOnStartup } from "./db/migrateOnStartup";
 import { disconnectPrisma } from "./db/client";
 import { validateAuthConfig } from "./api/routes/authSession";
+import { ensureOssCliPath } from "./integrations/ossCliPath";
 
 async function bootstrap(): Promise<void> {
+  ensureOssCliPath();
   validateAuthConfig();
   await runMigrationsOnStartup();
   initIntakeDb();
