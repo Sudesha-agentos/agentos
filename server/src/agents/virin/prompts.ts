@@ -223,6 +223,9 @@ Candidate files: {{candidate_files_list}}
 Recent commits: {{recent_commit_summary}}
 Component context: {{affected_components}}
 
+ORGANIZATIONAL INTELLIGENCE:
+{{org_intelligence}}
+
 Tasks:
 1. Identify relevant modules/files and why
 2. What can be reused or extended
@@ -236,7 +239,8 @@ Tasks:
    - "partial_overlap" if substantial pieces exist but a clear delta remains
    - "net_new" only if the repo does not already provide the capability
 9. If overlapVerdict is already_shipped or partial_overlap, set alreadyShippedNote with a clear recommendation (verify/close vs thin delta only — do NOT recommend a full rebuild)
-10. If the ticket is a document/content deliverable (curriculum, policy, playbook, documentation, markdown):
+10. Apply organizational intelligence to the assessment: past QA failures, overrides, canary findings, and completed pipeline outcomes must influence technical risks, constraints, gaps, and acceptance criteria when relevant
+11. If the ticket is a document/content deliverable (curriculum, policy, playbook, documentation, markdown):
    - gapsToBuild MUST cite concrete doc file paths (e.g. docs/curriculum/q1.md)
    - suggestedFirstFile MUST be an existing or new doc path (.md preferred)
    - set suggestedImplementationMode to "content"

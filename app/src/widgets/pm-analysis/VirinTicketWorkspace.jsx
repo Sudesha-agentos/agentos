@@ -18,6 +18,8 @@ import {
   VirinDiscoverySection,
   VirinHandoffPackageSection,
   VirinIntakeSection,
+  VirinThinkingBanner,
+  isVirinThinkingAboutQuestion,
 } from "./VirinSections";
 import {
   VirinCodebaseSignalsSection,
@@ -180,6 +182,26 @@ function gateStageForAnalysis(analysis) {
 }
 
 function AwaitingInputBanner({ analysis, handlers }) {
+  const thinking = isVirinThinkingAboutQuestion(analysis, handlers.interactionBusy);
+
+  if (
+    analysis.status !== "AWAITING_INPUT" &&
+    analysis.status !== "AWAITING_CONFIRMATION" &&
+    !thinking
+  ) {
+    return null;
+  }
+
+  if (thinking && analysis.status !== "AWAITING_INPUT" && analysis.status !== "AWAITING_CONFIRMATION") {
+    return (
+      <VirinThinkingBanner
+        prominent
+        label={`${VIRIN_NAME} is thinking…`}
+        subtitle="Working on the next question in the background — this stays until Virin asks again."
+      />
+    );
+  }
+
   if (
     analysis.status !== "AWAITING_INPUT" &&
     analysis.status !== "AWAITING_CONFIRMATION"
@@ -270,9 +292,12 @@ function renderStageContent(stageId, analysis, handlers) {
     case "CODEBASE_ANALYSIS":
       return (
         <StagePanel stageId={stageId} analysis={analysis} pendingLabel="Codebase analysis pending…">
-          {analysis.codebaseAnalysis ? (
-            <VirinCodebaseSection analysis={analysis.codebaseAnalysis} expanded />
-          ) : null}
+          <div className="space-y-4">
+            {analysis.codebaseAnalysis ? (
+              <VirinCodebaseSection analysis={analysis.codebaseAnalysis} expanded />
+            ) : null}
+            {orgIntel ? <VirinOrgIntelligenceSection summary={orgIntel} applied /> : null}
+          </div>
         </StagePanel>
       );
     case "SYSTEM_DESIGN":
@@ -475,13 +500,14 @@ export function VirinTicketWorkspace({
           </div>
         ) : null}
 
-        {intakeRunning ? (
+        {intakeRunning && !isVirinThinkingAboutQuestion(analysis, interactionBusy) ? (
           <StageSkeleton label={`${VIRIN_NAME} is reading the ticket (Stage 1)…`} />
         ) : null}
 
         {analysis.status === "RUNNING" &&
         analysis.currentStage === "QUESTION_MODE" &&
-        !analysis.questionMode?.conversation?.length ? (
+        !analysis.questionMode?.conversation?.length &&
+        !isVirinThinkingAboutQuestion(analysis, interactionBusy) ? (
           <StageSkeleton label={`${VIRIN_NAME} is preparing the first discovery question…`} />
         ) : null}
 

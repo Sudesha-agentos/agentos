@@ -13,6 +13,7 @@ import {
   type ToolArtifact,
   type ToolFinding,
 } from "../toolArtifacts";
+import { isMissingCliError, softSkipArtifact } from "../cliSoftSkip";
 
 const execAsync = promisify(exec);
 
@@ -83,22 +84,19 @@ export async function runSemgrepScan(input: {
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     const missing =
-      /not found|ENOENT|is not recognized|command not found/i.test(message) ||
-      /semgrep/i.test(message) && /exit code 127|127/.test(message);
+      isMissingCliError(message, "semgrep") ||
+      (/semgrep/i.test(message) && /exit code 127|\b127\b/.test(message));
 
-    const artifact: ToolArtifact = {
+    const artifact = softSkipArtifact({
       toolId: "semgrep",
       lane: "qa",
       pipelineId: input.pipelineId,
       runId,
-      status: missing ? "skipped" : "failed",
-      summary: missing
-        ? "Semgrep CLI not installed — skipped (install: pip install semgrep)"
-        : `Semgrep failed: ${message.slice(0, 300)}`,
-      findings: [],
-      meta: { error: message.slice(0, 1000) },
+      installHint: "pip install semgrep",
+      error: message,
+      missing,
       createdAt,
-    };
+    }) as ToolArtifact;
     logger.warn({ err, cwd: input.cwd }, "semgrep scan soft-failed");
     if (input.pipelineId) saveToolArtifact(artifact);
     return artifact;
