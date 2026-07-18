@@ -53,7 +53,13 @@ fi
   cd "${MON_DIR}"
   npm install --no-fund --no-audit || true
   npx playwright install chromium || true
-  npx playwright install-deps chromium || true
+  # install-deps needs root (apt-get). Render's native runtime has no root but
+  # already ships Chromium's shared libs, so only attempt this when we are root.
+  if [[ "$(id -u)" -eq 0 ]]; then
+    npx playwright install-deps chromium || true
+  else
+    echo "[oss-tools] skipping 'playwright install-deps' (no root); Render base image already has the required libs"
+  fi
 )
 
 echo "[oss-tools] done. ZAP is not installed here — use Docker (ghcr.io/zaproxy/zaproxy:stable) or accept failed/skipped ZAP artifacts."

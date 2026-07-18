@@ -3,10 +3,20 @@
  */
 
 import { exec } from "node:child_process";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import { promisify } from "node:util";
 import { isOssToolsRequired } from "./cliSoftSkip";
 
 const execAsync = promisify(exec);
+
+/** Playwright lives in the vendored monitor workspace, not the server root. */
+function playwrightProbeCwd(): string {
+  const monitorDir = join(process.cwd(), "vendor", "playwright-monitor");
+  return existsSync(join(monitorDir, "node_modules", "@playwright", "test"))
+    ? monitorDir
+    : process.cwd();
+}
 
 export type OssCliId =
   | "semgrep"
@@ -26,10 +36,14 @@ export type OssCliStatus = {
   requiredFor: Array<"qa" | "canary">;
 };
 
-async function probe(cmd: string): Promise<{ ok: boolean; version?: string }> {
+async function probe(
+  cmd: string,
+  cwd?: string
+): Promise<{ ok: boolean; version?: string }> {
   try {
     const { stdout, stderr } = await execAsync(cmd, {
       timeout: 15_000,
+      cwd,
       env: { ...process.env },
     });
     const text = `${stdout}\n${stderr}`.trim();
@@ -46,6 +60,12 @@ export async function getOssToolStatus(): Promise<{
   tools: OssCliStatus[];
   notes: string[];
 }> {
+  // Render/Linux has python3 (no `python` alias); Windows dev has `python`.
+  const probePython = async (args: string) => {
+    const viaPython3 = await probe(`python3 ${args}`);
+    return viaPython3.ok ? viaPython3 : probe(`python ${args}`);
+  };
+
   const [
     semgrep,
     cover,
@@ -58,10 +78,11 @@ export async function getOssToolStatus(): Promise<{
   ] = await Promise.all([
     probe("semgrep --version"),
     probe("cover-agent --help"),
-    probe("python -m pytest --version"),
-    probe("python -c \"import hypothesis; print(hypothesis.__version__)\""),
+    probePython("-m pytest --version"),
+    probePython("-c \"import hypothesis; print(hypothesis.__version__)\""),
     probe("locust --version"),
-    probe("npx playwright --version"),
+    // --no-install: report missing instead of letting npx download playwright ad hoc
+    probe("npx --no-install playwright --version", playwrightProbeCwd()),
     probe("zap-baseline.py -h"),
     probe("docker image inspect ghcr.io/zaproxy/zaproxy:stable"),
   ]);
