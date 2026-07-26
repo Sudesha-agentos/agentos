@@ -10,7 +10,7 @@ export default function ReviewQueuePanel({ items, loading }) {
   const hasItems = items?.length > 0;
 
   return (
-    <Panel className="h-full border-warning/20 shadow-app-card">
+    <Panel className="border-warning/20 shadow-app-card">
       <PanelHeader
         kicker="Action required"
         title="Needs your review"

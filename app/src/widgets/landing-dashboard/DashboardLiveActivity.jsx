@@ -6,31 +6,31 @@ import { Panel, PanelHeader } from "../../shared/ui/Panel";
 export default function DashboardLiveActivity({ events, loading }) {
   const orgPath = useOrgPathBuilder();
   return (
-    <Panel className="h-full">
+    <Panel className="flex min-h-0 flex-col overflow-hidden">
       <PanelHeader kicker="Live" title="Live activity" />
-      <div className="max-h-[360px] overflow-y-auto px-5 py-4 sm:px-6">
+      <div className="min-h-0 max-h-[360px] flex-1 overflow-y-auto px-5 py-4 sm:px-6">
         {loading && (!events || events.length === 0) ? (
-          <div className="space-y-2">
+          <div className="flex flex-col gap-2">
             {Array.from({ length: 4 }).map((_, i) => (
               <div
                 key={i}
-                className="h-12 animate-pulse rounded-app-sm border border-app-border bg-app-surface-muted"
+                className="h-12 shrink-0 animate-pulse rounded-app-sm border border-app-border bg-app-surface-muted"
               />
             ))}
           </div>
         ) : !events?.length ? (
           <p className="py-6 text-center text-sm text-app-ink-dim">No live activity.</p>
         ) : (
-          <ul className="space-y-2">
-            {events.map((event) => (
-              <li key={event.id}>
+          <ul className="flex flex-col gap-2">
+            {events.map((event, index) => (
+              <li key={`${event.id}-${event.timestamp ?? ""}-${index}`} className="shrink-0">
                 <Link
                   to={
                     event.pipelineId
                       ? orgPath("pipelines", event.pipelineId)
                       : orgPath("pipelines")
                   }
-                  className="flex items-start gap-3 rounded-app-sm border border-app-border px-3 py-2.5 transition hover:bg-app-surface-muted"
+                  className="flex items-start gap-3 rounded-app-sm border border-app-border bg-app-surface px-3 py-2.5 transition hover:bg-app-surface-muted"
                 >
                   <span
                     className={`mt-1.5 size-2 shrink-0 rounded-full ${

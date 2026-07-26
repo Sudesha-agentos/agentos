@@ -91,7 +91,7 @@ export default function LandingDashboardWidget() {
     <div className="space-y-6">
       <DashboardStatusBar metrics={statusMetrics} loading={metricsLoading} />
 
-      <section className="grid gap-6 lg:grid-cols-[1.35fr_1fr]">
+      <section className="grid items-start gap-6 lg:grid-cols-[1.35fr_1fr]">
         <ReviewQueuePanel items={reviewItems} loading={pipelinesLoading} />
         <DashboardLiveActivity events={eventsData?.events} loading={eventsLoading} />
       </section>
