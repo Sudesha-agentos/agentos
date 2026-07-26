@@ -52,11 +52,17 @@ async function buildSessionForGoogleUser(userId: string): Promise<AuthSessionRes
 }
 
 router.get("/status", (_req, res) => {
+  const configuredFrontend = process.env.FRONTEND_URL?.trim() || null;
+  const redirectBase = frontendBaseUrl() || "http://localhost:5173";
   res.json({
     googleAvailable: isGoogleOAuthConfigured(),
     callbackUrl: googleOAuthRedirectUri(
       process.env.PUBLIC_API_URL?.trim() || "http://localhost:4000"
     ),
+    // After Google, API redirects here (/auth/google/callback). Must be agentox.io in prod.
+    frontendUrlConfigured: configuredFrontend,
+    frontendRedirectBase: redirectBase,
+    postLoginExample: `${redirectBase}/auth/google/callback`,
   });
 });
 
