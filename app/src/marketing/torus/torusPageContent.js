@@ -11,7 +11,6 @@ export const NAV_LINKS = [
   { label: "INTELLIGENCE", href: "#platform" },
   { label: "AUTOMATION", href: "#email" },
   { label: "ROI", href: "#roi" },
-  { label: "HOW IT WORKS", href: "/docs-code" },
 ];
 
 export const HERO = {

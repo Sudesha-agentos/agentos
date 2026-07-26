@@ -1,6 +1,8 @@
 /**
  * Mandatory QA OSS suite for every ticket: Semgrep, Playwright, Cover-Agent, Hypothesis.
  * Always attempted; soft-skip artifacts still recorded for the frontend.
+ *
+ * QA_OSS_ADAPTERS=0 → free-tier light mode: Hypothesis only (skips heavy CLIs).
  */
 
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
@@ -56,48 +58,70 @@ export async function runQaOssAdapters(input: {
   baseUrl?: string;
 }): Promise<ToolArtifact[]> {
   const out: ToolArtifact[] = [];
-  if (process.env.QA_OSS_ADAPTERS === "0") {
+  /** Free-tier / low-RAM: skip Semgrep, Playwright, Cover-Agent — keep Hypothesis only. */
+  const lightOnly = process.env.QA_OSS_ADAPTERS === "0";
+
+  if (lightOnly) {
+    logger.info(
+      { pipelineId: input.pipelineId },
+      "QA OSS light mode (QA_OSS_ADAPTERS=0) — Hypothesis only"
+    );
+    try {
+      out.push(
+        await runHypothesisTests({
+          cwd: input.cwd,
+          pipelineId: input.pipelineId,
+          timeoutMs: 120_000,
+        })
+      );
+    } catch (err) {
+      logger.warn({ err }, "qa hypothesis light-mode adapter crashed");
+    }
     return out;
   }
 
   // 1) Semgrep
-  try {
-    out.push(
-      await runSemgrepScan({
-        cwd: input.cwd,
-        pipelineId: input.pipelineId,
-        timeoutMs: 180_000,
-      })
-    );
-  } catch (err) {
-    logger.warn({ err }, "qa semgrep mandatory adapter crashed");
+  if (process.env.QA_SEMGREP !== "0") {
+    try {
+      out.push(
+        await runSemgrepScan({
+          cwd: input.cwd,
+          pipelineId: input.pipelineId,
+          timeoutMs: 180_000,
+        })
+      );
+    } catch (err) {
+      logger.warn({ err }, "qa semgrep mandatory adapter crashed");
+    }
   }
 
   // 2) Playwright — repo @smoke first, else vendored monitor
-  try {
-    const smoke = await runPlaywrightSmoke({
-      sandboxDir: input.cwd,
-      enabled: true,
-      pipelineId: input.pipelineId,
-    });
-    // Always persist via smoke helper; if skipped for missing config, run monitor
-    if (smoke.skipped && /no playwright\.config/i.test(smoke.skipReason ?? "")) {
-      const base =
-        input.baseUrl?.trim() ||
-        process.env.QA_PLAYWRIGHT_BASE_URL?.trim() ||
-        process.env.CANARY_STAGING_BASE_URL?.trim() ||
-        process.env.FRONTEND_URL?.trim() ||
-        "http://127.0.0.1:5173";
-      out.push(
-        await runPlaywrightMonitor({
-          baseUrl: base,
-          pipelineId: input.pipelineId,
-          lane: "qa",
-        })
-      );
+  if (process.env.QA_PLAYWRIGHT !== "0") {
+    try {
+      const smoke = await runPlaywrightSmoke({
+        sandboxDir: input.cwd,
+        enabled: true,
+        pipelineId: input.pipelineId,
+      });
+      // Always persist via smoke helper; if skipped for missing config, run monitor
+      if (smoke.skipped && /no playwright\.config/i.test(smoke.skipReason ?? "")) {
+        const base =
+          input.baseUrl?.trim() ||
+          process.env.QA_PLAYWRIGHT_BASE_URL?.trim() ||
+          process.env.CANARY_STAGING_BASE_URL?.trim() ||
+          process.env.FRONTEND_URL?.trim() ||
+          "http://127.0.0.1:5173";
+        out.push(
+          await runPlaywrightMonitor({
+            baseUrl: base,
+            pipelineId: input.pipelineId,
+            lane: "qa",
+          })
+        );
+      }
+    } catch (err) {
+      logger.warn({ err }, "qa playwright mandatory adapter crashed");
     }
-  } catch (err) {
-    logger.warn({ err }, "qa playwright mandatory adapter crashed");
   }
 
   // 3) Cover-Agent on up to 2 changed source files
