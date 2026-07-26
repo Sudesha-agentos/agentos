@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 import {
   acknowledgePattern,
   analysePattern,
@@ -205,7 +205,7 @@ function emptyConfigFromSchema(schema) {
   return cfg;
 }
 
-function SourcesPanel({ sources, catalog, ingestDocs, onChanged }) {
+function SourcesPanel({ sources, catalog, ingestDocs, onChanged, initialProvider }) {
   const providers =
     (catalog ?? []).filter((c) => !c.aliasOf).length > 0
       ? (catalog ?? []).filter((c) => !c.aliasOf)
@@ -230,7 +230,11 @@ function SourcesPanel({ sources, catalog, ingestDocs, onChanged }) {
             ],
           },
         ];
-  const [sourceType, setSourceType] = useState(providers[0]?.id || "render");
+  const resolvedInitial =
+    initialProvider && providers.some((p) => p.id === initialProvider)
+      ? initialProvider
+      : providers[0]?.id || "render";
+  const [sourceType, setSourceType] = useState(resolvedInitial);
   const selected = providers.find((p) => p.id === sourceType) || providers[0];
   const [displayName, setDisplayName] = useState("");
   const [config, setConfig] = useState(() =>
@@ -240,6 +244,13 @@ function SourcesPanel({ sources, catalog, ingestDocs, onChanged }) {
   const [error, setError] = useState("");
   const [testOut, setTestOut] = useState("");
   const [expandedId, setExpandedId] = useState(null);
+
+  useEffect(() => {
+    if (!initialProvider) return;
+    if (providers.some((p) => p.id === initialProvider)) {
+      setSourceType(initialProvider);
+    }
+  }, [initialProvider]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!selected) return;
@@ -465,19 +476,33 @@ function SourcesPanel({ sources, catalog, ingestDocs, onChanged }) {
         />
         <form onSubmit={handleCreate} className="space-y-3 px-5 pb-5">
           <div>
-            <label className="type-kicker">Provider</label>
-            <select
-              className="mt-1 w-full rounded-lg border border-app-border bg-app-bg px-2 py-1.5 text-[13px]"
-              value={sourceType}
-              onChange={(ev) => setSourceType(ev.target.value)}
-            >
-              {providers.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.displayName}
-                  {p.mode === "push" ? " (push)" : p.mode === "both" ? " (pull + push)" : ""}
-                </option>
-              ))}
-            </select>
+            <label className="type-kicker">Choose provider (one click)</label>
+            <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+              {providers.map((p) => {
+                const active = p.id === sourceType;
+                return (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => setSourceType(p.id)}
+                    className={`rounded-app border px-3 py-3 text-left transition ${
+                      active
+                        ? "border-indigo bg-indigo/10 shadow-sm"
+                        : "border-app-border bg-app-surface-muted/20 hover:border-indigo/40"
+                    }`}
+                  >
+                    <p className="text-[13px] font-medium text-app-ink">{p.displayName}</p>
+                    <p className="mt-1 text-[10px] uppercase tracking-wide text-app-ink-mute">
+                      {p.mode === "push"
+                        ? "Push"
+                        : p.mode === "both"
+                          ? "Pull + push"
+                          : "Pull"}
+                    </p>
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           {sourceType === "custom" || sourceType === "otlp" ? (
@@ -574,8 +599,15 @@ function SourcesPanel({ sources, catalog, ingestDocs, onChanged }) {
 
 export default function LogIntelligence() {
   const { patternId } = useParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { orgPath } = useOrg();
-  const [tab, setTab] = useState("patterns");
+  const tabFromUrl = searchParams.get("tab");
+  const providerFromUrl = searchParams.get("provider");
+  const [tab, setTab] = useState(
+    tabFromUrl === "sources" || tabFromUrl === "anomalies" || tabFromUrl === "patterns"
+      ? tabFromUrl
+      : "patterns"
+  );
   const {
     summary,
     patterns,
@@ -588,6 +620,20 @@ export default function LogIntelligence() {
     refresh,
   } = useLogIntelligenceDashboard();
   const [selectedId, setSelectedId] = useState(patternId || null);
+
+  useEffect(() => {
+    if (tabFromUrl === "sources" || tabFromUrl === "anomalies" || tabFromUrl === "patterns") {
+      setTab(tabFromUrl);
+    }
+  }, [tabFromUrl]);
+
+  function selectTab(next) {
+    setTab(next);
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.set("tab", next);
+    if (next !== "sources") nextParams.delete("provider");
+    setSearchParams(nextParams, { replace: true });
+  }
 
   if (selectedId) {
     return (
@@ -626,13 +672,13 @@ export default function LogIntelligence() {
       </div>
 
       <div className="flex flex-wrap gap-1.5">
-        <AppTabButton active={tab === "patterns"} onClick={() => setTab("patterns")}>
+        <AppTabButton active={tab === "patterns"} onClick={() => selectTab("patterns")}>
           Patterns
         </AppTabButton>
-        <AppTabButton active={tab === "anomalies"} onClick={() => setTab("anomalies")}>
+        <AppTabButton active={tab === "anomalies"} onClick={() => selectTab("anomalies")}>
           Anomalies
         </AppTabButton>
-        <AppTabButton active={tab === "sources"} onClick={() => setTab("sources")}>
+        <AppTabButton active={tab === "sources"} onClick={() => selectTab("sources")}>
           Sources
         </AppTabButton>
       </div>
@@ -734,6 +780,7 @@ export default function LogIntelligence() {
           catalog={catalog}
           ingestDocs={ingestDocs}
           onChanged={() => void refresh()}
+          initialProvider={providerFromUrl || undefined}
         />
       ) : null}
     </AnimatedAppPage>

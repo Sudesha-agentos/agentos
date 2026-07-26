@@ -1,10 +1,10 @@
-import { useState } from "react";
 import { Link, Navigate, useParams } from "react-router-dom";
 import LabelPill from "../../../app/components/LabelPill";
 import { getIntegrationById } from "../../../shared/config/integrationsCatalog";
 import { useIntegrationsStatus } from "../../../shared/hooks/useIntegrationsStatus";
 import { useOrg } from "../../../shared/providers/OrgRouteProvider";
 import { Panel, PanelHeader } from "../../../shared/ui/Panel";
+import { useState } from "react";
 
 const NOTIFY_KEY_PREFIX = "agentos.integrationNotify.";
 
@@ -24,6 +24,11 @@ export default function SettingsIntegrationDetailPage() {
   const integration = getIntegrationById(integrationId, orgSlug);
   if (!integration) {
     return <Navigate to={orgPath("settings", "integrations")} replace />;
+  }
+
+  // One-click backend / log services → Logs Sources with provider preselected
+  if (integration.connectKind === "log_source" && integration.route) {
+    return <Navigate to={integration.route} replace />;
   }
 
   return (

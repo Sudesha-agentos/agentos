@@ -5,7 +5,7 @@ import IntegrationsOverviewWidget from "../../../widgets/integrations-overview/I
 import { SettingsSection } from "../../../shared/ui/SettingsForm";
 import { TitleWithInfo } from "../../../shared/ui/InfoTip";
 const STATUS_META = {
-  connected: { label: "Connected", tone: "success", cta: "Configure" },
+  connected: { label: "Connected", tone: "success", cta: "Manage" },
   setup_incomplete: { label: "Select repository", tone: "warning", cta: "Finish setup" },
   not_connected: { label: "Not connected", tone: "muted", cta: "Connect" },
   coming_soon: { label: "Coming soon", tone: "indigo", cta: "Learn more" },
@@ -32,6 +32,10 @@ function IntegrationIcon({ integration }) {
 function IntegrationCard({ integration }) {
   const meta = STATUS_META[integration.displayStatus] ?? STATUS_META.not_connected;
   const detailPath = integration.route ?? `/app/settings/integrations/${integration.id}`;
+  const cta =
+    integration.connectKind === "log_source" && integration.displayStatus === "not_connected"
+      ? "Connect in one click"
+      : meta.cta;
 
   return (
     <Link
@@ -45,7 +49,13 @@ function IntegrationCard({ integration }) {
       <h3 className="mt-4 flex items-center gap-1.5 text-[15px] font-medium text-app-ink">
         <TitleWithInfo info={integration.description}>{integration.name}</TitleWithInfo>
       </h3>
-      <p className="mt-4 text-[11px] font-medium text-indigo transition group-hover:text-indigo/80">        {meta.cta} →
+      {integration.connectKind === "log_source" ? (
+        <p className="mt-2 text-[12px] leading-relaxed text-app-ink-dim">
+          Opens Logs → Sources with {integration.name} ready to link.
+        </p>
+      ) : null}
+      <p className="mt-4 text-[11px] font-medium text-indigo transition group-hover:text-indigo/80">
+        {cta} →
       </p>
     </Link>
   );
