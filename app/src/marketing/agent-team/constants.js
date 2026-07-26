@@ -7,7 +7,6 @@ export const NAV_LINKS = [
   { label: "Agents", href: "#agents" },
   { label: "Pricing", href: "#pricing" },
   { label: "ROI", href: "#roi" },
-  { label: "How it works", href: "/docs-code" },
   { label: "FAQ", href: "#faq" },
   { label: "Contact", href: "/contact" },
 ];
