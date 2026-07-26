@@ -19,9 +19,17 @@ import { VIRIN_BEHAVIOR, VIRIN_SYSTEM_PROMPT } from "./persona";
 import { resolveDiscoveryBudget } from "./discoveryBudget";
 import {
   buildAlreadyBuiltFlag,
-  isAlreadyShipped,
   mergeOverlapIntoAnalysis,
 } from "./alreadyBuiltAssessment";
+import { gatherVirinResearch } from "./researchGatherer";
+import {
+  classifyHumanBlocker,
+  makeBlocker,
+  writeAlreadyShippedToJira,
+  writeDiscoveryQuestionToJira,
+  writeHumanBlockerToJira,
+  type HumanBlocker,
+} from "./discoveryWriteback";
 import {
   PROMPT_CODEBASE_ANALYSIS,
   PROMPT_HANDOFF,
@@ -129,6 +137,61 @@ function formatCodebaseIntelligenceBlock(
     `Open bugs in shared components: ${ctx.componentBugCount}`,
     `Branch: ${ctx.branchName}`,
   ].join("\n\n");
+}
+
+function researchPromptBlock(record: PmAnalysisRecord): string {
+  return record.researchContext?.promptBlock ?? "Research: not gathered yet.";
+}
+
+function formatHumanBlockers(record: PmAnalysisRecord): string {
+  const blockers = record.humanBlockers ?? [];
+  if (!blockers.length) return "None open.";
+  return blockers
+    .filter((b) => !b.resolvedAt)
+    .map((b) => `- [${b.kind}] ${b.title}: ${b.detail}`)
+    .join("\n");
+}
+
+async function raiseHumanBlocker(
+  jiraKey: string,
+  record: PmAnalysisRecord,
+  text: string,
+  forceKind?: HumanBlocker["kind"]
+): Promise<HumanBlocker | null> {
+  const kind = forceKind ?? classifyHumanBlocker(text);
+  if (!kind) return null;
+  const existing = record.humanBlockers ?? [];
+  if (existing.some((b) => !b.resolvedAt && b.detail.slice(0, 80) === text.slice(0, 80))) {
+    return null;
+  }
+  const blocker = makeBlocker(kind, text);
+  const written = await writeHumanBlockerToJira({ jiraKey, blocker });
+  blocker.jiraWritten = written;
+  pmAnalysisStore.update(jiraKey, {
+    humanBlockers: [...existing, blocker],
+  });
+  return blocker;
+}
+
+async function pauseForHumanInput(input: {
+  jiraKey: string;
+  question: string;
+  options?: string[];
+  stage: string;
+  flag?: string | null;
+}): Promise<void> {
+  await writeDiscoveryQuestionToJira({
+    jiraKey: input.jiraKey,
+    question: input.question,
+    options: input.options,
+    stage: input.stage,
+  });
+  const latest = pmAnalysisStore.get(input.jiraKey);
+  if (!latest) return;
+  const texts = [input.question, input.flag].filter(Boolean) as string[];
+  for (const t of texts) {
+    await raiseHumanBlocker(input.jiraKey, latest, t);
+  }
 }
 
 function questionPromptContext(ctx: Awaited<ReturnType<typeof gatherPmContext>>) {
@@ -307,6 +370,7 @@ function buildNextQuestionPrompt(
     ...qctx,
     company_context: ctx.companyContextBlock,
     ...formatTicketPromptFields(ticket),
+    research_context: researchPromptBlock(record),
   });
 }
 
@@ -579,6 +643,28 @@ async function runIntake(
   });
   syncLegacyFields(jiraKey, record, intake);
 
+  if (!record.researchContext || record.researchContext.gatheredAt === undefined) {
+    try {
+      const research = await gatherVirinResearch({
+        jiraKey,
+        ticket,
+        intake,
+        organizationId: record.organizationId,
+      });
+      pmAnalysisStore.update(jiraKey, { researchContext: research });
+      if (research.bugLogs?.needsLogSourceLink) {
+        await raiseHumanBlocker(
+          jiraKey,
+          pmAnalysisStore.get(jiraKey) ?? record,
+          "No log sources linked — link Logs → Sources or paste stack traces for this bug.",
+          "log_sources"
+        );
+      }
+    } catch (err) {
+      logger.warn({ err, jiraKey }, "Virin research gather after intake failed");
+    }
+  }
+
   if (intake.ticketType === "unclear" && intake.clarifyingQuestion && !priorAnswer) {
     if (mode === "interactive") {
       pmAnalysisStore.update(jiraKey, {
@@ -586,6 +672,12 @@ async function runIntake(
         pendingQuestion: intake.clarifyingQuestion,
         pendingQuestionOptions: normalizeQuestionOptions(intake.clarifyingOptions),
         pendingQuestionStage: "INTAKE",
+      });
+      await pauseForHumanInput({
+        jiraKey,
+        question: intake.clarifyingQuestion,
+        options: normalizeQuestionOptions(intake.clarifyingOptions),
+        stage: "INTAKE",
       });
       return true;
     }
@@ -680,6 +772,7 @@ async function runQuestionMode(
 
     if (next.action === "flag" && next.flag) {
       state.flagsRaised.push(next.flag);
+      await raiseHumanBlocker(jiraKey, pmAnalysisStore.get(jiraKey) ?? record, next.flag);
     }
 
     if (next.action === "ready" && next.discoverySummary) {
@@ -702,6 +795,13 @@ async function runQuestionMode(
         pendingFlag: next.flag ?? undefined,
       });
       syncLegacyFields(jiraKey, record, intake, state);
+      await pauseForHumanInput({
+        jiraKey,
+        question: next.question,
+        options: normalizeQuestionOptions(next.options),
+        stage: "QUESTION_MODE",
+        flag: next.flag,
+      });
       return true;
     }
 
@@ -776,12 +876,19 @@ async function runCompetitorAnalysis(
     return false;
   } else if (mode === "interactive" && state.decision === "pending") {
     const names = competitors.map((c) => c.name).join(", ");
+    const question = `Discovery is complete. Should I run competitor analysis on how ${names} approach this problem today?`;
     pmAnalysisStore.update(jiraKey, {
       status: "AWAITING_INPUT",
-      pendingQuestion: `Discovery is complete. Should I run competitor analysis on how ${names} approach this problem today?`,
+      pendingQuestion: question,
       pendingQuestionOptions: ["Yes, analyze competitors", "No, skip for now"],
       pendingQuestionStage: "COMPETITOR_ANALYSIS",
       competitorAnalysis: { ...state, featureSummary },
+    });
+    await pauseForHumanInput({
+      jiraKey,
+      question,
+      options: ["Yes, analyze competitors", "No, skip for now"],
+      stage: "COMPETITOR_ANALYSIS",
     });
     return true;
   } else if (state.decision === "pending") {
@@ -828,6 +935,7 @@ async function runCodebaseAnalysis(
     recent_commit_summary: ctx.recentCommitSummary,
     affected_components: ctx.affectedComponents,
     org_intelligence: ctx.orgIntelligenceSummary,
+    research_context: researchPromptBlock(record),
   });
   const analysis = await runVirinStage<CodebaseAnalysisOutput>(
     jiraKey,
@@ -865,6 +973,18 @@ async function runCodebaseAnalysis(
       },
       "Virin codebase analysis flagged existing capability"
     );
+    const note =
+      merged.alreadyShippedNote ||
+      flag ||
+      `Overlap verdict: ${merged.overlapVerdict}`;
+    await writeAlreadyShippedToJira({
+      jiraKey,
+      note,
+      alreadyExists: merged.alreadyExists ?? [],
+      gapsToBuild: merged.gapsToBuild ?? [],
+      verdict: merged.overlapVerdict,
+    });
+    await raiseHumanBlocker(jiraKey, latest, note, "already_shipped");
   }
 }
 
@@ -1029,6 +1149,8 @@ async function runHandoff(jiraKey: string, record: PmAnalysisRecord): Promise<vo
     problem_statement: record.generatedPrd?.problemStatement ?? "",
     prd_json: JSON.stringify(record.generatedPrd ?? {}, null, 2),
     codebase_analysis_json: JSON.stringify(record.codebaseAnalysis ?? {}, null, 2),
+    research_context: researchPromptBlock(record),
+    human_blockers: formatHumanBlockers(record),
   });
   const handoffPackage = await runVirinStage<HandoffPackageOutput>(
     jiraKey,
@@ -1058,6 +1180,14 @@ export async function submitVirinAnswer(jiraKey: string, answer: string): Promis
   pmAnalysisStore.update(key, {
     pendingAnswer: answer.trim(),
     status: "RUNNING",
+    humanBlockers: (record.humanBlockers ?? []).map((b) =>
+      b.resolvedAt
+        ? b
+        : {
+            ...b,
+            resolvedAt: new Date().toISOString(),
+          }
+    ),
   });
 
   const stage = (record.pendingQuestionStage ?? record.currentStage) as VirinStageId;

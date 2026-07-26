@@ -264,6 +264,10 @@ export interface PmAnalysisRecord {
   pendingQuestionStage?: PmStageId | null;
   pendingAnswer?: string | null;
   pendingFlag?: string | null;
+  /** Web + log research gathered after intake */
+  researchContext?: import("../virin/researchGatherer").VirinResearchContext;
+  /** Open human blockers (creds, access, analysis) — also written to Jira */
+  humanBlockers?: import("../virin/discoveryWriteback").HumanBlocker[];
   /** Legacy synced fields */
   enrichment?: EnrichmentOutput;
   classification?: ClassificationOutput;

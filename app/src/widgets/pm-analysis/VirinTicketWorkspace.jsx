@@ -17,7 +17,9 @@ import {
   VirinConversationPanel,
   VirinDiscoverySection,
   VirinHandoffPackageSection,
+  VirinHumanBlockersBanner,
   VirinIntakeSection,
+  VirinResearchSection,
   VirinThinkingBanner,
   isVirinThinkingAboutQuestion,
 } from "./VirinSections";
@@ -257,6 +259,7 @@ function renderStageContent(stageId, analysis, handlers) {
           <div className="space-y-4">
             <VirinTicketGraphSection relatedContext={relatedContext} defaultOpen />
             <VirinCodebaseSignalsSection context={analysis.context} />
+            <VirinResearchSection researchContext={analysis.researchContext} />
             {analysis.neelIntake ? <VirinIntakeSection intake={analysis.neelIntake} /> : null}
           </div>
         </StagePanel>
@@ -293,6 +296,7 @@ function renderStageContent(stageId, analysis, handlers) {
       return (
         <StagePanel stageId={stageId} analysis={analysis} pendingLabel="Codebase analysis pending…">
           <div className="space-y-4">
+            <VirinResearchSection researchContext={analysis.researchContext} expanded />
             {analysis.codebaseAnalysis ? (
               <VirinCodebaseSection analysis={analysis.codebaseAnalysis} expanded />
             ) : null}
@@ -512,6 +516,7 @@ export function VirinTicketWorkspace({
         ) : null}
 
         <AwaitingInputBanner analysis={analysis} handlers={handlers} />
+        <VirinHumanBlockersBanner analysis={analysis} />
 
         {analysis.ticketInput?.relatedContext &&
         !["INTAKE", "QUESTION_MODE"].includes(activeStage) ? (

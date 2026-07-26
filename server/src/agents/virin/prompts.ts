@@ -129,10 +129,15 @@ STRATEGIC GOALS:
 CODEBASE INTELLIGENCE (relevant modules, similar tickets, technical constraints):
 {{codebase_intelligence}}
 
+RESEARCH (production logs + web — use this; do not ignore):
+{{research_context}}
+
 For {{ticket_type}}, the ONLY gaps worth asking about (pick ONE gap not yet answered):
-- bug: reproduction steps, blast radius, severity, workaround, regression scope, environment — tied to THIS bug
+- bug: reproduction steps, blast radius, severity, workaround, regression scope, environment — tied to THIS bug; if RESEARCH has log RCA, ask only what logs do not answer
 - task: concrete deliverable, requester intent, done-when, dependencies — tied to THIS task
-- small_feature / large_feature: target user, pain evidence, success metric, MVP slice, explicit out-of-scope — tied to THIS feature; for large_feature also blocking edge cases
+- small_feature / large_feature: target user, pain evidence, success metric, MVP slice, explicit out-of-scope — tied to THIS feature; for large_feature also blocking edge/failure cases (API down, fallbacks, rounding, compliance) when domain implies them
+- If RESEARCH says log sources are missing → action "flag" asking to link Logs → Sources or paste stack traces
+- If credentials/API keys/access are required → action "flag" (blocker); do not proceed as if secrets exist
 
 Cross-questioning rules (mandatory when turn > 1):
 - Open by referencing a specific fact from the last answer (quote or paraphrase it).
@@ -225,6 +230,9 @@ Component context: {{affected_components}}
 
 ORGANIZATIONAL INTELLIGENCE:
 {{org_intelligence}}
+
+RESEARCH (logs + web):
+{{research_context}}
 
 Tasks:
 1. Identify relevant modules/files and why
@@ -471,6 +479,7 @@ Output JSON:
 export const PROMPT_HANDOFF = `Stage 6 — Handoff to engineering
 
 Produce a handoff package — not just the PRD.
+For bugs: fold RESEARCH / log RCA into technicalNotes and descriptions so Ananta knows what to fix.
 
 PRD title: {{prd_title}}
 Problem: {{problem_statement}}
@@ -481,15 +490,21 @@ Full PRD JSON:
 Codebase analysis:
 {{codebase_analysis_json}}
 
+RESEARCH (production logs + web):
+{{research_context}}
+
+HUMAN BLOCKERS (must be resolved or called out):
+{{human_blockers}}
+
 Output JSON:
 {
   "engineeringTickets": [
     {
       "id": "ENG-1",
       "title": "...",
-      "description": "one line + context",
+      "description": "one line + context — include log/root-cause summary for bugs",
       "acceptanceCriteria": ["testable criteria"],
-      "technicalNotes": ["from codebase analysis"],
+      "technicalNotes": ["from codebase analysis + log RCA + files/endpoints implicated"],
       "dependsOn": ["ENG-0 or empty"]
     }
   ],

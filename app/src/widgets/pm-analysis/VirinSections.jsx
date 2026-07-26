@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { Panel, PanelHeader } from "../../shared/ui/Panel";
 import {
   VIRIN_NAME,
@@ -7,6 +8,7 @@ import {
   VIRIN_MAX_DISCOVERY_TURNS,
 } from "../../entities/pm-agents";
 import { VirinOrgIntelligenceSection } from "./VirinContextPanels";
+import { useOrgPathBuilder } from "../../shared/providers/OrgRouteProvider";
 
 function formatDiscoverySummary(summary) {
   if (!summary) return "";
@@ -63,6 +65,134 @@ export function VirinThinkingBanner({
           ) : null}
         </div>
       </div>
+    </Panel>
+  );
+}
+
+const BLOCKER_KIND_LABEL = {
+  credentials: "Credentials",
+  access: "Access",
+  human_analysis: "Human analysis",
+  already_shipped: "Already built",
+  log_sources: "Log sources",
+  other: "Input needed",
+};
+
+/** Open blockers Virin raised (creds, logs, already-built, product decisions). */
+export function VirinHumanBlockersBanner({ analysis }) {
+  const orgPath = useOrgPathBuilder();
+  const open = (analysis?.humanBlockers ?? []).filter((b) => !b.resolvedAt);
+  if (!open.length) return null;
+
+  return (
+    <Panel className="border-warning/40 bg-warning/5">
+      <PanelHeader
+        kicker="Blocked"
+        title={`${VIRIN_NAME} needs human input`}
+        subtitle="Also posted on the Jira ticket. Use one-click Connect below when credentials or log sources are missing."
+      />
+      <ul className="space-y-3 px-5 pb-5 sm:px-6">
+        {open.map((b) => (
+          <li
+            key={b.id}
+            className="rounded-app-sm border border-warning/30 bg-app-surface px-3 py-3"
+          >
+            <p className="type-kicker text-warning">
+              {BLOCKER_KIND_LABEL[b.kind] || b.kind}
+              {b.jiraWritten ? " · on Jira" : ""}
+            </p>
+            <p className="mt-1 text-[14px] font-medium text-app-ink">{b.title}</p>
+            <p className="mt-1 text-[13px] leading-relaxed text-app-ink-dim">{b.detail}</p>
+            {b.kind === "credentials" || b.kind === "access" ? (
+              <Link
+                to={orgPath("settings", "integrations")}
+                className="mt-3 inline-flex text-[12px] font-medium text-indigo hover:underline"
+              >
+                Open Settings → Integrations (one-click backend links) →
+              </Link>
+            ) : null}
+            {b.kind === "log_sources" ? (
+              <Link
+                to={`${orgPath("logs")}?tab=sources`}
+                className="mt-3 inline-flex text-[12px] font-medium text-indigo hover:underline"
+              >
+                Connect log backend in one click →
+              </Link>
+            ) : null}
+          </li>
+        ))}
+      </ul>
+    </Panel>
+  );
+}
+
+/** Web + production log research Virin gathered for this ticket. */
+export function VirinResearchSection({ researchContext, expanded = false }) {
+  const [open, setOpen] = useState(expanded);
+  if (!researchContext?.promptBlock && !researchContext?.bugLogs && !researchContext?.web) {
+    return null;
+  }
+
+  const patterns = researchContext.bugLogs?.patterns?.length ?? 0;
+  const hits = researchContext.web?.hits?.length ?? 0;
+
+  return (
+    <Panel>
+      <button
+        type="button"
+        className="flex w-full items-center justify-between px-5 py-4 text-left sm:px-6"
+        onClick={() => setOpen((v) => !v)}
+      >
+        <div>
+          <p className="type-kicker">Research</p>
+          <p className="mt-1 text-[14px] font-medium text-app-ink">
+            Logs & web context for engineering handoff
+          </p>
+          <p className="mt-0.5 text-[12px] text-app-ink-dim">
+            {patterns} error pattern{patterns === 1 ? "" : "s"} · {hits} web hit
+            {hits === 1 ? "" : "s"}
+            {researchContext.bugLogs?.needsLogSourceLink ? " · log sources missing" : ""}
+          </p>
+        </div>
+        <span className="text-app-ink-faint">{open ? "−" : "+"}</span>
+      </button>
+      {open ? (
+        <div className="border-t border-app-border px-5 py-4 sm:px-6">
+          {researchContext.bugLogs?.engineeringBrief ? (
+            <div className="mb-4">
+              <p className="type-kicker mb-2">Bug / log brief</p>
+              <pre className="whitespace-pre-wrap rounded-app-sm border border-app-border bg-app-surface-muted/40 p-3 text-[12px] leading-relaxed text-app-ink-dim">
+                {researchContext.bugLogs.engineeringBrief}
+              </pre>
+            </div>
+          ) : null}
+          {researchContext.web?.hits?.length ? (
+            <div className="mb-4">
+              <p className="type-kicker mb-2">Web research</p>
+              <ul className="space-y-2 text-[13px] text-app-ink-dim">
+                {researchContext.web.hits.slice(0, 5).map((h) => (
+                  <li key={h.url}>
+                    <a
+                      href={h.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="font-medium text-indigo hover:underline"
+                    >
+                      {h.title}
+                    </a>
+                    <p className="mt-0.5">{h.snippet}</p>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+          {researchContext.promptBlock && !researchContext.bugLogs?.engineeringBrief ? (
+            <pre className="whitespace-pre-wrap text-[12px] leading-relaxed text-app-ink-dim">
+              {researchContext.promptBlock}
+            </pre>
+          ) : null}
+        </div>
+      ) : null}
     </Panel>
   );
 }

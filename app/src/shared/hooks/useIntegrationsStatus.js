@@ -1,5 +1,6 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useGitIntegrationSummary } from "../../entities/git-integration";
+import { fetchLogSources } from "../../entities/logIntelligence";
 import { usePipelineJiraSetup } from "../../entities/pipeline-jira";
 import {
   buildIntegrationsCatalog,
@@ -19,6 +20,13 @@ function resolveDisplayStatus(integration, live) {
   if (integration.liveStatusKey === "jira") {
     return live.jiraConnected ? "connected" : "not_connected";
   }
+  if (
+    typeof integration.liveStatusKey === "string" &&
+    integration.liveStatusKey.startsWith("log:")
+  ) {
+    const sourceType = integration.liveStatusKey.slice(4);
+    return live.logConnectedTypes?.has(sourceType) ? "connected" : "not_connected";
+  }
   return "not_connected";
 }
 
@@ -27,6 +35,35 @@ export function useIntegrationsStatus() {
   const orgSlug = org?.orgSlug ?? "workspace";
   const { data: git, loading: gitLoading } = useGitIntegrationSummary({ pollMs: 12000 });
   const { data: jira, loading: jiraLoading } = usePipelineJiraSetup({ pollMs: 12000 });
+  const [logTypes, setLogTypes] = useState(() => new Set());
+  const [logsLoading, setLogsLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setLogsLoading(true);
+      try {
+        const res = await fetchLogSources();
+        const list = Array.isArray(res) ? res : res?.sources ?? res?.items ?? [];
+        const types = new Set(
+          list
+            .map((s) => s.sourceType || s.type)
+            .filter(Boolean)
+            .map((t) => String(t).toLowerCase())
+        );
+        // grafana alias
+        if (types.has("loki")) types.add("grafana_loki");
+        if (!cancelled) setLogTypes(types);
+      } catch {
+        if (!cancelled) setLogTypes(new Set());
+      } finally {
+        if (!cancelled) setLogsLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [orgSlug]);
 
   const live = useMemo(
     () => ({
@@ -35,8 +72,15 @@ export function useIntegrationsStatus() {
         !git?.connected && (git?.needsRepoSelection || git?.installationDetected)
       ),
       jiraConnected: Boolean(jira?.connected),
+      logConnectedTypes: logTypes,
     }),
-    [git?.connected, git?.needsRepoSelection, git?.installationDetected, jira?.connected]
+    [
+      git?.connected,
+      git?.needsRepoSelection,
+      git?.installationDetected,
+      jira?.connected,
+      logTypes,
+    ]
   );
 
   const integrations = useMemo(
@@ -53,6 +97,6 @@ export function useIntegrationsStatus() {
   return {
     integrations,
     grouped,
-    loading: gitLoading || jiraLoading,
+    loading: gitLoading || jiraLoading || logsLoading,
   };
 }
