@@ -24,4 +24,15 @@ describe("frontendIntegrationUrl", () => {
       else process.env.FRONTEND_URL = prev;
     }
   });
+
+  it("rewrites legacy agentos-blue FRONTEND_URL to agentox.io", () => {
+    const prev = process.env.FRONTEND_URL;
+    process.env.FRONTEND_URL = "https://agentos-blue.vercel.app";
+    try {
+      assert.equal(frontendBaseUrl(), "https://agentox.io");
+    } finally {
+      if (prev === undefined) delete process.env.FRONTEND_URL;
+      else process.env.FRONTEND_URL = prev;
+    }
+  });
 });
