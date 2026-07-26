@@ -18,7 +18,11 @@ export default function TorusNav({ onToggleTheme, isLight }) {
           <ul className="nav-links">
             {NAV_LINKS.map((link) => (
               <li key={link.href}>
-                <a href={link.href}>{link.label}</a>
+                {link.href.startsWith("/") ? (
+                  <Link to={link.href}>{link.label}</Link>
+                ) : (
+                  <a href={link.href}>{link.label}</a>
+                )}
               </li>
             ))}
           </ul>
@@ -40,11 +44,25 @@ export default function TorusNav({ onToggleTheme, isLight }) {
         </div>
       </nav>
       <div className={`mobile-nav ${mobileOpen ? "open" : ""}`}>
-        {NAV_LINKS.map((link) => (
-          <a key={link.href} href={link.href} onClick={() => setMobileOpen(false)}>
-            {link.label}
-          </a>
-        ))}
+        {NAV_LINKS.map((link) =>
+          link.href.startsWith("/") ? (
+            <Link
+              key={link.href}
+              to={link.href}
+              onClick={() => setMobileOpen(false)}
+            >
+              {link.label}
+            </Link>
+          ) : (
+            <a
+              key={link.href}
+              href={link.href}
+              onClick={() => setMobileOpen(false)}
+            >
+              {link.label}
+            </a>
+          )
+        )}
         <Link to="/login" onClick={() => setMobileOpen(false)}>
           SIGN IN
         </Link>

@@ -21,6 +21,7 @@ const ResetPasswordPage = lazy(() =>
   import("./pages/ForgotPassword").then((m) => ({ default: m.ResetPassword }))
 );
 const ContactPage = lazy(() => import("./marketing/agent-team/ContactPage"));
+const DocsCodePage = lazy(() => import("./marketing/docs/DocsCodePage"));
 const RoiCalculatorPage = lazy(() => import("./pages/RoiCalculatorPage"));
 const AppShell = lazy(() => import("./app/layout/AppShell"));
 
@@ -48,6 +49,7 @@ function App() {
             <Route path="/" element={<Marketing />} />
             <Route path="/roi" element={<RoiCalculatorPage />} />
             <Route path="/contact" element={<ContactPage />} />
+            <Route path="/docs-code" element={<DocsCodePage />} />
             <Route
               path="/login"
               element={

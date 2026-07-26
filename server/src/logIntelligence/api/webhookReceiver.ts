@@ -132,6 +132,15 @@ export async function handleOtlpIngest(
       });
       if (result) n += 1;
     }
+    await prisma.logSource.update({
+      where: { id: source.id },
+      data: {
+        lastPulledAt: new Date(),
+        lastPullStatus: "ok",
+        lastError: null,
+        lastErrorAt: null,
+      },
+    });
     res.json({ ok: true, ingested: n });
   } catch (err) {
     logger.error({ err }, "otlp ingest failed");
@@ -179,6 +188,15 @@ export async function handleCustomIngest(
       });
       if (result) n += 1;
     }
+    await prisma.logSource.update({
+      where: { id: source.id },
+      data: {
+        lastPulledAt: new Date(),
+        lastPullStatus: "ok",
+        lastError: null,
+        lastErrorAt: null,
+      },
+    });
     res.json({ ok: true, ingested: n });
   } catch (err) {
     logger.error({ err }, "custom ingest failed");

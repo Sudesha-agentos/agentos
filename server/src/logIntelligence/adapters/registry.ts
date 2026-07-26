@@ -6,6 +6,11 @@ import { CloudWatchAdapter } from "./cloudwatchAdapter";
 import { DatadogAdapter } from "./datadogAdapter";
 import { LokiAdapter } from "./lokiAdapter";
 import { OtlpAdapter } from "./otlpAdapter";
+import {
+  getCatalogEntry,
+  listCatalogEntries,
+  type LogAdapterCatalogEntry,
+} from "./adapterCatalog";
 
 const adapters: Record<string, () => BaseLogAdapter> = {
   render: () => new RenderAdapter(),
@@ -30,3 +35,17 @@ export function getAdapter(sourceType: string): BaseLogAdapter {
 export function listSupportedSourceTypes(): string[] {
   return Object.keys(adapters);
 }
+
+export function listAdapterCatalog(opts?: {
+  includeAliases?: boolean;
+}): LogAdapterCatalogEntry[] {
+  return listCatalogEntries(opts).filter((e) => adapters[e.id] || e.aliasOf);
+}
+
+export function getAdapterCatalogEntry(
+  id: string
+): LogAdapterCatalogEntry | undefined {
+  return getCatalogEntry(id);
+}
+
+export type { LogAdapterCatalogEntry } from "./adapterCatalog";

@@ -35,6 +35,10 @@ export async function fetchLogSources() {
   return fetchJson(li("/sources"), { headers: authHeaders() });
 }
 
+export async function fetchLogSourceCatalog() {
+  return fetchJson(li("/source-types"), { headers: authHeaders() });
+}
+
 export async function createLogSource(body) {
   return fetchJson(li("/sources"), {
     method: "POST",
@@ -43,8 +47,23 @@ export async function createLogSource(body) {
   });
 }
 
+export async function validateLogSource(body) {
+  return fetchJson(li("/sources/validate"), {
+    method: "POST",
+    headers: authHeaders(),
+    body: JSON.stringify(body),
+  });
+}
+
 export async function testLogSource(id) {
   return fetchJson(li(`/sources/${encodeURIComponent(id)}/test`), {
+    method: "POST",
+    headers: authHeaders(),
+  });
+}
+
+export async function pullLogSource(id) {
+  return fetchJson(li(`/sources/${encodeURIComponent(id)}/pull`), {
     method: "POST",
     headers: authHeaders(),
   });
@@ -84,21 +103,26 @@ export function useLogIntelligenceDashboard(pollMs = 30_000) {
   const [patterns, setPatterns] = useState([]);
   const [anomalies, setAnomalies] = useState([]);
   const [sources, setSources] = useState([]);
+  const [catalog, setCatalog] = useState([]);
+  const [ingestDocs, setIngestDocs] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   const refresh = useCallback(async () => {
     try {
-      const [s, p, a, src] = await Promise.all([
+      const [s, p, a, src, types] = await Promise.all([
         fetchLogSummary(),
         fetchLogPatterns({ status: "open", limit: "30" }),
         fetchLogAnomalies({ acknowledged: "false" }),
         fetchLogSources(),
+        fetchLogSourceCatalog().catch(() => ({ catalog: [], ingestDocs: null })),
       ]);
       setSummary(s);
       setPatterns(p.patterns ?? []);
       setAnomalies(a.anomalies ?? []);
       setSources(src.sources ?? []);
+      setCatalog(types.catalog ?? []);
+      setIngestDocs(types.ingestDocs ?? null);
       setError("");
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -114,5 +138,15 @@ export function useLogIntelligenceDashboard(pollMs = 30_000) {
     return () => clearInterval(t);
   }, [refresh, pollMs]);
 
-  return { summary, patterns, anomalies, sources, loading, error, refresh };
+  return {
+    summary,
+    patterns,
+    anomalies,
+    sources,
+    catalog,
+    ingestDocs,
+    loading,
+    error,
+    refresh,
+  };
 }
