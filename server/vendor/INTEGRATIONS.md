@@ -27,7 +27,7 @@ cd vendor/playwright-monitor && npm install && npx playwright install chromium
 | 2 QA | After Neel agent loop | Semgrep, Playwright smoke **or** monitor, Cover-Agent, Hypothesis | Neel overview lane=`qa` |
 | 3 Canary | After exploration | Playwright monitor → ZAP → Locust | Canary tab + live pipeline |
 
-Kill switches: `QA_OSS_ADAPTERS=0`, `CANARY_OSS_ADAPTERS=0`, `OSS_TOOLS_REQUIRED=0` (soft-skip missing CLIs).
+Kill switches: `QA_OSS_ADAPTERS=0` (Hypothesis-only light mode), `CANARY_OSS_ADAPTERS=0`, `OSS_TOOLS_REQUIRED=0` (soft-skip missing CLIs).
 
 ## Vendored (small slices only)
 

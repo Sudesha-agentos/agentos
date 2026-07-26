@@ -1,8 +1,12 @@
 # Render Blueprint — deploy from repo with rootDir = server (or link this file).
 # https://render.com/docs/blueprint-spec
 #
-# OSS adapters (Semgrep, Cover-Agent, Locust, Playwright) need host CLIs.
-# Prefer instance type ≥1GB RAM (2GB+ recommended). 512MB will soft-fail / OOM.
+# Free / low-RAM default:
+#   - Heavy OSS OFF (Semgrep, Playwright, Cover-Agent, ZAP, Locust)
+#   - Hypothesis ON (light pytest — QA_OSS_ADAPTERS=0 means "Hypothesis only")
+# Re-enable full suite after ≥1GB + paid customer:
+#   buildCommand: … && bash scripts/install-oss-tools.sh
+#   QA_OSS_ADAPTERS=1, CANARY_OSS_ADAPTERS=1, OSS_TOOLS_REQUIRED=1
 
 services:
   - type: web
@@ -10,7 +14,7 @@ services:
     runtime: node
     rootDir: server
     plan: standard
-    buildCommand: npm install && npm run build && bash scripts/install-oss-tools.sh
+    buildCommand: npm install && npm run build && (python3 -m pip install --user pytest hypothesis || python -m pip install --user pytest hypothesis || true)
     startCommand: npm start
     healthCheckPath: /healthz
     envVars:
@@ -29,10 +33,15 @@ services:
         value: https://agentox.io
       - key: PUBLIC_API_URL
         value: https://agentos-sc05.onrender.com
-      # Missing Semgrep/Playwright/etc. → failed artifacts (not quiet skip) in production
+      # Light mode: Hypothesis only (no Semgrep / Playwright / Cover-Agent)
+      - key: QA_OSS_ADAPTERS
+        value: "0"
+      # Free-tier: do not run Playwright monitor / ZAP / Locust on Canary
+      - key: CANARY_OSS_ADAPTERS
+        value: "0"
+      # Soft-skip missing heavy CLIs; Hypothesis still runs when Python tests exist
       - key: OSS_TOOLS_REQUIRED
-        value: "1"
-      # Skip npm install in Ananta workspace on small instances (content tickets skip automatically).
-      # With OSS tools enabled, keep plan ≥1GB and prefer ENGINEERING_SKIP_NPM_INSTALL=0 when possible.
+        value: "0"
+      # Skip npm install in Ananta workspace on small instances
       - key: ENGINEERING_SKIP_NPM_INSTALL
         value: "1"
