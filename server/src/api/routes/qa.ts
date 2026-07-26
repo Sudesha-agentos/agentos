@@ -148,7 +148,18 @@ router.get("/pipeline-reports/:pipelineId", async (req, res, next) => {
       requiresHumanOverride?: boolean;
       testRun?: { passed?: number; failed?: number; skipped?: number; totalTests?: number; duration?: number; coverage?: number; testResults?: Array<{ id: string; status: string }> };
       failureAnalysis?: Array<{ testId: string; testName: string; severity?: string; likelyCause?: string; violatedCriterion?: string; remediation?: string; triageClass?: string; triageConfidence?: number; requiresHumanOverride?: boolean; evidence?: string[] }>;
-      securityScan?: { criticalCount?: number; highCount?: number; findings?: Array<{ title: string; severity: string; description?: string }> };
+      securityScan?: {
+        criticalCount?: number;
+        highCount?: number;
+        findings?: Array<{
+          id?: string;
+          title: string;
+          severity: string;
+          source?: string;
+          detail?: string;
+          path?: string;
+        }>;
+      };
       gapMap?: { gaps?: unknown[]; edges?: unknown[] };
       playwrightSmoke?: unknown;
       locatorHealProposals?: unknown[];
@@ -161,6 +172,38 @@ router.get("/pipeline-reports/:pipelineId", async (req, res, next) => {
       const result = testResults.find((r) => r.id === tc.id);
       return { ...tc, status: result?.status ?? (testResults.length > 0 ? "skipped" : "pending") };
     });
+
+    // Prefer executionReport (durationMs/output from OSS bridge); fall back to qa JSON
+    let playwrightSmoke: Record<string, unknown> | null = (() => {
+      const fromExec = execReport?.playwrightSmoke as
+        | Record<string, unknown>
+        | undefined;
+      const fromQa = qa?.playwrightSmoke as Record<string, unknown> | undefined;
+      if (!fromExec && !fromQa) return null;
+      return { ...(fromQa ?? {}), ...(fromExec ?? {}) };
+    })();
+    let securityScan =
+      (execReport?.securityScan as Record<string, unknown> | undefined) ?? null;
+
+    // Hydrate from persisted ToolArtifacts when stage JSON omitted OSS fields
+    // (older runs, or LLM never called run_security_scan / Playwright tools).
+    if (!securityScan || !playwrightSmoke) {
+      try {
+        const { bridgeOssArtifactsIntoQaStore } = await import(
+          "../../qa/bridgeOssArtifacts"
+        );
+        const bridged = bridgeOssArtifactsIntoQaStore(req.params.pipelineId);
+        if (!securityScan && bridged.securityScan) {
+          securityScan = bridged.securityScan as unknown as Record<string, unknown>;
+        }
+        if (!playwrightSmoke && bridged.playwrightSmoke) {
+          playwrightSmoke =
+            bridged.playwrightSmoke as unknown as Record<string, unknown>;
+        }
+      } catch {
+        /* artifacts optional */
+      }
+    }
 
     res.json({
       pipelineId: stage.pipelineId,
@@ -178,11 +221,11 @@ router.get("/pipeline-reports/:pipelineId", async (req, res, next) => {
       recommendation: execReport?.overallRecommendation ?? null,
       testRun: execReport?.testRun ?? null,
       failureAnalysis: execReport?.failureAnalysis ?? [],
-      securityScan: execReport?.securityScan ?? null,
+      securityScan,
       executionStatus: execReport?.executionStatus ?? null,
       executionMessage: execReport?.executionMessage ?? null,
       requiresHumanOverride: execReport?.requiresHumanOverride ?? false,
-      playwrightSmoke: qa?.playwrightSmoke ?? execReport?.playwrightSmoke ?? null,
+      playwrightSmoke,
       locatorHealProposals:
         qa?.locatorHealProposals ?? execReport?.locatorHealProposals ?? [],
       completedAt: stage.completedAt?.toISOString(),

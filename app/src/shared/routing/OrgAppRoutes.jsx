@@ -16,6 +16,7 @@ const JiraSearch = lazy(() => import("../../app/pages/JiraSearch"));
 const PmAgents = lazy(() => import("../../app/pages/PmAgents"));
 const Roadmap = lazy(() => import("../../app/pages/Roadmap"));
 const CodebaseIntelligence = lazy(() => import("../../app/pages/CodebaseIntelligence"));
+const LogIntelligence = lazy(() => import("../../app/pages/LogIntelligence"));
 const OrgNotFound = lazy(() => import("../../app/pages/OrgNotFound"));
 
 function RedirectTo({ segments }) {
@@ -47,6 +48,8 @@ export const orgAppRouteElements = (
     <Route path="pipelines/:id/override" element={<Override />} />
     <Route path="codebase" element={<CodebaseIntelligence />} />
     <Route path="qa" element={<QaCenter />} />
+    <Route path="logs" element={<LogIntelligence />} />
+    <Route path="logs/patterns/:patternId" element={<LogIntelligence />} />
     <Route path="roadmap" element={<Roadmap />} />
     <Route path="org-intelligence" element={<RedirectTo segments={["roadmap"]} />} />
     <Route path="company-intelligence" element={<RedirectTo segments={["settings", "company"]} />} />

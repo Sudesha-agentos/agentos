@@ -68,8 +68,6 @@ export async function runQaAgentic(
       forcedWrapUpMessage: `You have used the maximum number of QA tool calls. Produce the final JSON test plan now using everything gathered. Do not call more tools.`,
     });
 
-    const artifacts = getQaArtifacts(input.pipelineId);
-
     // Mandatory QA OSS suite for every ticket (Semgrep, Playwright, Cover-Agent, Hypothesis)
     try {
       const { runQaOssAdapters } = await import("../integrations/runQaOssAdapters");
@@ -96,32 +94,55 @@ export async function runQaAgentic(
       );
     }
 
-    const qaOutput = enrichQaOutput({
-      qa: parseDiscoveryJson<QaOutput>(loop.finalResponse, "qaAgent"),
-      prd: input.prd,
-      implementation: input.implementation,
-      executionReport: artifacts.executionReport
+    // Bridge ToolArtifact rows → qaArtifactStore so Pipeline QA report shows Semgrep/Playwright
+    // even when the LLM never called run_security_scan / Playwright tools.
+    try {
+      const { bridgeOssArtifactsIntoQaStore } = await import(
+        "../qa/bridgeOssArtifacts"
+      );
+      bridgeOssArtifactsIntoQaStore(input.pipelineId);
+    } catch (bridgeErr) {
+      logger.warn(
+        { err: bridgeErr instanceof Error ? bridgeErr.message : String(bridgeErr) },
+        "QA OSS → report bridge failed"
+      );
+    }
+
+    // Re-read after OSS + bridge (do not use a stale pre-OSS snapshot)
+    const artifacts = getQaArtifacts(input.pipelineId);
+
+    const mergedExecutionReport: QaExecutionReport | undefined =
+      artifacts.executionReport
         ? {
             ...artifacts.executionReport,
             securityScan:
               artifacts.securityScan ?? artifacts.executionReport.securityScan,
             playwrightSmoke:
-              artifacts.playwrightSmoke ?? artifacts.executionReport.playwrightSmoke,
+              artifacts.playwrightSmoke ??
+              artifacts.executionReport.playwrightSmoke,
             locatorHealProposals:
               artifacts.locatorHealProposals ??
               artifacts.executionReport.locatorHealProposals,
           }
-        : artifacts.securityScan
+        : artifacts.securityScan || artifacts.playwrightSmoke
           ? {
               generatedAt: new Date().toISOString(),
-              summary: "Security scan only",
+              summary: "QA OSS suite results",
               overallRecommendation: "request_changes" as const,
               criteriaCoverage: { total: 0, covered: 0, uncovered: [] },
               securityScan: artifacts.securityScan,
+              playwrightSmoke: artifacts.playwrightSmoke,
               executionStatus: "unavailable" as const,
-              executionMessage: "No test run — security scan only.",
+              executionMessage:
+                "OSS suite completed — full unit/integration test run was not produced by the agent tools.",
             }
-          : undefined,
+          : undefined;
+
+    const qaOutput = enrichQaOutput({
+      qa: parseDiscoveryJson<QaOutput>(loop.finalResponse, "qaAgent"),
+      prd: input.prd,
+      implementation: input.implementation,
+      executionReport: mergedExecutionReport,
       ticketText: `${input.jiraKey} ${input.prd.title} ${input.prd.problemStatement}`,
     });
 
@@ -215,23 +236,15 @@ export async function runQaAgentic(
           durationMs: 0,
         },
       },
-      executionReport: artifacts.executionReport
+      executionReport: mergedExecutionReport
         ? {
-            ...artifacts.executionReport,
+            ...mergedExecutionReport,
             securityScan:
-              artifacts.securityScan ?? artifacts.executionReport.securityScan,
+              artifacts.securityScan ?? mergedExecutionReport.securityScan,
+            playwrightSmoke:
+              artifacts.playwrightSmoke ?? mergedExecutionReport.playwrightSmoke,
           }
-        : artifacts.securityScan
-          ? {
-              generatedAt: new Date().toISOString(),
-              summary: "Security scan only",
-              overallRecommendation: "request_changes" as const,
-              criteriaCoverage: { total: 0, covered: 0, uncovered: [] },
-              securityScan: artifacts.securityScan,
-              executionStatus: "unavailable" as const,
-              executionMessage: "No test run — security scan only.",
-            }
-          : undefined,
+        : undefined,
       toolCallLog: loop.toolCallLog,
     };
   } finally {

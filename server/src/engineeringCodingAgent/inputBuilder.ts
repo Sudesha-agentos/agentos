@@ -127,12 +127,47 @@ ${formatVerifiedPathsBlock(verifiedPaths)}
 
 ${requiredFilesBlock}
 
+## AUTHORITATIVE PRD (implement ALL of this — do not invent a smaller scope)
 PRD title: ${input.prd.title}
 Problem: ${input.prd.problemStatement}
 Solution: ${input.prd.proposedSolution}
 
-Acceptance criteria:
+User stories (each must be supported by code or an explicit out-of-scope note):
+${(input.prd.userStories ?? []).length
+  ? input.prd.userStories.map((s, i) => `${i + 1}. ${s}`).join("\n")
+  : "(none listed)"}
+
+Acceptance criteria (MUST satisfy every item via criteriaMapping + code):
 ${input.prd.acceptanceCriteria.map((c, i) => `${i + 1}. ${c}`).join("\n")}
+
+Edge cases to handle:
+${(input.prd.edgeCases ?? []).length
+  ? input.prd.edgeCases.map((c, i) => `${i + 1}. ${c}`).join("\n")
+  : "(none listed)"}
+
+Out of scope (do NOT build):
+${(input.prd.outOfScope ?? []).length
+  ? input.prd.outOfScope.map((c) => `- ${c}`).join("\n")
+  : "(none listed)"}
+
+Success metrics:
+${(input.prd.successMetrics ?? []).length
+  ? input.prd.successMetrics.map((c) => `- ${c}`).join("\n")
+  : "(none listed)"}
+
+Non-functional requirements:
+${(generatedPrd?.nonFunctionalRequirements ?? []).length
+  ? generatedPrd!.nonFunctionalRequirements
+      .map(
+        (r) =>
+          `- [${r.type}] ${r.requirement}${r.measurable ? ` (verify: ${r.measurable})` : ""}`
+      )
+      .join("\n")
+  : "(none listed)"}
+
+PRD dependencies / open questions:
+${(input.prd.dependencies ?? []).map((d) => `- dep: ${d}`).join("\n") || "(no deps)"}
+${(input.prd.openQuestions ?? []).map((q) => `- Q: ${q}`).join("\n") || "(no open questions)"}
 
 Implementation plan summary:
 ${input.implementation.summary}
@@ -158,6 +193,22 @@ ${whereNotToTouch.length ? `Where NOT to touch:\n${whereNotToTouch.map((p) => `-
 
 ${pmHandoff?.approachSummary ? `PM implementation approach:\n${String(pmHandoff.approachSummary)}` : ""}
 
+${typeof pmHandoff?.recentCommitHistory === "string" && pmHandoff.recentCommitHistory.trim()
+  ? `Recent commits touching affected files:\n${pmHandoff.recentCommitHistory}`
+  : ""}
+
+${Array.isArray(pmHandoff?.codeSnapshots) && (pmHandoff.codeSnapshots as Array<{ path?: string; content?: string; error?: string }>).length
+  ? `Primary file snapshots (start from these — still verify with read_file before edit):\n${(
+      pmHandoff.codeSnapshots as Array<{ path?: string; content?: string; error?: string }>
+    )
+      .map((s) =>
+        s.error
+          ? `### ${s.path}\n_Failed to load: ${s.error}_`
+          : `### ${s.path}\n\`\`\`\n${String(s.content ?? "").slice(0, 8000)}\n\`\`\``
+      )
+      .join("\n\n")}`
+  : ""}
+
 ${design ? `System design package:\n${JSON.stringify(design, null, 2)}` : ""}
 
 ${tasks?.length ? `Task breakdown (file paths omitted unless verified in codebase analysis):\n${tasks.map((t) => `- ${t.id}: ${t.title}${t.files?.length ? ` (${t.files.join(", ")})` : ""}${t.description ? ` — ${t.description}` : ""}`).join("\n")}` : ""}
@@ -167,6 +218,12 @@ ${generatedPrd ? `Full PM-generated PRD (authoritative — implement every featu
 ${generatedPrd?.implementationDeltaSummary ? `CODEBASE DELTA (build only net-new work):\nSummary: ${generatedPrd.implementationDeltaSummary}\nAlready exists:\n${(generatedPrd.existingCapabilities ?? []).map((c) => `- ${c}`).join("\n")}\nNet-new work:\n${(generatedPrd.netNewWork ?? []).map((c) => `- ${c}`).join("\n")}\nReuse from codebase:\n${(generatedPrd.reuseFromCodebase ?? []).map((c) => `- ${c}`).join("\n")}` : ""}
 
 ${input.compileFeedback ? `SANDBOX COMPILE/TEST FEEDBACK — fix these errors before finishing:\n${input.compileFeedback}` : ""}
+
+CRITICAL IMPLEMENTATION RULES:
+- The PRD + acceptance criteria above are the source of truth. Implement every criterion and user story unless it is explicitly out of scope.
+- criteriaMapping entries must each be realized in code (or content deliverables). Do not ship a partial subset.
+- Prefer editing the files named in the plan / task breakdown / verified paths over inventing unrelated files.
+- In codingSummary, list which acceptance criteria each change satisfies.
 
 Begin PHASE 1: explore the codebase (list_dir, grep, search_codebase, read_file),
 PHASE 2: implement using edit_file / write_file,

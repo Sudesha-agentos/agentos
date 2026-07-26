@@ -76,7 +76,20 @@ export async function runCanaryCycle(input: CanaryRunInput): Promise<CanaryRunRe
 
     emitCanaryPhase(input.pipelineId, "hypotheses", input.jiraKey);
     await canaryRunRepo.updateProgress(run.id, { phase: "hypotheses" });
-    const hypotheses = await generateHypotheses(understanding);
+    let organizationId: string | undefined;
+    if (input.pipelineId) {
+      try {
+        const { prisma } = await import("../db/client");
+        const pipeline = await prisma.pipeline.findUnique({
+          where: { id: input.pipelineId },
+          select: { organizationId: true },
+        });
+        organizationId = pipeline?.organizationId;
+      } catch {
+        /* optional */
+      }
+    }
+    const hypotheses = await generateHypotheses(understanding, organizationId);
     await canaryRunRepo.updateProgress(run.id, {
       hypotheses: hypotheses as unknown as Prisma.InputJsonValue,
     });

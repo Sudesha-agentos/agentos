@@ -342,7 +342,7 @@ export async function tryIntakeEnqueue(
             existingVirin.generatedPrd &&
             !isHandoffTransferred(existingVirin.engineeringHandoff?.status)
           ) {
-            const pmContext = buildPmPipelineContext(existingVirin);
+            const pmContext = await buildPmPipelineContext(existingVirin);
             const handoff = await tryEngineeringIntakeEnqueue(
               taskKey,
               pmContext,

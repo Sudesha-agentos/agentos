@@ -1,6 +1,7 @@
 import type { ComputedDiscoveryScores } from "../discovery/scoring";
 import type { PrdOutput } from "../types/agents";
 import type { GeneratedPRD } from "./prdGenerator";
+import { logger } from "../utils/logger";
 
 /** Maps discovery PRD into the shape expected by engineering/QA agents and validators. */
 export function generatedPrdToPrdOutput(
@@ -30,25 +31,25 @@ export function generatedPrdToPrdOutput(
 
   const rawConfidence = scores?.prdQualityScore ?? prd.prdConfidence ?? 0.75;
   const confidenceScore = rawConfidence > 0 ? rawConfidence : 0.75;
-  const paddedCriteria =
-    acceptanceCriteria.length >= 2
-      ? acceptanceCriteria
-      : acceptanceCriteria.length === 1
-        ? [
-            acceptanceCriteria[0]!,
-            "Given the feature is deployed When a stakeholder verifies scope Then all PRD acceptance criteria pass",
-          ]
-        : [
-            "Given context When action Then measurable outcome",
-            "Given the feature is deployed When a stakeholder verifies scope Then all PRD acceptance criteria pass",
-          ];
+  // Do NOT inject synthetic ACs — fake criteria cause Ananta to invent scope.
+  // Thin PRDs fail validatePrd (min 2) instead of shipping bogus requirements.
+  if (acceptanceCriteria.length < 2) {
+    logger.warn(
+      {
+        title: prd.title,
+        criteriaCount: acceptanceCriteria.length,
+        storyCount: prd.userStories?.length ?? 0,
+      },
+      "PRD has fewer than 2 acceptance criteria after flatten — not padding"
+    );
+  }
 
   return {
     title: prd.title,
     problemStatement: prd.problemStatement,
     proposedSolution: prd.proposedSolution,
     userStories: (prd.userStories ?? []).map((s) => s.story),
-    acceptanceCriteria: paddedCriteria,
+    acceptanceCriteria,
     outOfScope: prd.outOfScope ?? [],
     edgeCases,
     dependencies,

@@ -83,6 +83,13 @@ export function enrichQaOutput(input: {
           skipped: executionReport.playwrightSmoke.skipped,
           skipReason: executionReport.playwrightSmoke.skipReason,
           passed: executionReport.playwrightSmoke.passed,
+          // Keep fields the QA Center UI renders (duration + expandable output)
+          durationMs:
+            (executionReport.playwrightSmoke as { durationMs?: number })
+              .durationMs ?? 0,
+          output:
+            (executionReport.playwrightSmoke as { output?: string }).output ??
+            "",
         }
       : qa.playwrightSmoke,
     locatorHealProposals:

@@ -25,6 +25,7 @@ import { runMigrationsOnStartup } from "./db/migrateOnStartup";
 import { disconnectPrisma } from "./db/client";
 import { validateAuthConfig } from "./api/routes/authSession";
 import { ensureOssCliPath } from "./integrations/ossCliPath";
+import { startLogIntelligence } from "./logIntelligence";
 
 async function bootstrap(): Promise<void> {
   ensureOssCliPath();
@@ -54,6 +55,10 @@ async function bootstrap(): Promise<void> {
   });
 
   initCodebaseVizWebSocket(server);
+
+  void startLogIntelligence().catch((err) => {
+    logger.warn({ err }, "log intelligence failed to start");
+  });
 
   void runDeferredStartupTasks();
 

@@ -376,6 +376,11 @@ model Organization {
   githubInstallations GithubInstallation[]
   agentChatThreads AgentChatThread[]
   roadmap          Roadmap?
+  logSources              LogSource[]
+  errorPatterns           ErrorPattern[]
+  anomalyDetections       AnomalyDetection[]
+  logIntelligenceConfig   LogIntelligenceConfig?
+  canaryHypothesisLibrary CanaryHypothesisLibrary[]
 
   @@index([domain])
 }
@@ -790,4 +795,202 @@ enum RoadmapRouteType {
   USER_INPUT
   AGENT
   APPROVAL
+}
+
+// ─── Log Intelligence Layer ─────────────────────────────────────────────────
+
+model LogSource {
+  id           String    @id @default(cuid())
+  organizationId String
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  sourceType   String
+  // 'render' | 'railway' | 'cloudwatch' | 'datadog' | 'grafana_loki' | 'sentry' | 'otlp' | 'custom'
+  displayName  String
+  config       Json
+  // Encrypted: { apiKey, endpoint, region, etc }
+  isActive     Boolean   @default(true)
+  lastPulledAt DateTime?
+  createdAt    DateTime  @default(now())
+
+  logEntries LogEntry[]
+  anomalies  AnomalyDetection[]
+
+  @@index([organizationId, isActive])
+}
+
+model LogEntry {
+  id        String    @id @default(cuid())
+  sourceId  String
+  source    LogSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+
+  timestamp   DateTime
+  severity    String
+  // 'debug' | 'info' | 'warn' | 'error' | 'fatal'
+  message     String   @db.Text
+
+  errorType   String?
+  stackTrace  String?  @db.Text
+  httpStatus  Int?
+  endpoint    String?
+  userId      String?
+  deploymentId String?
+  environment String
+  serviceName String
+
+  rawPayload Json
+
+  // AgentOX correlation — filled by correlation layer
+  pipelineId             String?
+  jiraKey                String?
+  agentRunId             String?
+  isCovered              Boolean?
+  correlationConfidence  String?
+  // 'high' | 'medium' | 'low'
+
+  patternHash String?
+  // Links to ErrorPattern
+
+  createdAt DateTime @default(now())
+
+  @@index([timestamp(sort: Desc)])
+  @@index([severity])
+  @@index([errorType])
+  @@index([deploymentId])
+  @@index([patternHash])
+  @@index([sourceId, timestamp])
+  @@index([pipelineId])
+  @@index([jiraKey])
+}
+
+model ErrorPattern {
+  id              String       @id @default(cuid())
+  organizationId  String
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  patternHash     String
+  // SHA256 of normalised error signature
+
+  errorType       String
+  messageTemplate String       @db.Text
+  // Error message with variables stripped
+
+  firstSeen         DateTime
+  lastSeen          DateTime
+  occurrenceCount   Int      @default(1)
+  affectedServices  Json     @default("[]")
+  affectedEndpoints Json     @default("[]")
+
+  // AI analysis
+  rootCauseHypothesis String?   @db.Text
+  confidenceScore     Float?
+  remediationSteps    String?   @db.Text
+  analysedAt          DateTime?
+
+  // Pipeline correlation
+  pipelineId   String?
+  jiraKey      String?
+  deploymentId String?
+  isQaGap      Boolean @default(false)
+  qaGapReason  String?
+
+  // Resolution
+  status      String    @default("open")
+  // 'open' | 'investigating' | 'resolved' | 'wont_fix'
+  resolvedAt  DateTime?
+  bugJiraKey  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  anomalies AnomalyDetection[]
+
+  @@unique([organizationId, patternHash])
+  @@index([status])
+  @@index([jiraKey])
+  @@index([organizationId, lastSeen])
+}
+
+model AnomalyDetection {
+  id         String   @id @default(cuid())
+  organizationId String
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  detectedAt DateTime @default(now())
+
+  anomalyType String
+  // 'error_rate_spike' | 'new_error_type' | 'latency_increase'
+  // | 'connection_failure' | 'auth_failure_spike' | 'memory_pressure'
+
+  severity String
+  // 'critical' | 'high' | 'medium' | 'low'
+
+  description String  @db.Text
+  aiAnalysis  String? @db.Text
+
+  affectedService  String?
+  affectedEndpoint String?
+  environment      String?
+
+  baselineValue    Float?
+  observedValue    Float?
+  deviationPercent Float?
+
+  sourceId  String?
+  source    LogSource?    @relation(fields: [sourceId], references: [id])
+  patternId String?
+  pattern   ErrorPattern? @relation(fields: [patternId], references: [id])
+
+  // Actions taken
+  jiraTicketCreated Boolean @default(false)
+  bugJiraKey        String?
+  slackNotified     Boolean @default(false)
+  canaryNotified    Boolean @default(false)
+
+  acknowledged   Boolean   @default(false)
+  acknowledgedBy String?
+  acknowledgedAt DateTime?
+  resolvedAt     DateTime?
+
+  @@index([organizationId, detectedAt])
+  @@index([severity, acknowledged])
+}
+
+model LogIntelligenceConfig {
+  id             String       @id @default(cuid())
+  organizationId String       @unique
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  // Anomaly thresholds
+  errorRateThresholdPercent Float   @default(5.0)
+  errorSpikeMultiplier      Float   @default(2.0)
+  newErrorTypeAlert         Boolean @default(true)
+
+  // Auto-actions
+  autoCreateJiraOnCritical Boolean @default(true)
+  autoNotifySlack          Boolean @default(true)
+  autoFeedCanary           Boolean @default(true)
+
+  // Retention
+  logRetentionDays Int @default(30)
+
+  updatedAt DateTime @updatedAt
+}
+
+model CanaryHypothesisLibrary {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  errorType       String
+  messageTemplate String  @db.Text
+  endpoint        String?
+  service         String?
+  probeScenario   String  @db.Text
+  remediationHint String? @db.Text
+  sourcePatternId String?
+  active          Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([organizationId, active])
+  @@index([sourcePatternId])
 }

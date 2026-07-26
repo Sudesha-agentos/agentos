@@ -31,7 +31,12 @@ export function buildEngineeringAgentContext(
     currentBody: `Title: ${prd.title}
 Problem Statement: ${prd.problemStatement}
 Proposed Solution: ${prd.proposedSolution}
+User Stories: ${(prd.userStories ?? []).join(" | ") || "None"}
 Acceptance Criteria: ${prd.acceptanceCriteria.join(" | ")}
+Edge Cases: ${(prd.edgeCases ?? []).join(" | ") || "None"}
+Out of Scope: ${(prd.outOfScope ?? []).join(" | ") || "None"}
+Success Metrics: ${(prd.successMetrics ?? []).join(" | ") || "None"}
+Dependencies: ${(prd.dependencies ?? []).join(" | ") || "None"}
 Open Questions: ${prd.openQuestions.join(" | ") || "None"}`.trim(),
     retrievedContext,
   });
@@ -56,9 +61,14 @@ export function buildQaAgentContext(
     currentLabel: "Current QA Input",
     currentBody: `PRD Title: ${prd.title}
 Implementation mode: ${mode}
+User Stories: ${(prd.userStories ?? []).join(" | ") || "None"}
 Acceptance Criteria: ${prd.acceptanceCriteria.join(" | ")}
+Edge Cases: ${(prd.edgeCases ?? []).join(" | ") || "None"}
 Implementation Summary: ${implementation.summary}
 Technical Approach: ${implementation.technicalApproach}
+Criteria Mapping: ${(implementation.criteriaMapping ?? [])
+  .map((m) => `${m.criterion} → ${m.implementation}`)
+  .join(" | ") || "none"}
 Target files: ${(implementation.targetFiles ?? []).join(" | ") || "none"}
 Risks: ${implementation.risks
   .map((risk) => `${risk.description} [${risk.severity}]`)

@@ -44,6 +44,7 @@ export const indexer = {
       affectedCode?: string | null;
     }>
   ): Promise<void> {
+    const { canaryRunRepo } = await import("../db/repositories/canaryRunRepo");
     for (const finding of findings) {
       await embedder.embedCanaryFinding({
         findingId: finding.id,
@@ -56,6 +57,8 @@ export const indexer = {
         suggestedFix: finding.suggestedFix,
         affectedCode: finding.affectedCode,
       });
+      // Stamp Postgres after a successful pgvector upsert (was defined but never called).
+      await canaryRunRepo.markFindingEmbedded(finding.id);
     }
   },
 };

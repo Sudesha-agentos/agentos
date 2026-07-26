@@ -10,6 +10,7 @@ function buildStaticPages(orgPath) {
   return [
     { label: "Ananta workspace", href: orgPath("ananta"), keywords: ["ananta", "engineering", "coding", "implementation"] },
     { label: "Audit Trail", href: orgPath("audit"), keywords: ["audit", "compliance", "log", "trail"] },
+    { label: "Log Intelligence", href: orgPath("logs"), keywords: ["logs", "errors", "sentry", "render", "anomaly", "production", "qa gap"] },
     { label: "Pipelines", href: orgPath("pipelines"), keywords: ["pipeline", "ticket", "queue", "review"] },
     { label: "Codebase indexing", href: orgPath("settings", "codebase-index"), keywords: ["codebase", "index", "embeddings", "vector"] },
     { label: "GitHub integration", href: orgPath("settings", "integrations", "github"), keywords: ["github", "git", "repo", "repository"] },

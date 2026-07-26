@@ -41,6 +41,7 @@ const NAV_ICONS = {
   neel: IconQa,
   roadmap: IconRoadmap,
   costs: IconCosts,
+  logs: IconAudit,
   audit: IconAudit,
   settings: IconSettings,
 };
@@ -311,7 +312,18 @@ export default function Sidebar() {
 
               {section.id !== "workspace" && section.id !== "agents"
                 ? section.items.map((item) => {
-                    const Icon = NAV_ICONS[item.to] ?? IconSettings;
+                    const iconKey = String(item.breadcrumb ?? item.label ?? "")
+                      .toLowerCase()
+                      .includes("log")
+                      ? "logs"
+                      : String(item.to).includes("/costs")
+                        ? "costs"
+                        : String(item.to).includes("/audit")
+                          ? "audit"
+                          : String(item.to).includes("/settings")
+                            ? "settings"
+                            : item.to;
+                    const Icon = NAV_ICONS[iconKey] ?? IconSettings;
                     return (
                       <li key={item.to}>
                         <NavLink
