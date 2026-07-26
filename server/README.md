@@ -214,6 +214,16 @@ npm run build
 | `PIPELINE_INTAKE_POLL_MS` | AI Worker scan interval (default `120000`) |
 | `OSS_TOOLS_REQUIRED` | `1` in production — missing Semgrep/Playwright/etc. fail loudly |
 
+### Log Intelligence Layer
+
+Production error ingestion → fingerprint → pipeline correlation → root cause → Jira/Slack/canary feedback.
+
+- Module: [`src/logIntelligence/`](src/logIntelligence/)
+- API: `/api/log-intelligence` (sources, entries, patterns, anomalies, summary, webhooks)
+- Enable: `LOG_INGESTION_ENABLED=1` plus `LOG_SOURCE_ENCRYPTION_KEY`
+- Optional: `SLACK_WEBHOOK_URL` for alerts
+- Frontend: org route `/logs` (Log Intelligence)
+
 ### OSS CLIs on the API host
 
 Do **not** vendor full Semgrep/Cover-Agent/Locust/ZAP repos. Build runs [`scripts/install-oss-tools.sh`](scripts/install-oss-tools.sh). Use **≥1GB RAM** (2GB+ recommended). See [`vendor/INTEGRATIONS.md`](vendor/INTEGRATIONS.md).

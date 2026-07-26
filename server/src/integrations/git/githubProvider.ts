@@ -240,10 +240,55 @@ export function createGithubProvider(
     },
 
     async updatePullRequest(ctx, prNumber, updates) {
-      await githubPatch(
-        `/repos/${ctx.workspace}/${ctx.repoSlug}/pulls/${prNumber}`,
-        updates
-      );
+      const { draft, ...rest } = updates;
+      if (Object.keys(rest).length > 0) {
+        await githubPatch(
+          `/repos/${ctx.workspace}/${ctx.repoSlug}/pulls/${prNumber}`,
+          rest
+        );
+      }
+      // REST PATCH ignores draft:false — must use GraphQL markPullRequestReadyForReview
+      if (draft === false) {
+        const token = await getToken();
+        const pr = await githubFetch<{ node_id: string }>(
+          `/repos/${ctx.workspace}/${ctx.repoSlug}/pulls/${prNumber}`
+        );
+        const gqlRes = await fetch("https://api.github.com/graphql", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            query: `mutation($id: ID!) {
+              markPullRequestReadyForReview(input: { pullRequestId: $id }) {
+                pullRequest { isDraft }
+              }
+            }`,
+            variables: { id: pr.node_id },
+          }),
+        });
+        if (!gqlRes.ok) {
+          throw new Error(
+            `GitHub GraphQL mark ready failed ${gqlRes.status}: ${await gqlRes.text()}`
+          );
+        }
+        const gqlJson = (await gqlRes.json()) as {
+          errors?: Array<{ message: string }>;
+        };
+        if (gqlJson.errors?.length) {
+          throw new Error(
+            `GitHub GraphQL mark ready errors: ${gqlJson.errors
+              .map((e) => e.message)
+              .join("; ")}`
+          );
+        }
+      } else if (draft === true) {
+        await githubPatch(
+          `/repos/${ctx.workspace}/${ctx.repoSlug}/pulls/${prNumber}`,
+          { draft: true }
+        );
+      }
     },
   };
 }

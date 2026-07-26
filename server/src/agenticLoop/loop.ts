@@ -22,6 +22,7 @@ export const MUTATING_CODING_TOOLS = new Set([
   "write_source_file",
   "edit_file",
   "delete_file",
+  "apply_aider_edits",
 ]);
 
 export interface AgenticLoopConfig {

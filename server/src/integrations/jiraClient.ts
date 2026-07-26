@@ -20,6 +20,100 @@ type JiraClientOAuthOpts = {
   getAccessToken: () => Promise<string>;
 };
 
+type AdfNode = Record<string, unknown>;
+
+/** Inline bold for *text* / **text** (non-greedy, single-line). */
+function inlineMarks(line: string): AdfNode[] {
+  const nodes: AdfNode[] = [];
+  const re = /(\*\*|__)(.+?)\1|(\*|_)(.+?)\3/g;
+  let last = 0;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(line)) !== null) {
+    if (m.index > last) {
+      nodes.push({ type: "text", text: line.slice(last, m.index) });
+    }
+    const bold = Boolean(m[1] || m[3] === "*" || m[3] === "_");
+    const text = (m[2] ?? m[4] ?? "") as string;
+    nodes.push({
+      type: "text",
+      text,
+      marks: bold ? [{ type: "strong" }] : [{ type: "em" }],
+    });
+    last = m.index + m[0].length;
+  }
+  if (last < line.length) {
+    nodes.push({ type: "text", text: line.slice(last) });
+  }
+  if (!nodes.length) nodes.push({ type: "text", text: line || " " });
+  return nodes;
+}
+
+/**
+ * Best-effort conversion of wiki (`h2.`) / markdown (`##`) comment bodies to ADF.
+ * Keeps writebacks readable in Jira Cloud (ADF does not parse wiki markup).
+ */
+export function textToAdfContent(text: string): AdfNode[] {
+  const lines = text.replace(/\r\n/g, "\n").split("\n");
+  const content: AdfNode[] = [];
+  let paraBuf: string[] = [];
+
+  const flushPara = () => {
+    if (!paraBuf.length) return;
+    const joined = paraBuf.join("\n");
+    content.push({
+      type: "paragraph",
+      content: inlineMarks(joined),
+    });
+    paraBuf = [];
+  };
+
+  for (const raw of lines) {
+    const line = raw.trimEnd();
+    const wiki = line.match(/^(h([1-6]))\.\s+(.*)$/i);
+    const md = line.match(/^(#{1,6})\s+(.*)$/);
+    if (wiki || md) {
+      flushPara();
+      const level = wiki
+        ? Number(wiki[2])
+        : Math.min(6, (md![1] as string).length);
+      const headingText = (wiki ? wiki[3] : md![2]) ?? "";
+      content.push({
+        type: "heading",
+        attrs: { level },
+        content: inlineMarks(headingText),
+      });
+      continue;
+    }
+    if (line.trim() === "") {
+      flushPara();
+      continue;
+    }
+    // Strip leading wiki list bullets that would otherwise show as raw text
+    const bullet = line.match(/^[\*\-]\s+(.*)$/);
+    if (bullet) {
+      flushPara();
+      content.push({
+        type: "bulletList",
+        content: [
+          {
+            type: "listItem",
+            content: [
+              {
+                type: "paragraph",
+                content: inlineMarks(bullet[1] ?? ""),
+              },
+            ],
+          },
+        ],
+      });
+      continue;
+    }
+    paraBuf.push(line);
+  }
+  flushPara();
+  return content;
+}
+
 export class JiraClient {
   private readonly baseUrl: string;
   private readonly authHeader: string | null;
@@ -193,33 +287,16 @@ export class JiraClient {
   }
 
   addPlainTextComment(jiraKey: string, text: string): Promise<unknown> {
-    const paragraphs = text
-      .split(/\n{2,}/)
-      .map((block) => block.trim())
-      .filter(Boolean);
-
-    const content = paragraphs.flatMap((paragraph, index) => {
-      const nodes = paragraph.split("\n").map((line) => ({
-        type: "text" as const,
-        text: line,
-      }));
-      const block =
-        nodes.length === 1
-          ? { type: "paragraph" as const, content: nodes }
-          : {
-              type: "paragraph" as const,
-              content: [{ type: "text" as const, text: paragraph }],
-            };
-      return index < paragraphs.length - 1
-        ? [block, { type: "paragraph" as const, content: [] }]
-        : [block];
-    });
+    // Convert wiki/markdown-ish lines into ADF so h2./##/*bold* are not shown raw
+    const content = textToAdfContent(text);
 
     return this.addComment(jiraKey, {
       body: {
         type: "doc",
         version: 1,
-        content: content.length ? content : [{ type: "paragraph", content: [{ type: "text", text }] }],
+        content: content.length
+          ? content
+          : [{ type: "paragraph", content: [{ type: "text", text }] }],
       },
     });
   }

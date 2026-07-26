@@ -31,6 +31,7 @@
   "dependencies": {
     "@anthropic-ai/bedrock-sdk": "^0.29.2",
     "@anthropic-ai/sdk": "^0.50.3",
+    "@aws-sdk/client-cloudwatch-logs": "^3.1090.0",
     "@prisma/adapter-pg": "^7.0.0",
     "@prisma/client": "^7.0.0",
     "@sentry/node": "^8.40.0",

@@ -182,10 +182,15 @@ export async function persistBranchState(
   branchName: string,
   headSha: string,
   filesChanged: string[],
-  pr?: GitPullRequest | null
+  pr?: GitPullRequest | null,
+  sourceBranch?: string
 ): Promise<void> {
   const scope = resolveRepoScope();
   if (!scope) return;
+  const baseBranch =
+    sourceBranch?.trim() ||
+    scope.defaultBranch?.trim() ||
+    "main";
 
   try {
     await prismaAny.branchState.upsert({
@@ -202,7 +207,7 @@ export async function persistBranchState(
         repoOwner: scope.repoOwner,
         repoName: scope.repoName,
         branchName,
-        sourceBranch: "main",
+        sourceBranch: baseBranch,
         jiraKey,
         createdBy: "agentos",
         headSha,
@@ -219,6 +224,7 @@ export async function persistBranchState(
         lastPushAt: new Date(),
         lastPushBy: "agentos-engineering",
         jiraKey,
+        sourceBranch: baseBranch,
         prNumber: pr?.number ?? undefined,
         prUrl: pr?.url ?? undefined,
         prStatus: pr ? (pr.draft ? "draft" : "open") : undefined,

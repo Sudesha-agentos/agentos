@@ -22,10 +22,11 @@ services:
         value: "10000"
       - key: AUTH_JWT_SECRET
         generateValue: true
+      # Canonical domain first — FRONTEND_URL drives OAuth redirects (Google, GitHub, Jira)
       - key: CORS_ORIGIN
-        value: https://agentos-blue.vercel.app
+        value: https://agentox.io,https://www.agentox.io,https://agentos-blue.vercel.app
       - key: FRONTEND_URL
-        value: https://agentos-blue.vercel.app
+        value: https://agentox.io
       - key: PUBLIC_API_URL
         value: https://agentos-sc05.onrender.com
       # Missing Semgrep/Playwright/etc. → failed artifacts (not quiet skip) in production

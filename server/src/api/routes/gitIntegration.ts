@@ -239,7 +239,7 @@ router.get("/integration/diagnostics", async (_req, res, next) => {
       latestInstallation,
       hints: [
         !process.env.FRONTEND_URL?.trim()
-          ? "Set FRONTEND_URL=https://agentos-blue.vercel.app on Render"
+          ? "Set FRONTEND_URL=https://agentox.io on Render"
           : null,
         !githubProbe.ok
           ? "Fix GITHUB_APP_ID + GITHUB_APP_PRIVATE_KEY (PEM with literal \\n newlines on Render)"

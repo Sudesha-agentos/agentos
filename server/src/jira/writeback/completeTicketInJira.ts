@@ -109,15 +109,21 @@ export async function completeTicketInJira(
 
   if (settings.attachRcaComment) {
     try {
-      const rca = formatRcaComment({
-        jiraKey,
-        validations: payload.validations,
-        qa: payload.qa,
-        canaryCriticals: payload.canaryCriticals,
-        engineeringSummary: payload.implementation.summary,
-      });
-      await client.addPlainTextComment(jiraKey, rca);
-      result.rcaAttached = true;
+      const labels = await client.getIssueLabels(jiraKey);
+      if (labels.includes("agentos-rca")) {
+        result.rcaAttached = true;
+      } else {
+        const rca = formatRcaComment({
+          jiraKey,
+          validations: payload.validations,
+          qa: payload.qa,
+          canaryCriticals: payload.canaryCriticals,
+          engineeringSummary: payload.implementation.summary,
+        });
+        await client.addPlainTextComment(jiraKey, rca);
+        await client.addLabels(jiraKey, ["agentos-rca"]);
+        result.rcaAttached = true;
+      }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       result.errors.push(`RCA comment: ${msg}`);

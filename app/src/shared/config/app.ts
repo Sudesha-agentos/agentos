@@ -98,6 +98,7 @@ export function buildAppNav(slug: string) {
     { to: orgPath(slug, "pipelines"), label: "Pipelines", breadcrumb: "Pipelines" },
     ...agentNav.map(({ to, label, breadcrumb }) => ({ to, label, breadcrumb })),
     { to: orgPath(slug, "costs"), label: "Cost & ROI", breadcrumb: "Costs" },
+    { to: orgPath(slug, "logs"), label: "Log Intelligence", breadcrumb: "Logs" },
     { to: orgPath(slug, "settings"), label: "Configuration", breadcrumb: "Settings" },
     { to: orgPath(slug, "audit"), label: "Audit Trail", breadcrumb: "Audit" },
   ];
@@ -164,7 +165,10 @@ export function buildAppNavSections(slug: string) {
     {
       id: "analytics",
       label: "Analytics",
-      items: [{ to: orgPath(slug, "costs"), label: "Cost & ROI", breadcrumb: "Costs" }],
+      items: [
+        { to: orgPath(slug, "costs"), label: "Cost & ROI", breadcrumb: "Costs" },
+        { to: orgPath(slug, "logs"), label: "Log Intelligence", breadcrumb: "Logs" },
+      ],
     },
     {
       id: "settings",

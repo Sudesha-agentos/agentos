@@ -1245,9 +1245,12 @@ export class PipelineOrchestrator {
       }
 
       // Safety gate compile (monorepo-aware: server/, app/, or repo root)
+      let compileFailed = false;
       if (implementationMode !== "content" && workspace) {
         try {
           const compileResult = await runWorkspaceSafetyCompile(workspace.workspaceDir);
+          compileFailed =
+            !compileResult.skipped && compileResult.exitCode !== 0;
           await auditRepo.log(pipelineId, "ENGINEERING_SAFETY_COMPILE", {
             jiraKey: ticket.jiraKey,
             exitCode: compileResult.exitCode,
@@ -1257,7 +1260,7 @@ export class PipelineOrchestrator {
             subdir: compileResult.subdir,
             reason: compileResult.reason,
           });
-          if (!compileResult.skipped && compileResult.exitCode !== 0) {
+          if (compileFailed) {
             logger.warn(
               {
                 pipelineId,
@@ -1278,7 +1281,11 @@ export class PipelineOrchestrator {
       let openedPr: import("../integrations/gitProvider").GitPullRequest | null = null;
 
       if (workspace) {
-        const commitMessage = `[${ticket.jiraKey}] ${codingResult?.codingSummary ?? "Engineering agent changes"}`;
+        const summary =
+          codingResult?.codingSummary ?? "Engineering agent changes";
+        const commitMessage = compileFailed
+          ? `[compile-warnings] [${ticket.jiraKey}] ${summary}`
+          : `[${ticket.jiraKey}] ${summary}`;
         try {
           pushResult = await workspaceCommitAndPush(workspace.workspaceDir, commitMessage);
 
@@ -1332,7 +1339,8 @@ export class PipelineOrchestrator {
             pushResult.pushedBranch,
             pushResult.sha,
             changedFiles.map((f) => f.path),
-            openedPr
+            openedPr,
+            sourceBranch
           );
 
           await writeGitPushToTicket(ticket.jiraKey, {
@@ -1360,11 +1368,16 @@ export class PipelineOrchestrator {
             const pushFiles = normalizePushFiles(
               finalStaged.map((f) => ({ filePath: f.filePath, content: f.content }))
             );
+            const summary =
+              codingResult?.codingSummary ?? "Engineering agent changes";
+            const commitMessage = compileFailed
+              ? `[compile-warnings] [${ticket.jiraKey}] ${summary}`
+              : `[${ticket.jiraKey}] ${summary}`;
             const apiPush = await gitClient.pushFilesToBranch(
               targetBranch,
               sourceBranch,
               pushFiles,
-              `[${ticket.jiraKey}] ${codingResult?.codingSummary ?? "Engineering agent changes"}`
+              commitMessage
             );
             implementationBranch = targetBranch;
             pushResult = { sha: apiPush.sha, pushedBranch: targetBranch };
@@ -1374,10 +1387,49 @@ export class PipelineOrchestrator {
               filesCount: finalStaged.length,
               commitSha: apiPush.sha,
             });
+
+            try {
+              const prTitle = `[${ticket.jiraKey}] ${prd.title}`;
+              const prBody = buildPrBody(
+                ticket.jiraKey,
+                prd,
+                codingResult?.codingSummary ?? ""
+              );
+              openedPr = await gitClient.createPullRequest(
+                targetBranch,
+                sourceBranch,
+                prTitle,
+                prBody,
+                true
+              );
+              await auditRepo.log(pipelineId, "ENGINEERING_PR_OPENED", {
+                jiraKey: ticket.jiraKey,
+                prUrl: openedPr.url,
+                prNumber: openedPr.number,
+                path: "fallback_api",
+              });
+            } catch (prErr) {
+              logger.warn(
+                { pipelineId, prErr },
+                "PR creation failed on fallback API path — continuing"
+              );
+            }
+
+            await persistBranchState(
+              ticket.jiraKey,
+              targetBranch,
+              apiPush.sha,
+              finalStaged.map((f) => f.filePath),
+              openedPr,
+              sourceBranch
+            );
+
             await writeGitPushToTicket(ticket.jiraKey, {
               targetBranch,
               commitSha: apiPush.sha,
               sourceBranch,
+              prUrl: openedPr?.url,
+              prNumber: openedPr?.number,
             });
           } catch (err) {
             const message = err instanceof Error ? err.message : String(err);
@@ -1499,12 +1551,28 @@ export class PipelineOrchestrator {
       : [];
     const blockingGaps = Number(synthesis.blockingGaps ?? 0);
 
+    const formatItems = (items: unknown[], limit = 5): string =>
+      items
+        .slice(0, limit)
+        .map((item) =>
+          typeof item === "string"
+            ? item
+            : item && typeof item === "object"
+              ? JSON.stringify(item)
+              : String(item)
+        )
+        .map((s) => `  - ${s.slice(0, 240)}`)
+        .join("\n");
+
     const lines = [
       "Enriched PRD Intelligence:",
       `- Historical coverage: ${historicalCoverage}`,
-      `- Reuse patterns: ${reusedPatterns.length}`,
-      `- Known failures to avoid: ${knownFailures.length}`,
-      `- Implied requirements: ${impliedRequirements.length}`,
+      `- Reuse patterns (${reusedPatterns.length}):`,
+      formatItems(reusedPatterns) || "  (none)",
+      `- Known failures to avoid (${knownFailures.length}):`,
+      formatItems(knownFailures) || "  (none)",
+      `- Implied requirements (${impliedRequirements.length}):`,
+      formatItems(impliedRequirements) || "  (none)",
       `- Blocking gaps: ${blockingGaps}`,
     ];
 

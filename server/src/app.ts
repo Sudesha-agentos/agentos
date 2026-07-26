@@ -33,6 +33,7 @@ import engineeringRouter from "./api/routes/engineering";
 import integrationsRouter from "./api/routes/integrations";
 import searchRouter from "./api/routes/search";
 import webhooksRouter from "./api/routes/webhooks";
+import logIntelligenceRouter from "./logIntelligence/api/routes";
 import { isAppError } from "./utils/errors";
 import { logger } from "./utils/logger";
 
@@ -134,6 +135,7 @@ export function createApp(): express.Express {
   app.use("/api/engineering", engineeringRouter);
   app.use("/api/integrations", integrationsRouter);
   app.use("/api/search", searchRouter);
+  app.use("/api/log-intelligence", logIntelligenceRouter);
 
   app.use((_req, res) => {
     res.status(404).json({ error: "not_found" });

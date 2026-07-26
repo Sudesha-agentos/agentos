@@ -46,8 +46,52 @@ function RecommendationBanner({ recommendation }) {
   );
 }
 
-function TestRunStats({ testRun, coverageReport, confidenceScore }) {
-  if (!testRun && !coverageReport) return null;
+function TestRunStats({ testRun, coverageReport, confidenceScore, executionStatus }) {
+  const sandboxNotRan =
+    executionStatus === "error" ||
+    executionStatus === "unavailable" ||
+    executionStatus === "skipped";
+  const zeroRun =
+    testRun &&
+    (testRun.totalTests ?? 0) === 0 &&
+    (testRun.passed ?? 0) === 0 &&
+    (testRun.failed ?? 0) === 0;
+
+  if (!testRun && !coverageReport && confidenceScore == null) {
+    return (
+      <div className="border-t border-app-border px-5 py-4">
+        <p className="text-[10px] font-semibold uppercase tracking-wider text-app-ink-mute">
+          Test execution
+        </p>
+        <p className="mt-2 text-xs text-app-ink-dim">
+          No sandbox unit/integration run was recorded. Semgrep / Playwright /
+          Cover-Agent / Hypothesis still run in the mandatory OSS suite — see tool
+          outputs below.
+        </p>
+      </div>
+    );
+  }
+
+  if (sandboxNotRan && zeroRun) {
+    return (
+      <div className="border-t border-app-border px-5 py-4">
+        <p className="text-[10px] font-semibold uppercase tracking-wider text-app-ink-mute">
+          Test execution
+        </p>
+        <p className="mt-2 rounded-app-sm border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning">
+          Test sandbox did not execute ({executionStatus}
+          {testRun?.sandboxAvailable === false ? " — sandbox unavailable" : ""}).
+          Check Semgrep / Playwright under OSS tool outputs below.
+        </p>
+        {confidenceScore != null ? (
+          <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <StatCard label="Confidence" value={`${(confidenceScore * 100).toFixed(0)}%`} />
+          </div>
+        ) : null}
+      </div>
+    );
+  }
+
   return (
     <div className="grid grid-cols-2 gap-3 px-5 py-4 sm:grid-cols-4">
       {testRun ? (
@@ -66,10 +110,10 @@ function TestRunStats({ testRun, coverageReport, confidenceScore }) {
             color={coverageReport.coveragePercent >= 95 ? "text-success" : coverageReport.coveragePercent >= 80 ? "text-warning" : "text-danger"}
           />
           <StatCard label="Covered" value={`${coverageReport.coveredCriteria} / ${coverageReport.totalCriteria}`} />
-          {confidenceScore != null ? (
-            <StatCard label="Confidence" value={`${(confidenceScore * 100).toFixed(0)}%`} />
-          ) : null}
         </>
+      ) : null}
+      {confidenceScore != null ? (
+        <StatCard label="Confidence" value={`${(confidenceScore * 100).toFixed(0)}%`} />
       ) : null}
     </div>
   );
@@ -225,7 +269,20 @@ function FailureAnalysisSection({ failures }) {
 
 function SecurityScanSection({ securityScan }) {
   const [expanded, setExpanded] = useState(false);
-  if (!securityScan) return null;
+  if (!securityScan) {
+    return (
+      <div className="border-t border-app-border px-5 py-4">
+        <p className="text-[10px] font-semibold uppercase tracking-wider text-app-ink-mute">
+          Security scan
+        </p>
+        <p className="mt-2 text-xs text-app-ink-dim">
+          No security scan attached to this report yet. Check{" "}
+          <strong>OSS tool outputs (Neel)</strong> below for Semgrep results from the
+          mandatory QA suite.
+        </p>
+      </div>
+    );
+  }
   const { criticalCount = 0, highCount = 0, findings = [] } = securityScan;
   const clean = criticalCount === 0 && highCount === 0;
   const limit = expanded ? 25 : 8;
@@ -304,7 +361,20 @@ function SecurityScanSection({ securityScan }) {
 
 function PlaywrightSmokeSection({ playwrightSmoke }) {
   const [showOutput, setShowOutput] = useState(false);
-  if (!playwrightSmoke) return null;
+  if (!playwrightSmoke) {
+    return (
+      <div className="border-t border-app-border px-5 py-4">
+        <p className="text-[10px] font-semibold uppercase tracking-wider text-app-ink-mute">
+          Playwright smoke
+        </p>
+        <p className="mt-2 text-xs text-app-ink-dim">
+          No Playwright result on this report yet. Check{" "}
+          <strong>OSS tool outputs (Neel)</strong> for playwright / playwright-monitor
+          artifacts (smoke or synthetic monitor).
+        </p>
+      </div>
+    );
+  }
   const {
     skipped,
     skipReason,
@@ -393,7 +463,11 @@ function UncoveredCriteria({ coverageReport }) {
 }
 
 function PipelineQaDetail({ report }) {
-  const emptyReport = !(report?.testCases?.length > 0) && !report?.testRun;
+  const hasOssResults = !!(report?.securityScan || report?.playwrightSmoke);
+  const emptyReport =
+    !(report?.testCases?.length > 0) &&
+    !report?.testRun &&
+    !hasOssResults;
   const inProgress =
     report?.inProgress ||
     report?.executionStatus === "running" ||
@@ -418,6 +492,15 @@ function PipelineQaDetail({ report }) {
           {report.executionMessage || "QA failed before producing a report."}
         </div>
       ) : null}
+      {!emptyReport &&
+      !report?.testRun &&
+      hasOssResults &&
+      report?.executionStatus === "unavailable" ? (
+        <div className="mx-5 mt-4 rounded-app-sm border border-app-border bg-app-surface-muted/40 px-4 py-3 text-[13px] text-app-ink-dim">
+          Sandbox unit/integration stats were not produced; Semgrep / Playwright
+          results from the mandatory OSS suite are shown below.
+        </div>
+      ) : null}
       <RecommendationBanner recommendation={report.recommendation} />
       {report.requiresHumanOverride ? (
         <div className="mx-5 mt-3 rounded-app-sm border border-warning/40 bg-warning/10 px-4 py-2 text-xs text-warning">
@@ -428,6 +511,7 @@ function PipelineQaDetail({ report }) {
         testRun={report.testRun}
         coverageReport={report.coverageReport}
         confidenceScore={report.confidenceScore}
+        executionStatus={report.executionStatus}
       />
       <ConfidenceBreakdownPanel
         breakdown={report.confidenceBreakdown}
@@ -931,7 +1015,7 @@ export default function QaCenter() {
             />
           ) : null}
 
-          {selectedPipelineId && canaryPhase ? (
+          {selectedPipelineId ? (
             <ToolArtifactsPanel
               pipelineId={selectedPipelineId}
               lane="canary"

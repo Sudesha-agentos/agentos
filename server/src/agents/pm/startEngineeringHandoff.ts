@@ -41,7 +41,7 @@ export async function startEngineeringHandoff(
   patchEngineeringHandoff(key, { status: "pending", message: "Enqueueing engineering pipeline…" });
 
   try {
-    const pmContext = buildPmPipelineContext(record);
+    const pmContext = await buildPmPipelineContext(record);
     const intake = await withOrganizationContext(organizationId, () =>
       tryEngineeringIntakeEnqueue(key, pmContext, "manual")
     );

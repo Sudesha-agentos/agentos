@@ -102,7 +102,7 @@ function parseSuggestedFirstFile(raw: string): { file: string; reason: string } 
   return { file: raw.trim(), reason: "" };
 }
 
-async function fetchRecentCommitHistory(
+export async function fetchRecentCommitHistory(
   filePaths: string[],
   branchName: string
 ): Promise<string> {
@@ -349,7 +349,7 @@ export function buildTechAgentHandoffFromRecord(
     escalationReason: null,
   };
   const ac = record.acceptanceCriteria ?? {
-    userStory: normalizeDiscoverySummary(record.questionMode?.discoverySummary).slice(0, 200),
+    userStory: normalizeDiscoverySummary(record.questionMode?.discoverySummary),
     happyPath: (record.handoffPackage?.engineeringTickets?.[0]?.acceptanceCriteria ?? []).map(
       (c) => ({ given: c, when: "run", then: "pass" })
     ),

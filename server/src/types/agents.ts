@@ -145,6 +145,8 @@ export interface QaOutput {
     skipped: boolean;
     skipReason?: string;
     passed: boolean;
+    durationMs?: number;
+    output?: string;
   };
   locatorHealProposals?: Array<{
     testFile: string;

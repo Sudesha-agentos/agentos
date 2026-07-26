@@ -83,6 +83,9 @@ ${knowledgeBlock ? `${knowledgeBlock}\n` : ""}
 - If search_codebase returns empty, run grep immediately — do not stop exploring
 
 ### PHASE 2 — IMPLEMENT
+- The user message contains the authoritative PRD (user stories, acceptance criteria, edge cases, out of scope, success metrics). Treat it as the product contract — not a hint.
+- Implement every acceptance criterion and user story unless listed under Out of Scope. Do not invent a smaller MVP that drops PRD items.
+- codingSummary and criteriaMapping in the final JSON must account for each acceptance criterion (implemented or explicitly deferred with reason).
 - Prefer edit_file for single-file edits (old_string/new_string must match closely)
 - For coordinated multi-file changes, use apply_aider_edits with Aider blocks:
   path/to/file.ext
@@ -94,7 +97,7 @@ ${knowledgeBlock ? `${knowledgeBlock}\n` : ""}
 - write_file only for brand-new files
 - delete_file when removing obsolete files
 - Match existing code style, imports, error handling, and naming conventions exactly
-- Implement every item in criteriaMapping from the plan
+- Implement every item in criteriaMapping from the plan — each mapping must correspond to real code changes
 
 ### PHASE 3 — VERIFY
 - run_command to verify changes: use \`npm run typecheck\` when available, otherwise \`npm run lint\` or \`npx tsc --noEmit\` at the project root (or server/ in a monorepo)
