@@ -6,8 +6,10 @@ import {
   createLogSource,
   deleteLogSource,
   fetchLogPattern,
+  pullLogSource,
   resolvePattern,
   testLogSource,
+  validateLogSource,
   useLogIntelligenceDashboard,
 } from "../../entities/logIntelligence";
 import { useOrg } from "../../shared/providers/OrgRouteProvider";
@@ -159,148 +161,414 @@ function PatternDetail({ patternId, onBack }) {
   );
 }
 
-function SourcesPanel({ sources, onChanged }) {
-  const [sourceType, setSourceType] = useState("render");
-  const [displayName, setDisplayName] = useState("");
-  const [configText, setConfigText] = useState(
-    '{\n  "apiKey": "",\n  "serviceId": ""\n}'
+function HealthBadge({ status, lastError }) {
+  if (status === "ok") {
+    return (
+      <span className="rounded-full border border-success/30 bg-success/10 px-2 py-0.5 text-[10px] font-semibold uppercase text-success">
+        Healthy
+      </span>
+    );
+  }
+  if (status === "error") {
+    return (
+      <span
+        className="rounded-full border border-danger/30 bg-danger/10 px-2 py-0.5 text-[10px] font-semibold uppercase text-danger"
+        title={lastError || ""}
+      >
+        Error
+      </span>
+    );
+  }
+  if (status === "skipped") {
+    return (
+      <span className="rounded-full border border-app-border px-2 py-0.5 text-[10px] font-semibold uppercase text-app-ink-mute">
+        Push only
+      </span>
+    );
+  }
+  return (
+    <span className="rounded-full border border-app-border px-2 py-0.5 text-[10px] font-semibold uppercase text-app-ink-mute">
+      Never pulled
+    </span>
   );
-  const [busy, setBusy] = useState(false);
+}
+
+function emptyConfigFromSchema(schema) {
+  const cfg = {};
+  for (const field of schema ?? []) {
+    if (field.type === "select" && field.options?.[0]) {
+      cfg[field.key] = field.options[0].value;
+    } else {
+      cfg[field.key] = "";
+    }
+  }
+  return cfg;
+}
+
+function SourcesPanel({ sources, catalog, ingestDocs, onChanged }) {
+  const providers =
+    (catalog ?? []).filter((c) => !c.aliasOf).length > 0
+      ? (catalog ?? []).filter((c) => !c.aliasOf)
+      : [
+          {
+            id: "render",
+            displayName: "Render",
+            mode: "pull",
+            docsHint: "Render API key + service ID",
+            configSchema: [
+              { key: "apiKey", label: "API key", type: "password", required: true, secret: true },
+              { key: "serviceId", label: "Service ID", type: "text", required: true },
+            ],
+          },
+          {
+            id: "custom",
+            displayName: "Other (HTTP / Vector)",
+            mode: "push",
+            docsHint: "Push via HTTP ingest",
+            configSchema: [
+              { key: "serviceName", label: "Service name", type: "text" },
+            ],
+          },
+        ];
+  const [sourceType, setSourceType] = useState(providers[0]?.id || "render");
+  const selected = providers.find((p) => p.id === sourceType) || providers[0];
+  const [displayName, setDisplayName] = useState("");
+  const [config, setConfig] = useState(() =>
+    emptyConfigFromSchema(selected?.configSchema)
+  );
+  const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const [testOut, setTestOut] = useState("");
+  const [expandedId, setExpandedId] = useState(null);
+
+  useEffect(() => {
+    if (!selected) return;
+    setConfig(emptyConfigFromSchema(selected.configSchema));
+  }, [sourceType]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  function setField(key, value) {
+    setConfig((prev) => ({ ...prev, [key]: value }));
+  }
+
+  function buildConfigPayload() {
+    const out = {};
+    for (const field of selected?.configSchema ?? []) {
+      const raw = config[field.key];
+      if (raw === "" || raw == null) {
+        if (field.required) {
+          throw new Error(`${field.label} is required`);
+        }
+        continue;
+      }
+      out[field.key] = raw;
+    }
+    return out;
+  }
+
+  async function handleValidate() {
+    setBusy("validate");
+    setError("");
+    setTestOut("");
+    try {
+      const payload = buildConfigPayload();
+      const r = await validateLogSource({
+        sourceType,
+        config: payload,
+      });
+      setTestOut(
+        r.message +
+          (r.sample?.length
+            ? `\n\n${JSON.stringify(r.sample, null, 2)}`
+            : "")
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy("");
+    }
+  }
 
   async function handleCreate(e) {
     e.preventDefault();
-    setBusy(true);
+    setBusy("save");
     setError("");
     try {
-      const config = JSON.parse(configText);
-      await createLogSource({
+      const payload = buildConfigPayload();
+      const result = await createLogSource({
         sourceType,
-        displayName: displayName || sourceType,
-        config,
+        displayName: displayName || selected?.displayName || sourceType,
+        config: payload,
+        pullNow: selected?.mode !== "push",
       });
       setDisplayName("");
+      setConfig(emptyConfigFromSchema(selected?.configSchema));
+      if (result.pull?.error) {
+        setError(`Saved, but initial pull failed: ${result.pull.error}`);
+      } else if (result.source?.endpoints && selected?.mode !== "pull") {
+        setTestOut(
+          [
+            "Source saved. Use these ingest URLs:",
+            result.source.endpoints.otlpIngest,
+            result.source.endpoints.customIngest,
+            result.source.endpoints.sentryWebhook,
+          ]
+            .filter(Boolean)
+            .join("\n")
+        );
+      }
       onChanged?.();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
-      setBusy(false);
+      setBusy("");
     }
   }
 
   return (
-    <Panel>
-      <PanelHeader kicker="Sources" title="Log sources" />
-      <div className="space-y-4 px-5 pb-5">
-        <ul className="divide-y divide-app-line">
+    <div className="space-y-5">
+      <Panel>
+        <PanelHeader
+          kicker="Linked"
+          title="Log sources"
+          subtitle="Pull from Render/Sentry/Datadog/… or push any other stack via OTLP / HTTP."
+        />
+        <ul className="divide-y divide-app-border px-5 pb-4">
           {(sources ?? []).length === 0 ? (
-            <li className="py-2 text-[13px] text-app-ink-mute">
-              No sources configured yet. Add Render or Sentry to start ingesting.
+            <li className="py-4 text-[13px] text-app-ink-mute">
+              No sources linked yet. Add a provider below — Test connection before
+              saving when possible.
             </li>
           ) : (
             sources.map((s) => (
-              <li
-                key={s.id}
-                className="flex flex-wrap items-center justify-between gap-2 py-2 text-[13px]"
-              >
-                <div>
-                  <p className="font-medium text-app-ink">
-                    {s.displayName}{" "}
-                    <span className="text-app-ink-mute">({s.sourceType})</span>
-                  </p>
-                  <p className="text-app-ink-mute">
-                    Last pull:{" "}
-                    {s.lastPulledAt
-                      ? new Date(s.lastPulledAt).toLocaleString()
-                      : "never"}
-                  </p>
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    className="rounded border border-app-line px-2 py-1 text-[12px]"
-                    onClick={async () => {
-                      try {
-                        const r = await testLogSource(s.id);
-                        setTestOut(JSON.stringify(r.sample ?? r, null, 2));
-                      } catch (err) {
-                        setError(err instanceof Error ? err.message : String(err));
+              <li key={s.id} className="py-3 text-[13px]">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="font-medium text-app-ink">{s.displayName}</p>
+                      <span className="text-app-ink-mute">({s.sourceType})</span>
+                      <HealthBadge
+                        status={s.lastPullStatus}
+                        lastError={s.lastError}
+                      />
+                    </div>
+                    <p className="mt-1 text-[12px] text-app-ink-mute">
+                      Last activity:{" "}
+                      {s.lastPulledAt
+                        ? new Date(s.lastPulledAt).toLocaleString()
+                        : "never"}
+                    </p>
+                    {s.lastError ? (
+                      <p className="mt-1 text-[12px] text-danger">
+                        {s.lastError.slice(0, 240)}
+                      </p>
+                    ) : null}
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      className="rounded border border-app-border px-2 py-1 text-[12px]"
+                      onClick={async () => {
+                        setError("");
+                        try {
+                          const r = await testLogSource(s.id);
+                          setExpandedId(s.id);
+                          setTestOut(
+                            JSON.stringify(
+                              {
+                                mode: r.mode,
+                                message: r.message,
+                                sample: r.sample,
+                                endpoints: r.endpoints,
+                              },
+                              null,
+                              2
+                            )
+                          );
+                          onChanged?.();
+                        } catch (err) {
+                          setError(
+                            err instanceof Error ? err.message : String(err)
+                          );
+                          onChanged?.();
+                        }
+                      }}
+                    >
+                      Test
+                    </button>
+                    {s.catalog?.mode !== "push" ? (
+                      <button
+                        type="button"
+                        className="rounded border border-indigo/30 bg-indigo/10 px-2 py-1 text-[12px] text-indigo"
+                        onClick={async () => {
+                          setError("");
+                          try {
+                            const r = await pullLogSource(s.id);
+                            setTestOut(
+                              r.error
+                                ? `Pull failed: ${r.error}`
+                                : `Pulled ${r.processed ?? 0} new entr(y/ies).`
+                            );
+                            onChanged?.();
+                          } catch (err) {
+                            setError(
+                              err instanceof Error ? err.message : String(err)
+                            );
+                          }
+                        }}
+                      >
+                        Pull now
+                      </button>
+                    ) : null}
+                    <button
+                      type="button"
+                      className="rounded border border-app-border px-2 py-1 text-[12px]"
+                      onClick={() =>
+                        setExpandedId((id) => (id === s.id ? null : s.id))
                       }
-                    }}
-                  >
-                    Test
-                  </button>
-                  <button
-                    type="button"
-                    className="rounded border border-rose-300 px-2 py-1 text-[12px] text-rose-600"
-                    onClick={async () => {
-                      await deleteLogSource(s.id);
-                      onChanged?.();
-                    }}
-                  >
-                    Delete
-                  </button>
+                    >
+                      {expandedId === s.id ? "Hide URLs" : "Ingest URLs"}
+                    </button>
+                    <button
+                      type="button"
+                      className="rounded border border-rose-300 px-2 py-1 text-[12px] text-rose-600"
+                      onClick={async () => {
+                        await deleteLogSource(s.id);
+                        onChanged?.();
+                      }}
+                    >
+                      Delete
+                    </button>
+                  </div>
                 </div>
+                {expandedId === s.id && s.endpoints ? (
+                  <div className="mt-2 space-y-1 rounded-app-sm border border-app-border bg-app-surface-muted/30 p-3 font-mono text-[11px] text-app-ink-dim">
+                    {Object.entries(s.endpoints).map(([k, v]) =>
+                      typeof v === "string" ? (
+                        <p key={k}>
+                          <span className="text-app-ink-mute">{k}:</span> {v}
+                        </p>
+                      ) : null
+                    )}
+                  </div>
+                ) : null}
               </li>
             ))
           )}
         </ul>
+      </Panel>
 
-        <form onSubmit={handleCreate} className="space-y-2 rounded-xl border border-dashed border-app-line p-3">
-          <p className="text-[12px] font-medium text-app-ink">Add source</p>
-          <select
-            className="w-full rounded-lg border border-app-line bg-app-bg px-2 py-1.5 text-[13px]"
-            value={sourceType}
-            onChange={(ev) => {
-              setSourceType(ev.target.value);
-              if (ev.target.value === "sentry") {
-                setConfigText(
-                  '{\n  "authToken": "",\n  "organizationSlug": "",\n  "projectSlug": ""\n}'
-                );
-              } else if (ev.target.value === "render") {
-                setConfigText('{\n  "apiKey": "",\n  "serviceId": ""\n}');
-              } else {
-                setConfigText("{}");
-              }
-            }}
-          >
-            <option value="render">Render</option>
-            <option value="sentry">Sentry</option>
-            <option value="railway">Railway</option>
-            <option value="cloudwatch">CloudWatch</option>
-            <option value="grafana_loki">Grafana Loki</option>
-            <option value="datadog">Datadog</option>
-            <option value="otlp">OTLP</option>
-            <option value="custom">Custom / Vector</option>
-          </select>
-          <input
-            className="w-full rounded-lg border border-app-line bg-app-bg px-2 py-1.5 text-[13px]"
-            placeholder="Display name"
-            value={displayName}
-            onChange={(ev) => setDisplayName(ev.target.value)}
-          />
-          <textarea
-            className="h-28 w-full rounded-lg border border-app-line bg-app-bg px-2 py-1.5 font-mono text-[12px]"
-            value={configText}
-            onChange={(ev) => setConfigText(ev.target.value)}
-          />
-          {error ? <p className="text-[12px] text-rose-500">{error}</p> : null}
-          <button
-            type="submit"
-            disabled={busy}
-            className="rounded-lg bg-indigo px-3 py-1.5 text-[12px] font-medium text-white disabled:opacity-50"
-          >
-            {busy ? "Saving…" : "Save source"}
-          </button>
+      <Panel>
+        <PanelHeader
+          kicker="Link"
+          title="Connect a log system"
+          subtitle={selected?.docsHint}
+        />
+        <form onSubmit={handleCreate} className="space-y-3 px-5 pb-5">
+          <div>
+            <label className="type-kicker">Provider</label>
+            <select
+              className="mt-1 w-full rounded-lg border border-app-border bg-app-bg px-2 py-1.5 text-[13px]"
+              value={sourceType}
+              onChange={(ev) => setSourceType(ev.target.value)}
+            >
+              {providers.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.displayName}
+                  {p.mode === "push" ? " (push)" : p.mode === "both" ? " (pull + push)" : ""}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {sourceType === "custom" || sourceType === "otlp" ? (
+            <div className="rounded-app-sm border border-indigo/25 bg-indigo/5 px-3 py-2 text-[12px] text-app-ink-dim">
+              <p className="font-medium text-app-ink">Any other system</p>
+              <p className="mt-1">
+                Save this source, then point Vector / Fluent Bit / OTLP exporter
+                at the ingest URLs. Templates:
+              </p>
+              {ingestDocs ? (
+                <ul className="mt-2 space-y-1 font-mono text-[11px]">
+                  <li>{ingestDocs.customIngestTemplate}</li>
+                  <li>{ingestDocs.otlpIngestTemplate}</li>
+                </ul>
+              ) : null}
+            </div>
+          ) : null}
+
+          <div>
+            <label className="type-kicker">Display name</label>
+            <input
+              className="mt-1 w-full rounded-lg border border-app-border bg-app-bg px-2 py-1.5 text-[13px]"
+              placeholder={selected?.displayName || "My API logs"}
+              value={displayName}
+              onChange={(ev) => setDisplayName(ev.target.value)}
+            />
+          </div>
+
+          {(selected?.configSchema ?? []).map((field) => (
+            <div key={field.key}>
+              <label className="type-kicker">
+                {field.label}
+                {field.required ? " *" : ""}
+              </label>
+              {field.type === "select" ? (
+                <select
+                  className="mt-1 w-full rounded-lg border border-app-border bg-app-bg px-2 py-1.5 text-[13px]"
+                  value={config[field.key] ?? ""}
+                  onChange={(ev) => setField(field.key, ev.target.value)}
+                >
+                  {(field.options ?? []).map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  type={field.type === "password" ? "password" : "text"}
+                  className="mt-1 w-full rounded-lg border border-app-border bg-app-bg px-2 py-1.5 text-[13px]"
+                  placeholder={field.placeholder || ""}
+                  value={config[field.key] ?? ""}
+                  onChange={(ev) => setField(field.key, ev.target.value)}
+                  autoComplete="off"
+                />
+              )}
+              {field.help ? (
+                <p className="mt-1 text-[11px] text-app-ink-mute">{field.help}</p>
+              ) : null}
+            </div>
+          ))}
+
+          {error ? <p className="text-[12px] text-danger">{error}</p> : null}
+
+          <div className="flex flex-wrap gap-2">
+            {selected?.mode !== "push" ? (
+              <button
+                type="button"
+                disabled={!!busy}
+                onClick={() => void handleValidate()}
+                className="rounded-lg border border-app-border px-3 py-1.5 text-[12px] font-medium disabled:opacity-50"
+              >
+                {busy === "validate" ? "Testing…" : "Test connection"}
+              </button>
+            ) : null}
+            <button
+              type="submit"
+              disabled={!!busy}
+              className="rounded-lg bg-indigo px-3 py-1.5 text-[12px] font-medium text-white disabled:opacity-50"
+            >
+              {busy === "save" ? "Saving…" : "Save & link"}
+            </button>
+          </div>
         </form>
         {testOut ? (
-          <pre className="max-h-48 overflow-auto rounded-lg bg-app-bg p-3 text-[11px]">
+          <pre className="mx-5 mb-5 max-h-64 overflow-auto rounded-lg border border-app-border bg-app-bg p-3 text-[11px]">
             {testOut}
           </pre>
         ) : null}
-      </div>
-    </Panel>
+      </Panel>
+    </div>
   );
 }
 
@@ -308,8 +576,17 @@ export default function LogIntelligence() {
   const { patternId } = useParams();
   const { orgPath } = useOrg();
   const [tab, setTab] = useState("patterns");
-  const { summary, patterns, anomalies, sources, loading, error, refresh } =
-    useLogIntelligenceDashboard();
+  const {
+    summary,
+    patterns,
+    anomalies,
+    sources,
+    catalog,
+    ingestDocs,
+    loading,
+    error,
+    refresh,
+  } = useLogIntelligenceDashboard();
   const [selectedId, setSelectedId] = useState(patternId || null);
 
   if (selectedId) {
@@ -452,7 +729,12 @@ export default function LogIntelligence() {
       ) : null}
 
       {tab === "sources" ? (
-        <SourcesPanel sources={sources} onChanged={() => void refresh()} />
+        <SourcesPanel
+          sources={sources}
+          catalog={catalog}
+          ingestDocs={ingestDocs}
+          onChanged={() => void refresh()}
+        />
       ) : null}
     </AnimatedAppPage>
   );

@@ -223,6 +223,13 @@ Production error ingestion → fingerprint → pipeline correlation → root cau
 - Enable: `LOG_INGESTION_ENABLED=1` plus `LOG_SOURCE_ENCRYPTION_KEY`
 - Optional: `SLACK_WEBHOOK_URL` for alerts
 - Frontend: org route `/logs` (Log Intelligence)
+- Catalog: `GET /api/log-intelligence/source-types` returns guided `configSchema` per provider
+- First-class pull: Render, Sentry, Datadog, CloudWatch, Loki, Railway
+- Universal push (any other system):
+  - `POST /api/log-intelligence/ingest/otlp?sourceId=&organizationId=`
+  - `POST /api/log-intelligence/ingest/custom?sourceId=&organizationId=` (Vector / Fluent Bit / HTTP)
+  - `POST /api/log-intelligence/webhooks/sentry?organizationId=`
+- After linking a pull source, `POST /sources/:id/pull` runs an immediate fetch; health is on `lastPullStatus` / `lastError`
 
 ### OSS CLIs on the API host
 

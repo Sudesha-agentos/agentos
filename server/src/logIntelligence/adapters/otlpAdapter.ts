@@ -21,6 +21,7 @@ export class OtlpAdapter extends BaseLogAdapter {
   sourceType = "otlp";
 
   async pull(): Promise<NormalizedLogEntry[]> {
+    // Push-only — scheduled cycle skips via this sentinel
     throw new Error("otlp_use_http_ingest");
   }
 
@@ -28,7 +29,13 @@ export class OtlpAdapter extends BaseLogAdapter {
     throw new Error("otlp_use_http_ingest");
   }
 
-  async validate(): Promise<{ valid: boolean; error?: string }> {
+  async validate(
+    config: Record<string, unknown>
+  ): Promise<{ valid: boolean; error?: string }> {
+    // Push receivers only need optional defaults; no outbound credentials.
+    if (config.environment != null && typeof config.environment !== "string") {
+      return { valid: false, error: "environment must be a string" };
+    }
     return { valid: true };
   }
 
