@@ -35,6 +35,9 @@ export function requireOrganizationUser(
   return user;
 }
 
+/** Alias kept for call sites / tooling that resolve this name. */
+export const requireOrganizationUserFromDb = requireOrganizationUser;
+
 export async function withOrganizationContext<T>(
   organizationId: string,
   fn: () => Promise<T>
