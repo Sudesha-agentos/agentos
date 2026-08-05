@@ -30,18 +30,26 @@ router.get("/", async (req, res) => {
   }
 
   const membership = await getOrganizationForUser(user.id);
-  const jira = membership
-    ? await getPublicOrganizationJiraConfig(membership.organization.id)
-    : null;
-  const companyProfile = await getCompanyProfile(user.organizationId);
+  if (!membership) {
+    res.json({
+      organization: null,
+      jira: null,
+      companyProfileConfigured: false,
+      staleSession: true,
+    });
+    return;
+  }
+
+  const jira = await getPublicOrganizationJiraConfig(membership.organization.id);
+  const companyProfile = await getCompanyProfile(membership.organization.id);
 
   res.json({
     organization: {
-      id: user.organizationId,
-      name: user.organizationName,
-      domain: user.organizationDomain,
-      slug: membership?.organization.slug ?? null,
-      role: user.organizationRole,
+      id: membership.organization.id,
+      name: membership.organization.name,
+      domain: membership.organization.domain,
+      slug: membership.organization.slug,
+      role: membership.role,
     },
     jira,
     companyProfileConfigured: Boolean(
@@ -74,10 +82,13 @@ router.post("/create", async (req, res) => {
   const user = requireAuthUser(req, res);
   if (!user) return;
 
-  if (user.organizationId) {
+  const existingMembership = await getOrganizationForUser(user.id);
+  if (existingMembership) {
+    const session = await issueSessionForUserId(user.id);
     res.status(409).json({
       error: "organization_already_assigned",
       message: "You already belong to a workspace.",
+      session,
     });
     return;
   }
@@ -101,10 +112,13 @@ router.post("/join", async (req, res) => {
   const user = requireAuthUser(req, res);
   if (!user) return;
 
-  if (user.organizationId) {
+  const existingMembership = await getOrganizationForUser(user.id);
+  if (existingMembership) {
+    const session = await issueSessionForUserId(user.id);
     res.status(409).json({
       error: "organization_already_assigned",
       message: "You already belong to a workspace.",
+      session,
     });
     return;
   }

@@ -84,8 +84,10 @@ function GitIntegrationContent({ setup, refetch, embedded = false, defaultTab = 
     if (githubCode === "invalid_state") {
       return "GitHub install session expired or was invalid. Try Connect with GitHub again.";
     }
-    if (githubCode === "install_failed") {
-      return "GitHub App installed on GitHub, but the server could not save it. Check Render DATABASE_URL and that GithubInstallation exists in Supabase, then try again.";
+
+    if (code === "install_failed") {
+      return "GitHub App installed on GitHub, but the server could not save it. After switching Supabase projects: sign out, sign in again, complete workspace onboarding, then reconnect GitHub. Also verify Render DATABASE_URL points to the new Supabase project.";
+
     }
     const bbCode = searchParams.get("bitbucket_error");
     if (bbCode === "invalid_state") {

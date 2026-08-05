@@ -194,9 +194,16 @@ router.post("/reset-password", async (req, res) => {
 router.get("/session", async (req, res) => {
   const { resolveSessionFromAuthHeader, resolveUserFromAuthHeader, issueSessionForUserId } =
     await import("./authSession");
+  const { isStaleJwtOrganization } = await import("../../organization/service");
 
   const fastSession = resolveSessionFromAuthHeader(req);
-  if (fastSession) {
+  if (fastSession?.user.organizationId) {
+    const stale = await isStaleJwtOrganization(fastSession.user.organizationId);
+    if (!stale) {
+      res.json(fastSession);
+      return;
+    }
+  } else if (fastSession) {
     res.json(fastSession);
     return;
   }

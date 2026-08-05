@@ -44,7 +44,7 @@ import {
   frontendIntegrationUrl,
 } from "../../shared/frontendUrls";
 import {
-  requireOrganizationUser,
+  requireOrganizationUserFromDb,
   withOrganizationContext,
 } from "../orgRequestContext";
 import { logger } from "../../utils/logger";
@@ -85,7 +85,7 @@ async function resolveOrgSlug(
 
 router.get("/integration/setup", async (req, res, next) => {
   try {
-    const user = requireOrganizationUser(req, res);
+    const user = await requireOrganizationUserFromDb(req, res);
     if (!user?.organizationId) return;
 
     await withOrganizationContext(user.organizationId, async () => {
@@ -281,7 +281,7 @@ router.get("/integration/diagnostics", async (_req, res, next) => {
 });
 
 router.get("/oauth/github/install-url", async (req, res) => {
-  const user = requireOrganizationUser(req, res);
+  const user = await requireOrganizationUserFromDb(req, res);
   if (!user?.organizationId) return;
 
   const slug = await resolveOrgSlug(user.organizationId, user.organizationSlug);
@@ -390,7 +390,7 @@ router.post("/github/sync-install", async (req, res) => {
 });
 
 router.post("/github/complete-install", async (req, res) => {
-  const user = requireOrganizationUser(req, res);
+  const user = await requireOrganizationUserFromDb(req, res);
   if (!user?.organizationId) return;
 
   const installationId = String(req.body?.installationId ?? "");
@@ -429,7 +429,7 @@ router.post("/github/complete-install", async (req, res) => {
 
 router.post("/integration/disconnect", async (req, res, next) => {
   try {
-    const user = requireOrganizationUser(req, res);
+    const user = await requireOrganizationUserFromDb(req, res);
     if (!user?.organizationId) return;
 
     const { purgeOrganizationGitIntegration } = await import(
@@ -451,7 +451,7 @@ router.post("/integration/disconnect", async (req, res, next) => {
 
 router.post("/github/select-repo", async (req, res, next) => {
   try {
-    const user = requireOrganizationUser(req, res);
+    const user = await requireOrganizationUserFromDb(req, res);
     if (!user?.organizationId) return;
 
     const result = await selectGithubRepository({
@@ -657,7 +657,7 @@ router.post("/bitbucket/select-repo", async (req, res, next) => {
 /** Fetch entire repo from GitHub → AI summaries → Postgres + vector embeddings → graph cache. */
 router.post("/index/full", async (req, res, next) => {
   try {
-    const user = requireOrganizationUser(req, res);
+    const user = await requireOrganizationUserFromDb(req, res);
     if (!user?.organizationId) return;
 
     await withOrganizationContext(user.organizationId, async () => {
@@ -759,7 +759,7 @@ router.get("/index/progress", async (req, res) => {
 });
 
 router.post("/integration/connect", async (req, res, next) => {
-  const user = requireOrganizationUser(req, res);
+  const user = await requireOrganizationUserFromDb(req, res);
   if (!user?.organizationId) return;
 
   const provider = String(req.body?.provider ?? "").trim() as GitProviderId;
