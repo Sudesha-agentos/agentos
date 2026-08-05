@@ -28,6 +28,18 @@ const INTEGRATION_DEFS = [
     liveStatusKey: "github",
   },
   {
+    id: "bitbucket",
+    name: "Bitbucket",
+    category: "source_control",
+    description:
+      "Bitbucket Cloud OAuth for codebase indexing, branch push, and pull requests.",
+    catalogStatus: "available",
+    connectKind: "native",
+    routeParts: ["settings", "integrations", "bitbucket"],
+    icon: "/marketing/integrations/bitbucket-wordmark.svg",
+    liveStatusKey: "bitbucket",
+  },
+  {
     id: "jira",
     name: "Jira",
     category: "issue_tracking",

@@ -12,11 +12,53 @@ export interface OrganizationGitCredentials {
   defaultBranch: string;
   installationId: string | null;
   authMethod: GitAuthMethod;
+  accessToken: string;
+  refreshToken: string;
+  tokenExpiresAt: Date | null;
+  scopes: string;
 }
 
 function tokenHint(token: string): string | null {
   if (!token || token.length < 8) return null;
   return `${token.slice(0, 4)}…${token.slice(-4)}`;
+}
+
+function rowToCredentials(row: {
+  provider: string;
+  workspace: string;
+  repoSlug: string;
+  username: string | null;
+  token: string;
+  webhookSecret: string;
+  defaultBranch: string;
+  installationId: string | null;
+  authMethod: string;
+  accessToken?: string | null;
+  refreshToken?: string | null;
+  tokenExpiresAt?: Date | null;
+  scopes?: string | null;
+}): OrganizationGitCredentials {
+  const accessToken = row.accessToken?.trim() || "";
+  const token =
+    row.authMethod === "oauth"
+      ? accessToken || row.token
+      : row.token;
+
+  return {
+    provider: row.provider as GitProviderId,
+    workspace: row.workspace,
+    repoSlug: row.repoSlug,
+    username: row.username,
+    token,
+    webhookSecret: row.webhookSecret,
+    defaultBranch: row.defaultBranch,
+    installationId: row.installationId,
+    authMethod: row.authMethod as GitAuthMethod,
+    accessToken,
+    refreshToken: row.refreshToken?.trim() || "",
+    tokenExpiresAt: row.tokenExpiresAt ?? null,
+    scopes: row.scopes?.trim() || "",
+  };
 }
 
 export async function loadOrganizationGitConfig(
@@ -26,18 +68,7 @@ export async function loadOrganizationGitConfig(
     where: { organizationId },
   });
   if (!row) return null;
-
-  return {
-    provider: row.provider as GitProviderId,
-    workspace: row.workspace,
-    repoSlug: row.repoSlug,
-    username: row.username,
-    token: row.token,
-    webhookSecret: row.webhookSecret,
-    defaultBranch: row.defaultBranch,
-    installationId: row.installationId,
-    authMethod: row.authMethod as GitAuthMethod,
-  };
+  return rowToCredentials(row);
 }
 
 export async function saveOrganizationGitConfig(
@@ -58,13 +89,40 @@ export async function saveOrganizationGitConfig(
     where: { organizationId },
   });
 
+  const authMethod =
+    input.authMethod ?? (existing?.authMethod as GitAuthMethod) ?? "pat";
+
+  const accessToken =
+    input.accessToken !== undefined
+      ? input.accessToken.trim()
+      : existing?.accessToken ?? "";
+  const refreshToken =
+    input.refreshToken !== undefined
+      ? input.refreshToken.trim()
+      : existing?.refreshToken ?? "";
+  const tokenExpiresAt =
+    input.tokenExpiresAt !== undefined
+      ? input.tokenExpiresAt
+      : existing?.tokenExpiresAt ?? null;
+  const scopes =
+    input.scopes !== undefined
+      ? input.scopes.trim()
+      : existing?.scopes ?? "";
+
+  // For OAuth, keep `token` in sync with the current access token so legacy
+  // readers that only look at `token` continue to work.
+  let token = input.token?.trim() || existing?.token || "";
+  if (authMethod === "oauth" && (input.accessToken !== undefined || accessToken)) {
+    token = (input.accessToken ?? accessToken).trim() || token;
+  }
+
   const creds: OrganizationGitCredentials = {
     provider: input.provider ?? (existing?.provider as GitProviderId) ?? "github",
     workspace: input.workspace?.trim() ?? existing?.workspace ?? "",
     repoSlug: input.repoSlug?.trim() ?? existing?.repoSlug ?? "",
     username:
       input.username !== undefined ? input.username : existing?.username ?? null,
-    token: input.token?.trim() || existing?.token || "",
+    token,
     webhookSecret: input.webhookSecret?.trim() || existing?.webhookSecret || "",
     defaultBranch:
       input.defaultBranch?.trim() || existing?.defaultBranch || "main",
@@ -72,9 +130,16 @@ export async function saveOrganizationGitConfig(
       input.installationId !== undefined
         ? input.installationId
         : existing?.installationId ?? null,
-    authMethod:
-      input.authMethod ?? (existing?.authMethod as GitAuthMethod) ?? "pat",
+    authMethod,
+    accessToken,
+    refreshToken,
+    tokenExpiresAt,
+    scopes,
   };
+
+  const shouldUpdateToken =
+    Boolean(input.token?.trim()) ||
+    (authMethod === "oauth" && input.accessToken !== undefined);
 
   await prisma.organizationGitConfig.upsert({
     where: { organizationId },
@@ -89,6 +154,10 @@ export async function saveOrganizationGitConfig(
       defaultBranch: creds.defaultBranch,
       installationId: creds.installationId,
       authMethod: creds.authMethod,
+      accessToken: creds.accessToken,
+      refreshToken: creds.refreshToken,
+      tokenExpiresAt: creds.tokenExpiresAt,
+      scopes: creds.scopes,
       updatedAt: new Date(),
     },
     update: {
@@ -96,11 +165,23 @@ export async function saveOrganizationGitConfig(
       workspace: creds.workspace,
       repoSlug: creds.repoSlug,
       username: creds.username,
-      ...(input.token?.trim() ? { token: creds.token } : {}),
-      ...(input.webhookSecret?.trim() ? { webhookSecret: creds.webhookSecret } : {}),
+      ...(shouldUpdateToken ? { token: creds.token } : {}),
+      ...(input.webhookSecret?.trim()
+        ? { webhookSecret: creds.webhookSecret }
+        : {}),
       defaultBranch: creds.defaultBranch,
       installationId: creds.installationId,
       authMethod: creds.authMethod,
+      ...(input.accessToken !== undefined
+        ? { accessToken: creds.accessToken }
+        : {}),
+      ...(input.refreshToken !== undefined
+        ? { refreshToken: creds.refreshToken }
+        : {}),
+      ...(input.tokenExpiresAt !== undefined
+        ? { tokenExpiresAt: creds.tokenExpiresAt }
+        : {}),
+      ...(input.scopes !== undefined ? { scopes: creds.scopes } : {}),
       updatedAt: new Date(),
     },
   });
@@ -108,11 +189,43 @@ export async function saveOrganizationGitConfig(
   return creds;
 }
 
+export async function saveOrganizationBitbucketOAuthTokens(
+  organizationId: string,
+  input: {
+    accessToken: string;
+    refreshToken?: string;
+    tokenExpiresAt: Date;
+    scopes?: string;
+    workspace?: string;
+    repoSlug?: string;
+    username?: string | null;
+  }
+): Promise<OrganizationGitCredentials> {
+  return saveOrganizationGitConfig(organizationId, {
+    provider: "bitbucket",
+    authMethod: "oauth",
+    accessToken: input.accessToken,
+    refreshToken: input.refreshToken,
+    tokenExpiresAt: input.tokenExpiresAt,
+    scopes: input.scopes,
+    token: input.accessToken,
+    workspace: input.workspace,
+    repoSlug: input.repoSlug,
+    username: input.username,
+  });
+}
+
 export async function getPublicOrganizationGitConfig(
   organizationId: string
 ): Promise<PublicGitCredentials> {
   const creds = await loadOrganizationGitConfig(organizationId);
-  if (!creds || (!creds.token && !creds.installationId)) {
+  if (
+    !creds ||
+    (!creds.token &&
+      !creds.accessToken &&
+      !creds.installationId &&
+      creds.authMethod !== "oauth")
+  ) {
     return {
       provider: null,
       workspace: "",
@@ -132,7 +245,15 @@ export async function getPublicOrganizationGitConfig(
   const connected =
     creds.authMethod === "github_app"
       ? Boolean(creds.installationId && creds.workspace && creds.repoSlug)
-      : Boolean(creds.token && creds.workspace && creds.repoSlug);
+      : creds.authMethod === "oauth"
+        ? Boolean(
+            (creds.accessToken || creds.token) &&
+              creds.workspace &&
+              creds.repoSlug
+          )
+        : Boolean(creds.token && creds.workspace && creds.repoSlug);
+
+  const displayToken = creds.accessToken || creds.token;
 
   return {
     provider: creds.provider,
@@ -140,15 +261,20 @@ export async function getPublicOrganizationGitConfig(
     repoSlug: creds.repoSlug,
     username: creds.username,
     hasToken:
-      Boolean(creds.token) ||
-      (creds.authMethod === "github_app" && Boolean(creds.installationId)),
-    tokenHint: creds.token ? tokenHint(creds.token) : null,
+      Boolean(displayToken) ||
+      (creds.authMethod === "github_app" && Boolean(creds.installationId)) ||
+      (creds.authMethod === "oauth" && Boolean(creds.refreshToken)),
+    tokenHint: displayToken ? tokenHint(displayToken) : null,
     webhookSecret: creds.webhookSecret,
     defaultBranch: creds.defaultBranch,
     configured: connected,
     authMethod: creds.authMethod,
     installationId: creds.installationId,
     source: "database",
+    needsRepoSelection:
+      creds.authMethod === "oauth" &&
+      Boolean(creds.accessToken || creds.refreshToken) &&
+      !creds.repoSlug,
   };
 }
 

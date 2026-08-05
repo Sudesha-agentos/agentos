@@ -17,6 +17,9 @@ export default function SettingsIntegrationDetailPage() {
   if (integrationId === "github") {
     return <Navigate to={orgPath("settings", "integrations", "github")} replace />;
   }
+  if (integrationId === "bitbucket") {
+    return <Navigate to={orgPath("settings", "integrations", "bitbucket")} replace />;
+  }
   if (integrationId === "jira") {
     return <Navigate to={orgPath("settings", "integrations", "jira")} replace />;
   }

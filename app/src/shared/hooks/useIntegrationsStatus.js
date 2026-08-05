@@ -17,6 +17,11 @@ function resolveDisplayStatus(integration, live) {
     if (live.githubNeedsSetup) return "setup_incomplete";
     return "not_connected";
   }
+  if (integration.liveStatusKey === "bitbucket") {
+    if (live.bitbucketConnected) return "connected";
+    if (live.bitbucketNeedsSetup) return "setup_incomplete";
+    return "not_connected";
+  }
   if (integration.liveStatusKey === "jira") {
     return live.jiraConnected ? "connected" : "not_connected";
   }
@@ -67,15 +72,27 @@ export function useIntegrationsStatus() {
 
   const live = useMemo(
     () => ({
-      githubConnected: Boolean(git?.connected),
+      githubConnected: Boolean(git?.connected && git?.provider !== "bitbucket"),
       githubNeedsSetup: Boolean(
-        !git?.connected && (git?.needsRepoSelection || git?.installationDetected)
+        !git?.connected &&
+          git?.provider !== "bitbucket" &&
+          (git?.needsRepoSelection || git?.installationDetected)
+      ),
+      bitbucketConnected: Boolean(
+        git?.connected && (git?.provider === "bitbucket" || git?.authMethod === "oauth")
+      ),
+      bitbucketNeedsSetup: Boolean(
+        !git?.connected &&
+          (git?.provider === "bitbucket" || git?.authMethod === "oauth") &&
+          git?.needsRepoSelection
       ),
       jiraConnected: Boolean(jira?.connected),
       logConnectedTypes: logTypes,
     }),
     [
       git?.connected,
+      git?.provider,
+      git?.authMethod,
       git?.needsRepoSelection,
       git?.installationDetected,
       jira?.connected,

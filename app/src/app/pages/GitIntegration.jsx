@@ -4,7 +4,11 @@ import {
   completeGithubInstall,
   connectGitIntegration,
   disconnectGitIntegration,
+  listBitbucketRepositories,
+  listBitbucketWorkspaces,
+  selectBitbucketRepository,
   selectGithubRepository,
+  startBitbucketOAuth,
   startGithubAppInstall,
   useGitIntegrationSetup,
 } from "../../entities/git-integration";
@@ -18,7 +22,7 @@ import { PageIntro, Panel, PanelHeader } from "../../shared/ui/Panel";
 import { SettingsPageShell } from "../layout/SettingsPageShell";
 import { useOrg } from "../../shared/providers/OrgRouteProvider";
 
-export default function GitIntegration({ embedded = false }) {
+export default function GitIntegration({ embedded = false, defaultTab = "github" }) {
   const { data: setup, error, loading, refetch } = useGitIntegrationSetup();
 
   if (loading && !setup) {
@@ -48,14 +52,24 @@ export default function GitIntegration({ embedded = false }) {
   }
 
   return (
-    <GitIntegrationContent setup={setup} refetch={refetch} embedded={embedded} />
+    <GitIntegrationContent
+      setup={setup}
+      refetch={refetch}
+      embedded={embedded}
+      defaultTab={defaultTab}
+    />
   );
 }
 
-function GitIntegrationContent({ setup, refetch, embedded = false }) {
+function GitIntegrationContent({ setup, refetch, embedded = false, defaultTab = "github" }) {
   const { orgPath } = useOrg();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [tab, setTab] = useState("github");
+  const [tab, setTab] = useState(() => {
+    const provider = searchParams.get("provider");
+    if (provider === "bitbucket") return "bitbucket";
+    if (provider === "github") return "github";
+    return defaultTab;
+  });
   const [repos, setRepos] = useState(() => setup?.availableRepositories ?? []);
   const [pendingInstallationId, setPendingInstallationId] = useState(
     () => setup?.git?.installationId ?? ""
@@ -66,12 +80,24 @@ function GitIntegrationContent({ setup, refetch, embedded = false }) {
   const [disconnectPending, setDisconnectPending] = useState(false);
   const [disconnected, setDisconnected] = useState(false);
   const [err, setErr] = useState(() => {
-    const code = searchParams.get("github_error");
-    if (code === "invalid_state") {
+    const githubCode = searchParams.get("github_error");
+    if (githubCode === "invalid_state") {
       return "GitHub install session expired or was invalid. Try Connect with GitHub again.";
     }
+
     if (code === "install_failed") {
       return "GitHub App installed on GitHub, but the server could not save it. After switching Supabase projects: sign out, sign in again, complete workspace onboarding, then reconnect GitHub. Also verify Render DATABASE_URL points to the new Supabase project.";
+
+    }
+    const bbCode = searchParams.get("bitbucket_error");
+    if (bbCode === "invalid_state") {
+      return "Bitbucket authorize session expired or was invalid. Try Connect with Bitbucket again.";
+    }
+    if (bbCode === "authorize_failed" || bbCode === "missing_code") {
+      return "Bitbucket authorization failed. Check BITBUCKET_OAUTH_CLIENT_ID/SECRET and try again.";
+    }
+    if (bbCode) {
+      return `Bitbucket authorization error: ${bbCode}`;
     }
     return "";
   });
@@ -105,10 +131,24 @@ function GitIntegrationContent({ setup, refetch, embedded = false }) {
 
   useEffect(() => {
     if (clearedGithubError.current) return;
-    if (!searchParams.get("github_error")) return;
+    if (!searchParams.get("github_error") && !searchParams.get("bitbucket_error")) {
+      return;
+    }
     clearedGithubError.current = true;
     setSearchParams({}, { replace: true });
   }, [searchParams, setSearchParams]);
+
+  useEffect(() => {
+    if (
+      searchParams.get("provider") === "bitbucket" &&
+      searchParams.get("setup_action") === "authorize"
+    ) {
+      setTab("bitbucket");
+      setStatus("Bitbucket authorized — select a workspace and repository below.");
+      setSearchParams({}, { replace: true });
+      void refetch();
+    }
+  }, [searchParams, setSearchParams, refetch]);
 
   useEffect(() => {
     if (disconnected || !setupConnected) {
@@ -581,7 +621,20 @@ function GitIntegrationContent({ setup, refetch, embedded = false }) {
           <GithubManualPanel setup={setup} refetch={refetch} />
         </>
       ) : (
-        <BitbucketManualPanel setup={setup} refetch={refetch} />
+        <BitbucketPanel
+          setup={setup}
+          refetch={refetch}
+          connected={connected}
+          disconnected={disconnected}
+          onDisconnect={onDisconnect}
+          disconnectPending={disconnectPending}
+          setStatus={setStatus}
+          setErr={setErr}
+          setIndexRunId={setIndexRunId}
+          indexRunId={indexRunId}
+          status={status}
+          err={err}
+        />
       )}
     </SettingsPageShell>
   );
@@ -690,8 +743,303 @@ function GithubManualPanel({ setup, refetch }) {
   );
 }
 
+function BitbucketPanel({
+  setup,
+  refetch,
+  connected,
+  disconnected,
+  onDisconnect,
+  disconnectPending,
+  setStatus,
+  setErr,
+  setIndexRunId,
+  indexRunId,
+  status,
+  err,
+}) {
+  const oauthConfigured = Boolean(
+    setup?.bitbucketOAuth?.configured ||
+      setup?.providers?.find((p) => p.id === "bitbucket")?.connectMode === "oauth"
+  );
+  const git = setup?.git;
+  const isOauth =
+    git?.authMethod === "oauth" && git?.provider === "bitbucket";
+  const needsRepoPick =
+    Boolean(setup?.needsRepoSelection) ||
+    (isOauth && git?.hasToken && !git?.repoSlug);
+
+  const [workspaces, setWorkspaces] = useState([]);
+  const [workspace, setWorkspace] = useState(() => git?.workspace ?? "");
+  const [bbRepos, setBbRepos] = useState([]);
+  const [selectedRepo, setSelectedRepo] = useState(() => git?.repoSlug ?? "");
+  const [loadingWorkspaces, setLoadingWorkspaces] = useState(false);
+  const [loadingRepos, setLoadingRepos] = useState(false);
+  const [selectPending, setSelectPending] = useState(false);
+  const [oauthPending, setOauthPending] = useState(false);
+
+  useEffect(() => {
+    if (!needsRepoPick && !isOauth) return;
+    let cancelled = false;
+    (async () => {
+      setLoadingWorkspaces(true);
+      try {
+        const result = await listBitbucketWorkspaces();
+        if (cancelled) return;
+        const list = result.workspaces ?? [];
+        setWorkspaces(list);
+        if (!workspace && list.length === 1) {
+          setWorkspace(list[0].slug);
+        }
+      } catch (e) {
+        if (!cancelled) {
+          setErr(e instanceof Error ? e.message : "Failed to list workspaces");
+        }
+      } finally {
+        if (!cancelled) setLoadingWorkspaces(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [needsRepoPick, isOauth, workspace, setErr]);
+
+  useEffect(() => {
+    if (!workspace) {
+      setBbRepos([]);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      setLoadingRepos(true);
+      try {
+        const result = await listBitbucketRepositories(workspace);
+        if (cancelled) return;
+        setBbRepos(result.repositories ?? []);
+      } catch (e) {
+        if (!cancelled) {
+          setErr(e instanceof Error ? e.message : "Failed to list repositories");
+        }
+      } finally {
+        if (!cancelled) setLoadingRepos(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [workspace, setErr]);
+
+  async function onSelectRepo() {
+    if (!workspace || !selectedRepo) return;
+    setSelectPending(true);
+    setErr("");
+    try {
+      const result = await selectBitbucketRepository({
+        workspace,
+        repo: selectedRepo,
+      });
+      setStatus(
+        `Connected to ${result.fullName}. Initial codebase index started.`
+      );
+      if (result.indexRunId) setIndexRunId(result.indexRunId);
+      await refetch();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Select repository failed");
+    } finally {
+      setSelectPending(false);
+    }
+  }
+
+  const webhook = setup?.webhooks?.bitbucket;
+
+  return (
+    <>
+      <Panel>
+        <PanelHeader
+          kicker={connected && isOauth ? "Connected" : "Step 1"}
+          title="Bitbucket OAuth"
+          info={
+            oauthConfigured
+              ? "Authorize AgentOX with a Bitbucket OAuth consumer (repository read/write + pull requests)."
+              : undefined
+          }
+          subtitle={
+            !oauthConfigured
+              ? "Bitbucket OAuth env vars are not set — use app password below or configure BITBUCKET_OAUTH_CLIENT_ID/SECRET on Render."
+              : undefined
+          }
+        />
+        <div className="space-y-4 p-5 sm:p-6">
+          {oauthConfigured ? (
+            <div className="flex flex-wrap items-center gap-3">
+              {!connected || !isOauth ? (
+                <button
+                  type="button"
+                  disabled={oauthPending}
+                  onClick={() => {
+                    setOauthPending(true);
+                    setErr("");
+                    startBitbucketOAuth().catch((e) => {
+                      setOauthPending(false);
+                      setErr(e instanceof Error ? e.message : "OAuth start failed");
+                    });
+                  }}
+                  className="rounded-full bg-indigo px-8 py-3 font-mono text-[11px] uppercase tracking-[0.18em] text-white disabled:opacity-50"
+                >
+                  {oauthPending ? "Redirecting…" : "Connect with Bitbucket"}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOauthPending(true);
+                    startBitbucketOAuth().catch((e) => {
+                      setOauthPending(false);
+                      setErr(e instanceof Error ? e.message : "OAuth start failed");
+                    });
+                  }}
+                  className="rounded-full border border-hairline px-4 py-2 font-mono text-[10.5px] uppercase tracking-[0.16em] text-ink-dim"
+                >
+                  Reauthorize Bitbucket
+                </button>
+              )}
+              {(connected || needsRepoPick || isOauth) && !disconnected ? (
+                <button
+                  type="button"
+                  onClick={onDisconnect}
+                  disabled={disconnectPending}
+                  className="rounded-full border border-danger/40 px-4 py-2 font-mono text-[10.5px] uppercase tracking-[0.16em] text-danger transition-opacity hover:bg-danger/5 disabled:opacity-50"
+                >
+                  {disconnectPending ? "Disconnecting…" : "Disconnect"}
+                </button>
+              ) : null}
+              {isOauth ? (
+                <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-ink-mute">
+                  Auth: OAuth
+                  {git?.workspace && git?.repoSlug
+                    ? ` · ${git.workspace}/${git.repoSlug}`
+                    : ""}
+                </span>
+              ) : null}
+            </div>
+          ) : (
+            <p className="text-sm text-muted">
+              Set <span className="font-mono">BITBUCKET_OAUTH_CLIENT_ID</span> and{" "}
+              <span className="font-mono">BITBUCKET_OAUTH_CLIENT_SECRET</span> on the
+              API, with callback URL{" "}
+              <span className="font-mono text-xs">
+                {setup?.bitbucketOAuth?.callbackUrl ??
+                  "{PUBLIC_API_URL}/api/git-integration/oauth/bitbucket/callback"}
+              </span>
+              .
+            </p>
+          )}
+          {err ? <p className="font-mono text-[11px] text-danger">{err}</p> : null}
+          {!disconnected && status ? (
+            <p className="text-sm text-success">{status}</p>
+          ) : null}
+        </div>
+      </Panel>
+
+      {needsRepoPick || (isOauth && !connected) ? (
+        <Panel>
+          <PanelHeader kicker="Step 2" title="Select repository" />
+          <div className="space-y-4 p-5 sm:p-6">
+            {loadingWorkspaces ? (
+              <div className="flex items-center gap-3 text-sm text-muted">
+                <Spinner />
+                Loading workspaces…
+              </div>
+            ) : (
+              <>
+                <label className="block text-sm text-muted">
+                  Workspace
+                  <select
+                    value={workspace}
+                    onChange={(e) => {
+                      setWorkspace(e.target.value);
+                      setSelectedRepo("");
+                    }}
+                    className="mt-1 w-full rounded-lg border border-hairline bg-surface-elevated px-3 py-2 font-mono text-sm text-ink"
+                  >
+                    <option value="">Select workspace…</option>
+                    {workspaces.map((ws) => (
+                      <option key={ws.slug} value={ws.slug}>
+                        {ws.name} ({ws.slug})
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                {loadingRepos ? (
+                  <div className="flex items-center gap-3 text-sm text-muted">
+                    <Spinner />
+                    Loading repositories…
+                  </div>
+                ) : (
+                  <label className="block text-sm text-muted">
+                    Repository
+                    <select
+                      value={selectedRepo}
+                      onChange={(e) => setSelectedRepo(e.target.value)}
+                      disabled={!workspace}
+                      className="mt-1 w-full rounded-lg border border-hairline bg-surface-elevated px-3 py-2 font-mono text-sm text-ink disabled:opacity-50"
+                    >
+                      <option value="">Select repository…</option>
+                      {bbRepos.map((repo) => (
+                        <option key={repo.slug} value={repo.slug}>
+                          {repo.fullName}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                )}
+                <button
+                  type="button"
+                  disabled={!workspace || !selectedRepo || selectPending}
+                  onClick={() => void onSelectRepo()}
+                  className="rounded-full bg-indigo px-6 py-2.5 font-mono text-[11px] uppercase tracking-[0.16em] text-white disabled:opacity-50"
+                >
+                  {selectPending ? "Connecting…" : "Use this repository"}
+                </button>
+              </>
+            )}
+          </div>
+        </Panel>
+      ) : null}
+
+      {connected && isOauth && indexRunId ? (
+        <Panel>
+          <PanelHeader kicker="Index" title="Codebase index" />
+          <div className="p-5 sm:p-6">
+            <IndexProgressBar runId={indexRunId} />
+          </div>
+        </Panel>
+      ) : null}
+
+      {webhook ? (
+        <Panel>
+          <PanelHeader kicker="Webhook" title="Repository webhook" />
+          <div className="space-y-2 p-5 sm:p-6 text-sm text-muted">
+            <p>
+              Register a repository webhook for event{" "}
+              <span className="font-mono">{webhook.events?.join(", ")}</span>
+            </p>
+            <p className="font-mono text-xs break-all rounded bg-surface-elevated p-3">
+              {webhook.url}
+            </p>
+          </div>
+        </Panel>
+      ) : null}
+
+      <BitbucketManualPanel setup={setup} refetch={refetch} />
+    </>
+  );
+}
+
 function BitbucketManualPanel({ setup, refetch }) {
   const meta = setup?.providers?.find((p) => p.id === "bitbucket");
+  const oauthConfigured = Boolean(
+    setup?.bitbucketOAuth?.configured || meta?.connectMode === "oauth"
+  );
   const [workspace, setWorkspace] = useState(() => setup?.git?.workspace ?? "");
   const [repoSlug, setRepoSlug] = useState(() => setup?.git?.repoSlug ?? "");
   const [username, setUsername] = useState(() => setup?.git?.username ?? "");
@@ -705,6 +1053,7 @@ function BitbucketManualPanel({ setup, refetch }) {
   const [pending, setPending] = useState(false);
   const [err, setErr] = useState("");
   const [status, setStatus] = useState("");
+  const [open, setOpen] = useState(!oauthConfigured);
 
   const canConnect =
     workspace &&
@@ -725,7 +1074,7 @@ function BitbucketManualPanel({ setup, refetch }) {
         webhookSecret: webhookSecret.trim() || undefined,
         defaultBranch: defaultBranch.trim() || undefined,
       });
-      setStatus(`Connected to ${result.fullName}`);
+      setStatus(`Connected to ${result.fullName ?? `${workspace}/${repoSlug}`}`);
       setToken("");
       await refetch();
     } catch (e) {
@@ -735,63 +1084,62 @@ function BitbucketManualPanel({ setup, refetch }) {
     }
   }
 
-  const webhook = setup?.webhooks?.bitbucket;
-
   return (
-    <>
-      <Panel>
-        <PanelHeader
-          kicker="Step 1"
-          title="Bitbucket credentials"
-          info="One-click Bitbucket OAuth is coming soon — use an app password for now."
-        />
-        <div className="space-y-4 p-5 sm:p-6">
-          <ManualFields
-            workspace={workspace}
-            setWorkspace={setWorkspace}
-            repoSlug={repoSlug}
-            setRepoSlug={setRepoSlug}
-            username={username}
-            setUsername={setUsername}
-            token={token}
-            setToken={setToken}
-            tokenHint={setup?.git?.hasToken ? setup.git.tokenHint : null}
-            webhookSecret={webhookSecret}
-            setWebhookSecret={setWebhookSecret}
-            defaultBranch={defaultBranch}
-            setDefaultBranch={setDefaultBranch}
-            workspaceLabel={meta?.workspaceLabel ?? "Workspace slug"}
-            repoLabel={meta?.repoLabel ?? "Repository slug"}
-            tokenLabel={meta?.tokenLabel ?? "App password"}
-            needsUsername
-          />
-          {err ? <p className="font-mono text-[11px] text-danger">{err}</p> : null}
-          {status ? <p className="text-sm text-success">{status}</p> : null}
+    <Panel>
+      <PanelHeader
+        kicker={oauthConfigured ? "Fallback" : "Step 1"}
+        title="Bitbucket app password"
+        info={
+          oauthConfigured
+            ? "Optional legacy connect using an Atlassian app password."
+            : "Use an app password when OAuth is not configured."
+        }
+      />
+      <div className="space-y-4 p-5 sm:p-6">
+        {oauthConfigured ? (
           <button
             type="button"
-            disabled={pending || !canConnect}
-            onClick={() => void onConnect()}
-            className="rounded-full bg-indigo px-6 py-2.5 font-mono text-[11px] uppercase tracking-[0.16em] text-white disabled:opacity-50"
+            onClick={() => setOpen((v) => !v)}
+            className="font-mono text-[10.5px] uppercase tracking-[0.16em] text-ink-dim underline"
           >
-            {pending ? "Connecting…" : "Connect Bitbucket"}
+            {open ? "Hide manual credentials" : "Show manual credentials"}
           </button>
-        </div>
-      </Panel>
-      {webhook ? (
-        <Panel>
-          <PanelHeader kicker="Step 2" title="Webhook" />
-          <div className="space-y-2 p-5 sm:p-6 text-sm text-muted">
-            <p>
-              Register a repository webhook for event{" "}
-              <span className="font-mono">{webhook.events?.join(", ")}</span>
-            </p>
-            <p className="font-mono text-xs break-all rounded bg-surface-elevated p-3">
-              {webhook.url}
-            </p>
-          </div>
-        </Panel>
-      ) : null}
-    </>
+        ) : null}
+        {open ? (
+          <>
+            <ManualFields
+              workspace={workspace}
+              setWorkspace={setWorkspace}
+              repoSlug={repoSlug}
+              setRepoSlug={setRepoSlug}
+              username={username}
+              setUsername={setUsername}
+              token={token}
+              setToken={setToken}
+              tokenHint={setup?.git?.hasToken ? setup.git.tokenHint : null}
+              webhookSecret={webhookSecret}
+              setWebhookSecret={setWebhookSecret}
+              defaultBranch={defaultBranch}
+              setDefaultBranch={setDefaultBranch}
+              workspaceLabel={meta?.workspaceLabel ?? "Workspace slug"}
+              repoLabel={meta?.repoLabel ?? "Repository slug"}
+              tokenLabel={meta?.tokenLabel ?? "App password"}
+              needsUsername
+            />
+            {err ? <p className="font-mono text-[11px] text-danger">{err}</p> : null}
+            {status ? <p className="text-sm text-success">{status}</p> : null}
+            <button
+              type="button"
+              disabled={pending || !canConnect}
+              onClick={() => void onConnect()}
+              className="rounded-full bg-indigo px-6 py-2.5 font-mono text-[11px] uppercase tracking-[0.16em] text-white disabled:opacity-50"
+            >
+              {pending ? "Connecting…" : "Connect with app password"}
+            </button>
+          </>
+        ) : null}
+      </div>
+    </Panel>
   );
 }
 

@@ -16,6 +16,23 @@ const restGitIntegrationAdapter = {
     fetchJson(intake("/integration/setup"), { headers: requestHeaders() }),
   getInstallUrl: () =>
     fetchJson(intake("/oauth/github/install-url"), { headers: requestHeaders() }),
+  getBitbucketInstallUrl: () =>
+    fetchJson(intake("/oauth/bitbucket/install-url"), {
+      headers: requestHeaders(),
+    }),
+  listBitbucketWorkspaces: () =>
+    fetchJson(intake("/bitbucket/workspaces"), { headers: requestHeaders() }),
+  listBitbucketRepositories: (workspace) =>
+    fetchJson(
+      intake(`/bitbucket/repositories?workspace=${encodeURIComponent(workspace)}`),
+      { headers: requestHeaders() }
+    ),
+  selectBitbucketRepo: (body) =>
+    fetchJson(intake("/bitbucket/select-repo"), {
+      method: "POST",
+      headers: requestHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify(body),
+    }),
   connect: (body) =>
     fetchJson(intake("/integration/connect"), {
       method: "POST",
@@ -47,6 +64,33 @@ const mockGitIntegrationAdapter = {
     Promise.resolve({
       url: "https://github.com/apps/agentos-dev/installations/new",
     }),
+  getBitbucketInstallUrl: () =>
+    Promise.resolve({
+      url: "https://bitbucket.org/site/oauth2/authorize?client_id=mock&response_type=code",
+    }),
+  listBitbucketWorkspaces: () =>
+    Promise.resolve({
+      workspaces: [{ slug: "acme", name: "Acme", uuid: "{mock}" }],
+    }),
+  listBitbucketRepositories: () =>
+    Promise.resolve({
+      repositories: [
+        {
+          slug: "demo",
+          name: "demo",
+          fullName: "acme/demo",
+          uuid: "{mock-repo}",
+          defaultBranch: "main",
+          isPrivate: true,
+        },
+      ],
+    }),
+  selectBitbucketRepo: (body) =>
+    Promise.resolve({
+      connected: true,
+      fullName: `${body.workspace}/${body.repo}`,
+      defaultBranch: body.defaultBranch ?? "main",
+    }),
   connect: (body) => mockApi.connectGitIntegration(body),
   completeInstall: (installationId) => mockApi.completeGithubInstall(installationId),
   selectRepo: (body) => mockApi.selectGithubRepository(body),
@@ -72,6 +116,28 @@ export async function startGithubAppInstall() {
     );
   }
   window.location.href = url;
+}
+
+export async function startBitbucketOAuth() {
+  const { url } = await gitIntegrationAdapter.getBitbucketInstallUrl();
+  if (!url) {
+    throw new Error(
+      "Bitbucket OAuth is not configured on the server (BITBUCKET_OAUTH_CLIENT_ID, BITBUCKET_OAUTH_CLIENT_SECRET)."
+    );
+  }
+  window.location.href = url;
+}
+
+export async function listBitbucketWorkspaces() {
+  return gitIntegrationAdapter.listBitbucketWorkspaces();
+}
+
+export async function listBitbucketRepositories(workspace) {
+  return gitIntegrationAdapter.listBitbucketRepositories(workspace);
+}
+
+export async function selectBitbucketRepository(body) {
+  return gitIntegrationAdapter.selectBitbucketRepo(body);
 }
 
 export async function completeGithubInstall(installationId) {
@@ -104,8 +170,10 @@ export async function fetchGitIntegrationSummary() {
     accountLogin: setup?.accountLogin ?? setup?.git?.workspace ?? null,
     repoLabel,
     authMethod: git?.authMethod ?? null,
+    provider: git?.provider ?? null,
     installationId: git?.installationId ?? null,
     githubAppConfigured: Boolean(setup?.githubApp?.configured),
+    bitbucketOAuthConfigured: Boolean(setup?.bitbucketOAuth?.configured),
   };
 }
 

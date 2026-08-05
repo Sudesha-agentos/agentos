@@ -1,10 +1,14 @@
 import {
   getGitCredentials,
   getRepoContext,
+  resolveBitbucketAccessToken,
   resolveGithubAccessToken,
   type StoredGitCredentials,
 } from "../git-integration/gitCredentialsStore";
-import { createBitbucketProvider } from "./git/bitbucketProvider";
+import {
+  createBitbucketProvider,
+  createBitbucketProviderFromAuth,
+} from "./git/bitbucketProvider";
 import { createGithubProvider } from "./git/githubProvider";
 import type { GitFileContent, GitProviderClient, GitTreeItem } from "./git/types";
 
@@ -12,10 +16,26 @@ export type { GitFileContent, GitTreeItem, GitProviderId, GitPullRequest, GitPus
 
 function clientFor(creds: StoredGitCredentials): GitProviderClient {
   if (creds.provider === "bitbucket") {
+    if (creds.authMethod === "oauth") {
+      return createBitbucketProviderFromAuth({
+        kind: "oauth",
+        accessToken: creds.accessToken || creds.token,
+      });
+    }
     const username = creds.username?.trim() || creds.workspace;
     return createBitbucketProvider(username, creds.token);
   }
   return createGithubProvider(() => resolveGithubAccessToken(creds));
+}
+
+/** Async factory that refreshes Bitbucket OAuth tokens before building the client. */
+export async function getGitClientAsync(): Promise<GitProviderClient> {
+  const creds = getGitCredentials();
+  if (creds.provider === "bitbucket" && creds.authMethod === "oauth") {
+    const accessToken = await resolveBitbucketAccessToken(creds);
+    return createBitbucketProviderFromAuth({ kind: "oauth", accessToken });
+  }
+  return clientFor(creds);
 }
 
 export function getGitClient(): GitProviderClient {
@@ -26,7 +46,8 @@ export function getGitClient(): GitProviderClient {
 export const gitClient = {
   async getRepoTree(branchName: string): Promise<GitTreeItem[]> {
     const ctx = getRepoContext();
-    return getGitClient().getRepoTree(ctx, branchName);
+    const client = await getGitClientAsync();
+    return client.getRepoTree(ctx, branchName);
   },
 
   async getFileContent(
@@ -34,13 +55,14 @@ export const gitClient = {
     branchName: string
   ): Promise<GitFileContent> {
     const ctx = getRepoContext();
-    return getGitClient().getFileContent(ctx, filePath, branchName);
+    const client = await getGitClientAsync();
+    return client.getFileContent(ctx, filePath, branchName);
   },
 
   async cloneUrl(): Promise<string> {
-    const creds = getGitCredentials();
     const ctx = getRepoContext();
-    return clientFor(creds).cloneUrl(ctx);
+    const client = await getGitClientAsync();
+    return client.cloneUrl(ctx);
   },
 
   async pushFilesToBranch(
@@ -50,7 +72,14 @@ export const gitClient = {
     commitMessage: string
   ): Promise<{ sha: string }> {
     const ctx = getRepoContext();
-    return getGitClient().pushFilesToBranch(ctx, targetBranch, sourceBranch, files, commitMessage);
+    const client = await getGitClientAsync();
+    return client.pushFilesToBranch(
+      ctx,
+      targetBranch,
+      sourceBranch,
+      files,
+      commitMessage
+    );
   },
 
   async createPullRequest(
@@ -61,7 +90,15 @@ export const gitClient = {
     draft = true
   ): Promise<import("./git/types").GitPullRequest> {
     const ctx = getRepoContext();
-    return getGitClient().createPullRequest(ctx, headBranch, baseBranch, title, body, draft);
+    const client = await getGitClientAsync();
+    return client.createPullRequest(
+      ctx,
+      headBranch,
+      baseBranch,
+      title,
+      body,
+      draft
+    );
   },
 
   async updatePullRequest(
@@ -69,6 +106,7 @@ export const gitClient = {
     updates: { title?: string; body?: string; draft?: boolean }
   ): Promise<void> {
     const ctx = getRepoContext();
-    return getGitClient().updatePullRequest(ctx, prNumber, updates);
+    const client = await getGitClientAsync();
+    return client.updatePullRequest(ctx, prNumber, updates);
   },
 };

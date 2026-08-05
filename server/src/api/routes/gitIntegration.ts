@@ -5,6 +5,12 @@ import {
   selectGithubRepository,
 } from "../../git-integration/githubInstall";
 import {
+  completeBitbucketOAuthAuthorization,
+  listAuthorizedBitbucketRepositories,
+  listAuthorizedBitbucketWorkspaces,
+  selectBitbucketRepository,
+} from "../../git-integration/bitbucketInstall";
+import {
   enqueueFullIndex,
   getIndexRunById,
   getLatestIndexRun,
@@ -21,6 +27,12 @@ import {
   listAppInstallations,
   probeGithubAppCredentials,
 } from "../../integrations/git/githubApp";
+import {
+  bitbucketOAuthRedirectUri,
+  buildBitbucketAuthorizeUrl,
+  exchangeBitbucketCode,
+  isBitbucketOAuthConfigured,
+} from "../../integrations/git/bitbucketOAuth";
 import { resolveGitIntegrationSetupState } from "../../git-integration/gitSetupState";
 import { reconcileOrganizationGithubIntegration } from "../../git-integration/reconcileIntegration";
 import { repairOrganizationGithubInstall } from "../../git-integration/githubOrgRepair";
@@ -49,12 +61,12 @@ function publicApiBase(req: Request): string {
   return `${proto}://${host}`;
 }
 
-function frontendGitUrl(orgSlug?: string): string {
+function frontendGitUrl(orgSlug?: string, provider: "github" | "bitbucket" = "github"): string {
   if (orgSlug?.trim()) {
-    return frontendIntegrationUrl(orgSlug.trim(), "github");
+    return frontendIntegrationUrl(orgSlug.trim(), provider);
   }
   const base = frontendBaseUrl();
-  return base ? `${base}/app/settings/integrations/github` : "";
+  return base ? `${base}/app/settings/integrations/${provider}` : "";
 }
 
 async function resolveOrgSlug(
@@ -152,6 +164,15 @@ router.get("/integration/setup", async (req, res, next) => {
             secretEnv: "BITBUCKET_WEBHOOK_SECRET",
           },
         },
+        bitbucketOAuth: {
+          configured: isBitbucketOAuthConfigured(),
+          authorizeUrl: isBitbucketOAuthConfigured()
+            ? `${base}/api/git-integration/oauth/bitbucket/install`
+            : null,
+          callbackUrl: bitbucketOAuthRedirectUri(base),
+          scopesHint:
+            "repository, repository:write, pullrequest, pullrequest:write, webhook",
+        },
         providers: [
           {
             id: "github",
@@ -165,10 +186,10 @@ router.get("/integration/setup", async (req, res, next) => {
           {
             id: "bitbucket",
             label: "Bitbucket",
-            connectMode: "pat",
+            connectMode: isBitbucketOAuthConfigured() ? "oauth" : "pat",
             workspaceLabel: "Workspace slug",
             repoLabel: "Repository slug",
-            tokenLabel: "App password (repository read)",
+            tokenLabel: "App password (repository read/write)",
             needsUsername: true,
           },
         ],
@@ -421,7 +442,7 @@ router.post("/integration/disconnect", async (req, res, next) => {
       ok: true,
       disconnected: true,
       message:
-        "GitHub integration removed. Connect with GitHub again to install the app and select a repository.",
+        "Git integration removed. Connect GitHub or Bitbucket again to authorize and select a repository.",
     });
   } catch (err) {
     next(err);
@@ -441,6 +462,191 @@ router.post("/github/select-repo", async (req, res, next) => {
         ? String(req.body.defaultBranch)
         : undefined,
       organizationId: user.organizationId,
+    });
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// --- Bitbucket OAuth 2.0 (3-LO) — equivalent to GitHub App install flow ---
+
+router.get("/oauth/bitbucket/install-url", async (req, res) => {
+  const user = requireOrganizationUser(req, res);
+  if (!user?.organizationId) return;
+
+  if (!isBitbucketOAuthConfigured()) {
+    res.status(503).json({
+      error: "bitbucket_oauth_not_configured",
+      message:
+        "Set BITBUCKET_OAUTH_CLIENT_ID and BITBUCKET_OAUTH_CLIENT_SECRET on the server.",
+    });
+    return;
+  }
+
+  const slug = await resolveOrgSlug(user.organizationId, user.organizationSlug);
+  const state = createOAuthState(user.organizationId, slug);
+  const url = buildBitbucketAuthorizeUrl(state);
+  res.json({ url });
+});
+
+router.get("/oauth/bitbucket/install", async (req, res) => {
+  if (!isBitbucketOAuthConfigured()) {
+    res.status(503).json({
+      error: "bitbucket_oauth_not_configured",
+      message:
+        "Set BITBUCKET_OAUTH_CLIENT_ID and BITBUCKET_OAUTH_CLIENT_SECRET on the server.",
+    });
+    return;
+  }
+
+  // Prefer authenticated org binding; fall back to anonymous state for browser redirect.
+  let organizationId: string | undefined;
+  let organizationSlug: string | undefined;
+  try {
+    const user = requireOrganizationUser(req, res);
+    if (user?.organizationId) {
+      organizationId = user.organizationId;
+      organizationSlug = await resolveOrgSlug(
+        user.organizationId,
+        user.organizationSlug
+      );
+    } else {
+      return;
+    }
+  } catch {
+    /* requireOrganizationUser already sent a response */
+    return;
+  }
+
+  const state = createOAuthState(organizationId, organizationSlug);
+  res.redirect(buildBitbucketAuthorizeUrl(state));
+});
+
+router.get("/oauth/bitbucket/callback", async (req, res) => {
+  const code = String(req.query.code ?? "");
+  const state = String(req.query.state ?? "");
+  const oauthError = String(req.query.error ?? "");
+  const parsedState = state ? parseOAuthState(state) : { valid: false as const };
+  const slug = await resolveOrgSlug(
+    parsedState.valid ? parsedState.organizationId : undefined,
+    parsedState.valid ? parsedState.organizationSlug : undefined
+  );
+  const frontend = frontendGitUrl(slug, "bitbucket");
+
+  if (oauthError) {
+    if (frontend) {
+      res.redirect(
+        `${frontend}?bitbucket_error=${encodeURIComponent(oauthError)}&provider=bitbucket`
+      );
+      return;
+    }
+    res.status(400).json({ error: oauthError });
+    return;
+  }
+
+  if (!parsedState.valid || !parsedState.organizationId) {
+    if (frontend) {
+      res.redirect(`${frontend}?bitbucket_error=invalid_state&provider=bitbucket`);
+      return;
+    }
+    res.status(400).json({ error: "invalid_oauth_state" });
+    return;
+  }
+
+  if (!code.trim()) {
+    if (frontend) {
+      res.redirect(`${frontend}?bitbucket_error=missing_code&provider=bitbucket`);
+      return;
+    }
+    res.status(400).json({ error: "missing_code" });
+    return;
+  }
+
+  let authorizeError: string | null = null;
+  try {
+    const tokens = await exchangeBitbucketCode(code);
+    await completeBitbucketOAuthAuthorization({
+      organizationId: parsedState.organizationId,
+      accessToken: tokens.access_token,
+      refreshToken: tokens.refresh_token,
+      expiresIn: tokens.expires_in,
+      scopes: tokens.scopes,
+    });
+  } catch (err) {
+    authorizeError =
+      err instanceof Error ? err.message : "Bitbucket OAuth authorize failed";
+    logger.warn({ err }, "bitbucket oauth callback failed");
+  }
+
+  if (frontend) {
+    const params = new URLSearchParams();
+    params.set("provider", "bitbucket");
+    if (authorizeError) {
+      params.set("bitbucket_error", "authorize_failed");
+    } else {
+      params.set("setup_action", "authorize");
+    }
+    res.redirect(`${frontend}?${params.toString()}`);
+    return;
+  }
+
+  if (authorizeError) {
+    res.status(502).json({ error: "bitbucket_oauth_failed", message: authorizeError });
+    return;
+  }
+
+  res.json({
+    ok: true,
+    hint: "Set FRONTEND_URL on the server to redirect back to the app after authorize.",
+  });
+});
+
+router.get("/bitbucket/workspaces", async (req, res, next) => {
+  try {
+    const user = requireOrganizationUser(req, res);
+    if (!user?.organizationId) return;
+
+    const workspaces = await listAuthorizedBitbucketWorkspaces(user.organizationId);
+    res.json({ workspaces });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get("/bitbucket/repositories", async (req, res, next) => {
+  try {
+    const user = requireOrganizationUser(req, res);
+    if (!user?.organizationId) return;
+
+    const workspace = String(req.query.workspace ?? "").trim();
+    if (!workspace) {
+      res.status(400).json({ error: "workspace is required" });
+      return;
+    }
+
+    const repositories = await listAuthorizedBitbucketRepositories(
+      user.organizationId,
+      workspace
+    );
+    res.json({ repositories });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post("/bitbucket/select-repo", async (req, res, next) => {
+  try {
+    const user = requireOrganizationUser(req, res);
+    if (!user?.organizationId) return;
+
+    const result = await selectBitbucketRepository({
+      organizationId: user.organizationId,
+      workspace: String(req.body?.workspace ?? ""),
+      repo: String(req.body?.repo ?? req.body?.repoSlug ?? ""),
+      defaultBranch: req.body?.defaultBranch
+        ? String(req.body.defaultBranch)
+        : undefined,
     });
     res.json(result);
   } catch (err) {

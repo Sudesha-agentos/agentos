@@ -6,6 +6,7 @@ import {
   listStoredRepositories,
 } from "./githubInstallationStore";
 import { listInstallationRepositories } from "../integrations/git/githubApp";
+import { isBitbucketOAuthConfigured } from "../integrations/git/bitbucketOAuth";
 import { logger } from "../utils/logger";
 
 export type GitIntegrationSetupState = {
@@ -15,9 +16,10 @@ export type GitIntegrationSetupState = {
   availableRepositories: Awaited<ReturnType<typeof listStoredRepositories>>;
   installationDetected: boolean;
   accountLogin: string | null;
+  bitbucketOAuthConfigured: boolean;
 };
 
-/** Merge org git config with Postgres GitHub App install metadata. */
+/** Merge org git config with Postgres GitHub App / Bitbucket OAuth metadata. */
 export async function resolveGitIntegrationSetupState(
   git: PublicGitCredentials,
   options?: { orgScoped?: boolean; organizationId?: string }
@@ -62,20 +64,29 @@ export async function resolveGitIntegrationSetupState(
   }
 
   const needsRepoSelection = Boolean(
-    merged.authMethod === "github_app" &&
+    (merged.authMethod === "github_app" &&
       merged.installationId &&
-      !merged.repoSlug
+      !merged.repoSlug) ||
+      (merged.authMethod === "oauth" &&
+        merged.provider === "bitbucket" &&
+        merged.hasToken &&
+        !merged.repoSlug) ||
+      merged.needsRepoSelection
   );
 
   const connected = Boolean(
     merged.authMethod === "github_app"
       ? merged.installationId && merged.workspace && merged.repoSlug
-      : merged.hasToken && merged.workspace && merged.repoSlug
+      : merged.authMethod === "oauth"
+        ? merged.hasToken && merged.workspace && merged.repoSlug
+        : merged.hasToken && merged.workspace && merged.repoSlug
   );
 
   let availableRepositories: Awaited<ReturnType<typeof listStoredRepositories>> = [];
   const shouldListRepos = Boolean(
-    merged.installationId && (needsRepoSelection || !connected)
+    merged.installationId &&
+      merged.authMethod === "github_app" &&
+      (needsRepoSelection || !connected)
   );
   if (shouldListRepos && merged.installationId) {
     try {
@@ -98,5 +109,6 @@ export async function resolveGitIntegrationSetupState(
     availableRepositories,
     installationDetected: Boolean(pg?.installationId ?? merged.installationId),
     accountLogin: pg?.accountLogin ?? (merged.workspace || null),
+    bitbucketOAuthConfigured: isBitbucketOAuthConfigured(),
   };
 }
