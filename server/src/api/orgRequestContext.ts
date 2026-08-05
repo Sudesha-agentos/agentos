@@ -8,6 +8,8 @@ import {
   warmOrganizationGitCredentials,
 } from "../git-integration/gitCredentialsStore";
 import { runInOrganizationContextAsync } from "../organization/context";
+import { getOrganizationForUser } from "../organization/service";
+import { logger } from "../utils/logger";
 import { resolveUserFromAuthHeader, type SessionUser } from "./routes/authSession";
 
 export function requireAuthUser(
@@ -35,8 +37,51 @@ export function requireOrganizationUser(
   return user;
 }
 
+<<<<<<< HEAD
 /** Alias kept for call sites / tooling that resolve this name. */
 export const requireOrganizationUserFromDb = requireOrganizationUser;
+=======
+/** Resolve workspace from Postgres — ignores stale organizationId in JWT after DB migration. */
+export async function requireOrganizationUserFromDb(
+  req: Request,
+  res: Response
+): Promise<SessionUser | null> {
+  const user = requireAuthUser(req, res);
+  if (!user) return null;
+
+  const membership = await getOrganizationForUser(user.id);
+  if (!membership) {
+    res.status(403).json({
+      error: "organization_required",
+      message:
+        "Your workspace is not set up in this database. Sign out, sign in again, and complete onboarding.",
+    });
+    return null;
+  }
+
+  if (user.organizationId && user.organizationId !== membership.organization.id) {
+    logger.warn(
+      {
+        userId: user.id,
+        jwtOrganizationId: user.organizationId,
+        dbOrganizationId: membership.organization.id,
+      },
+      "stale organizationId in JWT — using database membership"
+    );
+  }
+
+  return {
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    organizationId: membership.organization.id,
+    organizationName: membership.organization.name,
+    organizationDomain: membership.organization.domain,
+    organizationSlug: membership.organization.slug,
+    organizationRole: membership.role,
+  };
+}
+>>>>>>> 9f1c0ac7aeeb2b4af7c12c9509838c6e4d477e3a
 
 export async function withOrganizationContext<T>(
   organizationId: string,

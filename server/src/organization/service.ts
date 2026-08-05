@@ -232,3 +232,15 @@ export async function getOrganizationForUser(userId: string) {
     role: membership.role,
   };
 }
+
+/** True when JWT carries an organizationId that no longer exists in Postgres (e.g. after DB migration). */
+export async function isStaleJwtOrganization(
+  organizationId: string | undefined
+): Promise<boolean> {
+  if (!organizationId?.trim()) return false;
+  const row = await prisma.organization.findUnique({
+    where: { id: organizationId },
+    select: { id: true },
+  });
+  return !row;
+}
