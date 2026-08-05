@@ -44,6 +44,10 @@ import {
   frontendIntegrationUrl,
 } from "../../shared/frontendUrls";
 import {
+<<<<<<< HEAD
+  requireOrganizationUser,
+=======
+>>>>>>> 9f1c0ac7aeeb2b4af7c12c9509838c6e4d477e3a
   requireOrganizationUserFromDb,
   withOrganizationContext,
 } from "../orgRequestContext";
@@ -51,6 +55,9 @@ import { logger } from "../../utils/logger";
 import type { GitProviderId } from "../../integrations/git/types";
 
 const router = Router();
+
+/** Prefer the shared org auth helper (FromDb alias included for TS resolution). */
+const requireOrgUser = requireOrganizationUserFromDb ?? requireOrganizationUser;
 
 function publicApiBase(req: Request): string {
   if (process.env.PUBLIC_API_URL?.trim()) {
@@ -472,7 +479,7 @@ router.post("/github/select-repo", async (req, res, next) => {
 // --- Bitbucket OAuth 2.0 (3-LO) — equivalent to GitHub App install flow ---
 
 router.get("/oauth/bitbucket/install-url", async (req, res) => {
-  const user = requireOrganizationUser(req, res);
+  const user = requireOrgUser(req, res);
   if (!user?.organizationId) return;
 
   if (!isBitbucketOAuthConfigured()) {
@@ -500,26 +507,14 @@ router.get("/oauth/bitbucket/install", async (req, res) => {
     return;
   }
 
-  // Prefer authenticated org binding; fall back to anonymous state for browser redirect.
-  let organizationId: string | undefined;
-  let organizationSlug: string | undefined;
-  try {
-    const user = requireOrganizationUser(req, res);
-    if (user?.organizationId) {
-      organizationId = user.organizationId;
-      organizationSlug = await resolveOrgSlug(
-        user.organizationId,
-        user.organizationSlug
-      );
-    } else {
-      return;
-    }
-  } catch {
-    /* requireOrganizationUser already sent a response */
-    return;
-  }
+  const user = requireOrgUser(req, res);
+  if (!user?.organizationId) return;
 
-  const state = createOAuthState(organizationId, organizationSlug);
+  const organizationSlug = await resolveOrgSlug(
+    user.organizationId,
+    user.organizationSlug
+  );
+  const state = createOAuthState(user.organizationId, organizationSlug);
   res.redirect(buildBitbucketAuthorizeUrl(state));
 });
 
@@ -604,7 +599,7 @@ router.get("/oauth/bitbucket/callback", async (req, res) => {
 
 router.get("/bitbucket/workspaces", async (req, res, next) => {
   try {
-    const user = requireOrganizationUser(req, res);
+    const user = requireOrgUser(req, res);
     if (!user?.organizationId) return;
 
     const workspaces = await listAuthorizedBitbucketWorkspaces(user.organizationId);
@@ -616,7 +611,7 @@ router.get("/bitbucket/workspaces", async (req, res, next) => {
 
 router.get("/bitbucket/repositories", async (req, res, next) => {
   try {
-    const user = requireOrganizationUser(req, res);
+    const user = requireOrgUser(req, res);
     if (!user?.organizationId) return;
 
     const workspace = String(req.query.workspace ?? "").trim();
@@ -637,7 +632,7 @@ router.get("/bitbucket/repositories", async (req, res, next) => {
 
 router.post("/bitbucket/select-repo", async (req, res, next) => {
   try {
-    const user = requireOrganizationUser(req, res);
+    const user = requireOrgUser(req, res);
     if (!user?.organizationId) return;
 
     const result = await selectBitbucketRepository({

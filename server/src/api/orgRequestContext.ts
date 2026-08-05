@@ -37,6 +37,10 @@ export function requireOrganizationUser(
   return user;
 }
 
+<<<<<<< HEAD
+/** Alias kept for call sites / tooling that resolve this name. */
+export const requireOrganizationUserFromDb = requireOrganizationUser;
+=======
 /** Resolve workspace from Postgres — ignores stale organizationId in JWT after DB migration. */
 export async function requireOrganizationUserFromDb(
   req: Request,
@@ -77,6 +81,7 @@ export async function requireOrganizationUserFromDb(
     organizationRole: membership.role,
   };
 }
+>>>>>>> 9f1c0ac7aeeb2b4af7c12c9509838c6e4d477e3a
 
 export async function withOrganizationContext<T>(
   organizationId: string,
