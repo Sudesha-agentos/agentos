@@ -591,7 +591,7 @@
   animation: torus-hero-plot 0.7s var(--ease-plot) 0.2s both;
 }
 
-.torus-marketing h1.wordmark {
+.torus-marketing .wordmark {
   font-family: var(--font-display);
   font-size: 84px;
   font-weight: 300;
@@ -1807,7 +1807,7 @@
     padding: 0 64px;
   }
 
-  .torus-marketing h1.wordmark {
+  .torus-marketing .wordmark {
     font-size: 96px;
     letter-spacing: 24px;
   }
@@ -1827,7 +1827,7 @@
     padding: 0 32px;
   }
 
-  .torus-marketing h1.wordmark {
+  .torus-marketing .wordmark {
     font-size: 64px;
     letter-spacing: 14px;
   }
@@ -1847,7 +1847,7 @@
     padding: 0 20px;
   }
 
-  .torus-marketing h1.wordmark {
+  .torus-marketing .wordmark {
     font-size: 44px;
     letter-spacing: 10px;
   }
@@ -1938,7 +1938,7 @@
     padding: 100px 0 48px;
   }
 
-  .torus-marketing h1.wordmark {
+  .torus-marketing .wordmark {
     font-size: 36px;
     letter-spacing: 8px;
   }
