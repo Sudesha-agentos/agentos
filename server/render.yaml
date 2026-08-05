@@ -45,3 +45,11 @@ services:
       # Skip npm install in Ananta workspace on small instances
       - key: ENGINEERING_SKIP_NPM_INSTALL
         value: "1"
+      # Bitbucket Cloud OAuth 2.0 consumer (set in Render dashboard)
+      - key: BITBUCKET_OAUTH_CLIENT_ID
+        sync: false
+      - key: BITBUCKET_OAUTH_CLIENT_SECRET
+        sync: false
+      # Optional override; defaults to {PUBLIC_API_URL}/api/git-integration/oauth/bitbucket/callback
+      - key: BITBUCKET_OAUTH_REDIRECT_URI
+        sync: false

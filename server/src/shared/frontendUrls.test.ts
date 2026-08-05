@@ -15,6 +15,10 @@ describe("frontendIntegrationUrl", () => {
         "https://app.example.com/acme/settings/integrations/github"
       );
       assert.equal(
+        frontendIntegrationUrl("acme", "bitbucket"),
+        "https://app.example.com/acme/settings/integrations/bitbucket"
+      );
+      assert.equal(
         frontendIntegrationUrl("acme", "jira"),
         "https://app.example.com/acme/settings/integrations/jira"
       );

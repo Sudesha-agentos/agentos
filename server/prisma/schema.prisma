@@ -457,6 +457,11 @@ model OrganizationGitConfig {
   defaultBranch  String       @default("main")
   installationId String?
   authMethod     String       @default("pat")
+  /// Bitbucket OAuth 2.0 (3-LO) token fields — mirrors OrganizationJiraConfig
+  accessToken    String       @default("")
+  refreshToken   String       @default("")
+  tokenExpiresAt DateTime?
+  scopes         String       @default("")
   updatedAt      DateTime     @updatedAt
 }
 

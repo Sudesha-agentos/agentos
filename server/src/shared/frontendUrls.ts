@@ -53,7 +53,7 @@ export function frontendBaseUrl(): string {
 
 export function frontendIntegrationUrl(
   orgSlug: string,
-  integration: "github" | "jira"
+  integration: "github" | "jira" | "bitbucket"
 ): string {
   const base = frontendBaseUrl();
   if (!base || !orgSlug.trim()) return "";

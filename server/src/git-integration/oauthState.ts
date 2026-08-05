@@ -4,6 +4,7 @@ const STATE_TTL_MS = 15 * 60 * 1000;
 
 function stateSecret(): string {
   return (
+    process.env.BITBUCKET_OAUTH_STATE_SECRET?.trim() ??
     process.env.GITHUB_OAUTH_STATE_SECRET?.trim() ??
     process.env.GITHUB_APP_WEBHOOK_SECRET?.trim() ??
     process.env.GITHUB_APP_PRIVATE_KEY?.trim()?.slice(0, 64) ??

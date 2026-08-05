@@ -16,6 +16,7 @@ export default function SettingsRoutes() {
         <Route index element={<Navigate to="integrations" replace />} />
         <Route path="plan" element={<SettingsPlanPage />} />
         <Route path="integrations/github" element={<GitIntegration embedded />} />
+        <Route path="integrations/bitbucket" element={<GitIntegration embedded defaultTab="bitbucket" />} />
         <Route path="integrations/jira" element={<JiraIntegration embedded />} />
         <Route path="integrations" element={<SettingsIntegrationsPage />} />
         <Route path="integrations/:integrationId" element={<SettingsIntegrationDetailPage />} />

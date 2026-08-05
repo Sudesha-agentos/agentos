@@ -16,7 +16,7 @@ import type { GitProviderId, GitRepoContext } from "../integrations/git/types";
 
 const prismaAny = prisma as any;
 
-export type GitAuthMethod = "pat" | "github_app";
+export type GitAuthMethod = "pat" | "github_app" | "oauth";
 
 export interface StoredGitCredentials {
   provider: GitProviderId;
@@ -29,6 +29,10 @@ export interface StoredGitCredentials {
   installationId: string | null;
   authMethod: GitAuthMethod;
   source: "database" | "environment" | "none";
+  accessToken?: string;
+  refreshToken?: string;
+  tokenExpiresAt?: Date | null;
+  scopes?: string;
 }
 
 export interface PublicGitCredentials {
@@ -44,6 +48,8 @@ export interface PublicGitCredentials {
   authMethod: GitAuthMethod | null;
   installationId: string | null;
   source: StoredGitCredentials["source"];
+  /** True when OAuth/App authorized but no repository selected yet. */
+  needsRepoSelection?: boolean;
 }
 
 function nowIso(): string {
@@ -172,17 +178,25 @@ let runtimeCreds: StoredGitCredentials | null = null;
 const orgRuntimeCreds = new Map<string, StoredGitCredentials>();
 
 function orgCredsToStored(creds: OrganizationGitCredentials): StoredGitCredentials {
+  const token =
+    creds.authMethod === "oauth"
+      ? creds.accessToken || creds.token
+      : creds.token;
   return {
     provider: creds.provider,
     workspace: creds.workspace,
     repoSlug: creds.repoSlug,
     username: creds.username,
-    token: creds.token,
+    token,
     webhookSecret: creds.webhookSecret,
     defaultBranch: creds.defaultBranch,
     installationId: creds.installationId,
     authMethod: creds.authMethod,
     source: "database",
+    accessToken: creds.accessToken,
+    refreshToken: creds.refreshToken,
+    tokenExpiresAt: creds.tokenExpiresAt,
+    scopes: creds.scopes,
   };
 }
 
@@ -238,10 +252,21 @@ export function getGitCredentials(): StoredGitCredentials {
   if (creds.authMethod === "github_app" && creds.installationId) {
     return creds;
   }
+  if (creds.authMethod === "oauth" && (creds.token || creds.accessToken || creds.refreshToken)) {
+    return creds;
+  }
   if (!creds.token) {
     throw new Error("Git provider not configured.");
   }
   return creds;
+}
+
+const BITBUCKET_REFRESH_BUFFER_MS = 5 * 60 * 1000;
+const bitbucketRefreshInFlight = new Map<string, Promise<string>>();
+
+function bitbucketTokenNeedsRefresh(expiresAt: Date | null | undefined): boolean {
+  if (!expiresAt) return true;
+  return expiresAt.getTime() - Date.now() <= BITBUCKET_REFRESH_BUFFER_MS;
 }
 
 export async function resolveGithubAccessToken(
@@ -256,6 +281,64 @@ export async function resolveGithubAccessToken(
   return creds.token;
 }
 
+/** Resolve a usable Bitbucket token, refreshing OAuth access tokens when needed. */
+export async function resolveBitbucketAccessToken(
+  creds: StoredGitCredentials = getGitCredentials()
+): Promise<string> {
+  if (creds.authMethod !== "oauth") {
+    if (!creds.token) {
+      throw new Error("Bitbucket token is not configured");
+    }
+    return creds.token;
+  }
+
+  const current = creds.accessToken || creds.token;
+  if (current && !bitbucketTokenNeedsRefresh(creds.tokenExpiresAt ?? null)) {
+    return current;
+  }
+
+  const orgId = getActiveOrganizationId();
+  if (!orgId || !creds.refreshToken) {
+    if (current) return current;
+    throw new Error("Bitbucket OAuth token expired and cannot be refreshed");
+  }
+
+  const existing = bitbucketRefreshInFlight.get(orgId);
+  if (existing) return existing;
+
+  const task = (async () => {
+    const { refreshBitbucketToken } = await import(
+      "../integrations/git/bitbucketOAuth"
+    );
+    const { saveOrganizationBitbucketOAuthTokens } = await import(
+      "../organization/gitConfigStore"
+    );
+    const tokens = await refreshBitbucketToken(creds.refreshToken!);
+    const expiresAt = new Date(Date.now() + tokens.expires_in * 1000);
+    await saveOrganizationBitbucketOAuthTokens(orgId, {
+      accessToken: tokens.access_token,
+      refreshToken: tokens.refresh_token ?? creds.refreshToken,
+      tokenExpiresAt: expiresAt,
+      scopes: tokens.scopes ?? creds.scopes,
+      workspace: creds.workspace,
+      repoSlug: creds.repoSlug,
+      username: creds.username,
+    });
+    await warmOrganizationGitCredentials(orgId);
+    if (getActiveOrganizationId() === orgId) {
+      activateOrganizationGitContext(orgId);
+    }
+    return tokens.access_token;
+  })();
+
+  bitbucketRefreshInFlight.set(orgId, task);
+  try {
+    return await task;
+  } finally {
+    bitbucketRefreshInFlight.delete(orgId);
+  }
+}
+
 export function getRepoContext(): GitRepoContext {
   const creds = getGitCredentials();
   return {
@@ -268,7 +351,13 @@ export function getRepoContext(): GitRepoContext {
 
 export function getPublicGitCredentials(): PublicGitCredentials {
   const creds = getActiveGitCredentialsInternal();
-  if (!creds || (!creds.token && !creds.installationId)) {
+  if (
+    !creds ||
+    (!creds.token &&
+      !creds.accessToken &&
+      !creds.installationId &&
+      !(creds.authMethod === "oauth" && creds.refreshToken))
+  ) {
     return {
       provider: null,
       workspace: "",
@@ -287,21 +376,35 @@ export function getPublicGitCredentials(): PublicGitCredentials {
   const connected =
     creds.authMethod === "github_app"
       ? Boolean(creds.installationId && creds.workspace && creds.repoSlug)
-      : Boolean(creds.token && creds.workspace && creds.repoSlug);
+      : creds.authMethod === "oauth"
+        ? Boolean(
+            (creds.token || creds.accessToken) &&
+              creds.workspace &&
+              creds.repoSlug
+          )
+        : Boolean(creds.token && creds.workspace && creds.repoSlug);
+
+  const displayToken = creds.accessToken || creds.token;
 
   return {
     provider: creds.provider,
     workspace: creds.workspace,
     repoSlug: creds.repoSlug,
     username: creds.username,
-    hasToken: Boolean(creds.token),
-    tokenHint: creds.token ? tokenHint(creds.token) : null,
+    hasToken:
+      Boolean(displayToken) ||
+      (creds.authMethod === "oauth" && Boolean(creds.refreshToken)),
+    tokenHint: displayToken ? tokenHint(displayToken) : null,
     webhookSecret: creds.webhookSecret,
     defaultBranch: creds.defaultBranch,
     configured: connected,
     authMethod: creds.authMethod,
     installationId: creds.installationId,
     source: creds.source,
+    needsRepoSelection:
+      creds.authMethod === "oauth" &&
+      Boolean(creds.accessToken || creds.refreshToken || creds.token) &&
+      !creds.repoSlug,
   };
 }
 
@@ -331,6 +434,10 @@ export async function saveGitCredentialsForOrganization(
     defaultBranch?: string;
     installationId?: string | null;
     authMethod?: GitAuthMethod;
+    accessToken?: string;
+    refreshToken?: string;
+    tokenExpiresAt?: Date | null;
+    scopes?: string;
   }
 ): Promise<StoredGitCredentials> {
   const creds = await saveOrganizationGitConfig(organizationId, input);
@@ -404,6 +511,9 @@ export function saveGitCredentials(input: {
   }
   if (authMethod === "github_app" && !installationId) {
     throw new Error("installationId is required for GitHub App auth");
+  }
+  if (authMethod === "oauth" && !token && !input.token) {
+    throw new Error("access token is required for Bitbucket OAuth");
   }
 
   const creds: StoredGitCredentials = {
@@ -494,6 +604,12 @@ export function validateGitConfig(): void {
   if (creds.authMethod === "github_app") {
     if (!creds.installationId || !creds.workspace || !creds.repoSlug) {
       throw new Error("GitHub App installation incomplete — select a repository");
+    }
+    return;
+  }
+  if (creds.authMethod === "oauth") {
+    if (!(creds.token || creds.accessToken) || !creds.workspace || !creds.repoSlug) {
+      throw new Error("Bitbucket OAuth incomplete — select a repository");
     }
     return;
   }
