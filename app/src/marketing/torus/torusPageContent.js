@@ -1,10 +1,13 @@
-/** AgentOX marketing copy — Torus-style layout (usetorus.com structure). */
+/** AgentOX marketing copy — Torus-style layout (usetorus.com structure).
+ *  SEO-optimised strings; layout/components unchanged.
+ */
 
 export const BRAND = {
   name: "AGENTOX",
-  tagline: "FROM JIRA TICKET TO SHIPPED CODE",
-  footerTagline: "Built for engineering teams that ship.",
-  email: "sudesha@agentox.io",
+  tagline: "AI SDLC AUTOMATION · JIRA TO PRODUCTION",
+  footerTagline:
+    "The AI pipeline for engineering teams who ship features right the first time.",
+  email: "hello@agentox.io",
 };
 
 export const NAV_LINKS = [
@@ -14,9 +17,10 @@ export const NAV_LINKS = [
 ];
 
 export const HERO = {
-  headline: "Agents that think in Jira tickets, PRDs, and pull requests.",
+  headline:
+    "The AI pipeline that goes from Jira ticket to shipped code — without losing what you actually meant.",
   description:
-    "AgentOX's AI agents understand every requirement across your tickets, codebase, and test suites. They cross-reference every detail and adopt how your team ships.",
+    "AgentOX orchestrates Product, Engineering, and QA AI agents through your software development lifecycle. Requirement gaps caught. Code written against your real codebase. Tests run. Draft PR opened — all from the Jira ticket you already created. No credit card · Setup in 30 minutes · Works with Jira and GitHub.",
   primaryCta: "REQUEST EARLY ACCESS",
   primaryHref: "/login",
   secondaryCta: "SEE THE PIPELINE",
@@ -28,7 +32,7 @@ export const SECTION_01 = {
   id: "platform",
   label: "ENGINEERING INTELLIGENCE",
   intro:
-    "Connect Jira and GitHub. AgentOX runs discovery, implementation, and QA in sequence — with validation gates between every handoff. Engineers see consistency flags. PMs see workflow automation. Same ticket, same pipeline.",
+    "Three agents. One pipeline. Zero lost context. Connect Jira and GitHub — AgentOX runs Product discovery, Engineering implementation, and QA validation in sequence, with human gates between every handoff. Automated PRD generation, an AI engineering agent that reads your codebase, and an AI QA agent that executes real tests. Same ticket. Same pipeline. Full audit trail.",
   mockup: {
     projectTitle: "AUTH-2847 OAuth Scope Expansion",
     engineerMeta: {
@@ -54,8 +58,8 @@ export const SECTION_01 = {
         icon: "⚠",
         segments: [
           { text: "Scope mentions " },
-          { text: "\"admin users only\"", hl: true },
-          { text: " but ticket label says \"all users\"" },
+          { text: '"admin users only"', hl: true },
+          { text: ' but ticket label says "all users"' },
         ],
         secondary: "vs. product brief Q2-Auth-Scope.pdf",
         rule: "scope_alignment",
@@ -125,22 +129,22 @@ export const SECTION_02 = {
   id: "beyond",
   label: "BEYOND A CHATBOT",
   intro: [
-    "Most AI tools for engineering are just chatbots. You paste a ticket, ask a question, get an answer.",
-    "One ticket. One question. One answer.",
-    "That's not how shipping works.",
+    "AI can write code. The hard part is knowing what to write.",
+    "Claude Code, Cursor, and GitHub Copilot make individual developers faster. They do not validate that the Jira ticket was clear enough to build from.",
+    "They execute. They do not govern. AgentOX is the multi-agent coding pipeline those tools are missing.",
   ],
   points: [
     {
-      title: "Full pipeline context, not single prompts",
-      body: "AgentOX holds your Jira ticket, PRD, codebase, and test results in context simultaneously. When your acceptance criteria say one thing and your implementation does another, AgentOX doesn't wait for you to ask. It already flagged it at the gate.",
+      title: "Validates requirements before anyone codes",
+      body: "Automated PRD generation with testable Given/When/Then criteria. Gap analysis surfaces every ambiguity. Below 70% confidence, the pipeline pauses for a human — bad requirements never reach engineering.",
     },
     {
-      title: "Proactive, not reactive",
-      body: "Chatbots answer questions. AgentOX finds gaps before engineering starts, blockers before QA runs, and coverage holes before merge. Three validation gates running against every feature in your sprint.",
+      title: "AI engineering agent on your real codebase",
+      body: "Not a blank chat. AgentOX reads your repository, follows your conventions, maps every acceptance criterion to implementation decisions, and opens a draft PR with a full plan attached.",
     },
     {
-      title: "Ships deliverables, not paragraphs",
-      body: "AgentOX doesn't write generic text. It drafts PRDs with Given/When/Then criteria, implementation plans mapped to your codebase, draft PRs, and QA reports tied to every acceptance criterion.",
+      title: "AI QA agent that actually runs tests",
+      body: "Generates happy-path, edge, error, and security scenarios. Executes in an isolated sandbox. Maps every failure back to the acceptance criterion it violates — then recommends approve, change, or block.",
     },
   ],
 };
@@ -155,7 +159,7 @@ export const SECTION_03 = {
     body: [
       "Sarah,",
       "",
-      "The AUTH-2847 pipeline finished. Virin generated a PRD with 15 acceptance criteria. Ananta opened draft PR #847 with 12 files changed. Neel ran 47 tests — 45 passed, 2 flagged for your review.",
+      "Your Jira AI automation run finished. Product agent generated a PRD with 15 acceptance criteria. Engineering agent opened draft PR #847 (12 files). QA agent ran 47 tests — 45 passed, 2 flagged for review. Average ticket-to-PR time: under 2 hours.",
     ],
     output: {
       header: "AGENTOX OUTPUT",
@@ -172,19 +176,19 @@ export const SECTION_03 = {
   },
   sidebar: [
     {
-      label: "THREADS",
-      title: "Follows full conversations",
-      body: "CC AgentOX on Jira updates or Slack threads. It tracks decisions and action items across every party on the thread.",
+      label: "CONNECT",
+      title: "Jira + GitHub in 30 minutes",
+      body: "OAuth into Jira and GitHub. AgentOX indexes your codebase once — then every push updates intelligence via webhook. No DevOps overhead.",
     },
     {
-      label: "FOLLOW-UPS",
-      title: "Flags what's stalled",
-      body: "Gate failure? Missing acceptance criteria? AgentOX drafts the follow-up and waits for your go-ahead.",
+      label: "GATES",
+      title: "Human oversight at every stage",
+      body: "PRD, implementation, and QA validation gates. Slack when attention is needed. Everything else runs without you — you keep the decision.",
     },
     {
       label: "AUDIT TRAIL",
-      title: "Every action, traceable",
-      body: "Full provenance on every output. Which ticket triggered it, which gates passed, which human approved, and what changed between runs.",
+      title: "Compliance-ready provenance",
+      body: "Every output is traceable: which ticket triggered it, which gates passed, which human approved, and what changed between runs.",
     },
   ],
 };
@@ -192,15 +196,16 @@ export const SECTION_03 = {
 export const SECTION_04 = {
   id: "mission",
   label: "WHY THIS MATTERS",
-  headline: "The most expensive bug is the one you ship twice.",
+  headline: "The most expensive bug is the feature you ship twice.",
   body: [
     {
       strong:
-        "30–40% of feature work gets reworked. 23% of sprint capacity lost to handoff degradation. 100× the cost when bugs reach production.",
+        "30% of feature work gets reinterpreted across PM, eng, and QA. 23% of sprint capacity is lost to handoff degradation. A 50-person team burns $100K+ a year on that rework.",
     },
-    "Every sprint, teams lose days to misread requirements, ambiguous acceptance criteria, and tests that stopped being true. When a PM meant one thing and engineering built another, it's not a communication problem — it's a missing governance layer.",
+    "AI coding tools accelerate writing. They do not catch the seven questions that should have been answered before engineering started. AgentOX is AI SDLC automation with requirements validation, codebase intelligence, and QA execution in one governed pipeline — cutting sprint rework by up to 60%.",
     {
-      strong: "AgentOX gives every team the capacity of a full product-engineering-QA loop.",
+      strong:
+        "Ship the right feature the first time. Product, Engineering, and QA agents — with human gates.",
     },
   ],
 };
@@ -210,7 +215,8 @@ export const SECTION_05 = {
   label: "SECURITY",
   headline: "You stay in control of your data.",
   headlineKey: "control",
-  subhead: "Two ways to run AgentOX. You pick how much stays inside your walls.",
+  subhead:
+    "Codebase intelligence stores summaries and embeddings — not a wholesale dump of your source. Two ways to run AgentOX.",
   modes: [
     {
       name: "AgentOX",
@@ -241,23 +247,23 @@ export const SECTION_05 = {
       captionRest: " data, agents, and optional self-hosted models. Nothing leaves.",
     },
   ],
-  footnote: "SOC 2 Type 1 & 2 roadmap in progress.",
+  footnote: "SOC 2 Type 1 & 2 roadmap in progress. Enterprise: VPC / on-premise options.",
 };
 
 export const SECTION_06 = {
   id: "roi",
   label: "ROI CALCULATOR",
-  headline: "Model your annual savings.",
+  headline: "Calculate what sprint rework is costing your team.",
   intro:
-    "Tune team size, pipeline volume, and rework rate. See net benefit, payback period, and ROI multiple across plans — updated live as you adjust inputs.",
+    "Tune team size, pipeline volume, and rework rate. See net benefit, payback period, and ROI across plans — updated live. At a 20-person team with 30% rework, AgentOX typically pays for itself in weeks.",
 };
 
 export const FINAL_CTA = {
   label: "YOUR NEXT STEP",
-  headline: "See AgentOX on your next ticket.",
+  headline: "Your next sprint rework is preventable.",
   description:
-    "Connect Jira and GitHub. Run your first pipeline in under 30 minutes. We'll show you what three agents and three gates look like on real work.",
+    "Join engineering teams who stopped rebuilding features and started shipping them right the first time. Setup takes 30 minutes. Your first pipeline run will show you exactly what we mean.",
   primaryCta: "REQUEST EARLY ACCESS",
   primaryHref: "/login",
-  fallback: "or email",
+  fallback: "Questions? Talk to the founders —",
 };

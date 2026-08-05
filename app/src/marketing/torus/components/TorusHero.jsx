@@ -5,14 +5,14 @@ export default function TorusHero() {
   return (
     <section className="hero">
       <div className="hero-brand">
-        <h1 className="wordmark">{BRAND.name}</h1>
+        <p className="wordmark">{BRAND.name}</p>
         <div className="wordmark-sub">
           <div className="wordmark-sub-line" />
           {BRAND.tagline}
         </div>
       </div>
       <div className="hero-pitch">
-        <p className="hero-headline">{HERO.headline}</p>
+        <h1 className="hero-headline">{HERO.headline}</h1>
         <p className="hero-description">{HERO.description}</p>
       </div>
       <div className="hero-cta">
