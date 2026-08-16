@@ -23,6 +23,12 @@ export default function TorusFooter() {
             <a href="/contact" className="footer-contact">
               Contact
             </a>
+            <a href="/privacy" className="footer-contact">
+              Privacy Policy
+            </a>
+            <a href="/terms" className="footer-contact">
+              Terms & Conditions
+            </a>
             <a href={`mailto:${BRAND.email}`} className="footer-contact">
               {BRAND.email}
             </a>

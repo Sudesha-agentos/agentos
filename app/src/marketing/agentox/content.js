@@ -8,11 +8,11 @@ export const BRAND = {
 
 export const NAV = {
   links: [
-    { label: "Product", href: "#product" },
-    { label: "How it works", href: "#how-it-works" },
-    { label: "Agents", href: "#agents" },
-    { label: "Pricing", href: "#pricing" },
-    { label: "FAQ", href: "#faq" },
+    { label: "Product", href: "/#product" },
+    { label: "How it works", href: "/#how-it-works" },
+    { label: "Agents", href: "/#agents" },
+    { label: "Pricing", href: "/#pricing" },
+    { label: "FAQ", href: "/#faq" },
   ],
   signIn: { label: "Sign in", href: "/login" },
   cta: { label: "Get early access", href: "/login?signup" },
@@ -274,6 +274,17 @@ export const FOOTER = {
         { label: "Sign in", href: "/login" },
       ],
     },
+    {
+      title: "Legal",
+      links: [
+        { label: "Privacy Policy", href: "/privacy" },
+        { label: "Terms & Conditions", href: "/terms" },
+      ],
+    },
   ],
   legal: `© ${new Date().getFullYear()} AgentOX. All rights reserved.`,
+  legalLinks: [
+    { label: "Privacy Policy", href: "/privacy" },
+    { label: "Terms & Conditions", href: "/terms" },
+  ],
 };

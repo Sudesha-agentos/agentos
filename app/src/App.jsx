@@ -22,6 +22,12 @@ const ResetPasswordPage = lazy(() =>
 );
 const ContactPage = lazy(() => import("./marketing/agent-team/ContactPage"));
 const DocsCodePage = lazy(() => import("./marketing/docs/DocsCodePage"));
+const PrivacyPolicyPage = lazy(() =>
+  import("./marketing/legal/LegalPages").then((m) => ({ default: m.PrivacyPolicyPage }))
+);
+const TermsPage = lazy(() =>
+  import("./marketing/legal/LegalPages").then((m) => ({ default: m.TermsPage }))
+);
 const RoiCalculatorPage = lazy(() => import("./pages/RoiCalculatorPage"));
 const AppShell = lazy(() => import("./app/layout/AppShell"));
 
@@ -50,6 +56,8 @@ function App() {
             <Route path="/roi" element={<RoiCalculatorPage />} />
             <Route path="/contact" element={<ContactPage />} />
             <Route path="/docs-code" element={<DocsCodePage />} />
+            <Route path="/privacy" element={<PrivacyPolicyPage />} />
+            <Route path="/terms" element={<TermsPage />} />
             <Route
               path="/login"
               element={

@@ -32,7 +32,14 @@ export default function Footer() {
         </div>
         <div className="ax-footer-legal">
           <span>{FOOTER.legal}</span>
-          <a href={`mailto:${BRAND.email}`}>{BRAND.email}</a>
+          <div className="ax-footer-legal-links">
+            {FOOTER.legalLinks.map((link) => (
+              <SmartLink key={link.href} href={link.href}>
+                {link.label}
+              </SmartLink>
+            ))}
+            <a href={`mailto:${BRAND.email}`}>{BRAND.email}</a>
+          </div>
         </div>
       </div>
     </footer>

@@ -1493,3 +1493,71 @@
 .ax-footer-legal a:hover {
   color: var(--ax-text);
 }
+
+.ax-footer-legal-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: center;
+}
+
+/* ---------- legal pages ---------- */
+
+.ax-legal {
+  padding: 160px 0 96px;
+}
+
+.ax-legal-prose {
+  max-width: 720px;
+}
+
+.ax-legal-updated {
+  margin: 12px 0 0;
+  font-size: 13px;
+  color: var(--ax-text-faint);
+}
+
+.ax-legal-prose .ax-subhead {
+  margin-top: 20px;
+}
+
+.ax-legal-section {
+  margin-top: 36px;
+}
+
+.ax-legal-section h2 {
+  font-family: var(--ax-font-display);
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--ax-text);
+  margin: 0 0 12px;
+}
+
+.ax-legal-section p,
+.ax-legal-section li {
+  font-size: 15px;
+  line-height: 1.7;
+  color: var(--ax-text-dim);
+}
+
+.ax-legal-section p {
+  margin: 0 0 12px;
+}
+
+.ax-legal-section ul {
+  margin: 0 0 12px;
+  padding-left: 1.2em;
+}
+
+.ax-legal-section li {
+  margin-bottom: 8px;
+}
+
+.ax-legal-back {
+  margin-top: 48px;
+}
+
+.ax-legal-back a {
+  font-size: 14px;
+  color: var(--ax-accent);
+}

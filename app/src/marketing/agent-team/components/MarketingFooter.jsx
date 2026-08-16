@@ -94,12 +94,12 @@ export default function MarketingFooter() {
           </div>
           <div className="flex flex-wrap items-center justify-center gap-4 text-[12px] text-white/45">
             <span>© {new Date().getFullYear()} AgentOX</span>
-            <a href="#" className="hover:text-white/70">
-              Privacy
-            </a>
-            <a href="#" className="hover:text-white/70">
-              Terms
-            </a>
+            <Link to="/privacy" className="hover:text-white/70">
+              Privacy Policy
+            </Link>
+            <Link to="/terms" className="hover:text-white/70">
+              Terms & Conditions
+            </Link>
           </div>
         </div>
       </div>
