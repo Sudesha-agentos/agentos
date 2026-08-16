@@ -21,7 +21,12 @@ export const NAV = {
 export const HERO = {
   badge: "Early access · Works with Jira, GitHub & Bitbucket",
   welcome: "Welcome to AgentOX.",
+  appName: "AgentOX",
   headline: "From Jira ticket to reviewed PR. Autonomously.",
+  purpose:
+    "AgentOX is an artificial intelligence automation tool designed to help developers create, manage, and optimize smart digital agents. Our system helps organize custom cloud tasks, streamline workspace productivity, and coordinate data flows from Jira tickets to reviewed pull requests.",
+  googleAuthNote:
+    "We use Google Authentication to safely sign you into your AgentOX dashboard and save your personalized workspace settings securely.",
   subhead:
     "Three AI agents: Virin, Ananta, and Neel: analyze your ticket, write the code, and run the tests. You approve at every gate.",
   primaryCta: { label: "Get early access", href: "/login?signup" },
