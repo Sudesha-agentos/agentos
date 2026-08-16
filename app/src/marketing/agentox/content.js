@@ -8,11 +8,12 @@ export const BRAND = {
 
 export const NAV = {
   links: [
-    { label: "Product", href: "/#product" },
-    { label: "How it works", href: "/#how-it-works" },
-    { label: "Agents", href: "/#agents" },
-    { label: "Pricing", href: "/#pricing" },
-    { label: "FAQ", href: "/#faq" },
+    { label: "Welcome to AgentOX", href: "/welcome" },
+    { label: "Product", href: "#product" },
+    { label: "How it works", href: "#how-it-works" },
+    { label: "Agents", href: "#agents" },
+    { label: "Pricing", href: "#pricing" },
+    { label: "Contact", href: "/contact" },
   ],
   signIn: { label: "Sign in", href: "/login" },
   cta: { label: "Get early access", href: "/login?signup" },

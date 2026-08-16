@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { DEMO_CREDENTIAL_HINT, getGoogleAuthStartUrl } from "../entities/auth";
 import MarketingGridBackground from "../marketing/agent-team/components/MarketingGridBackground";
 import BrandLogo from "../shared/ui/BrandLogo";
@@ -11,8 +11,12 @@ import "../marketing/agent-team/agentTeam.css";
 export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
   const { login, signup } = useAuth();
-  const isSignup = location.state?.mode === "signup";
+  const isSignup =
+    location.state?.mode === "signup" ||
+    searchParams.has("signup") ||
+    searchParams.get("mode") === "signup";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [pending, setPending] = useState(false);
