@@ -28,6 +28,7 @@ const PrivacyPolicyPage = lazy(() =>
 const TermsPage = lazy(() =>
   import("./marketing/legal/LegalPages").then((m) => ({ default: m.TermsPage }))
 );
+const WelcomePage = lazy(() => import("./marketing/legal/WelcomePage"));
 const RoiCalculatorPage = lazy(() => import("./pages/RoiCalculatorPage"));
 const AppShell = lazy(() => import("./app/layout/AppShell"));
 
@@ -58,6 +59,7 @@ function App() {
             <Route path="/docs-code" element={<DocsCodePage />} />
             <Route path="/privacy" element={<PrivacyPolicyPage />} />
             <Route path="/terms" element={<TermsPage />} />
+            <Route path="/welcome" element={<WelcomePage />} />
             <Route
               path="/login"
               element={
