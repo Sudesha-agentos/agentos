@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useGitIntegrationSummary } from "../../entities/git-integration";
+import { listCustomerDatabases } from "../../entities/customer-db";
 import { fetchLogSources } from "../../entities/logIntelligence";
 import { usePipelineJiraSetup } from "../../entities/pipeline-jira";
 import {
@@ -32,6 +33,13 @@ function resolveDisplayStatus(integration, live) {
     const sourceType = integration.liveStatusKey.slice(4);
     return live.logConnectedTypes?.has(sourceType) ? "connected" : "not_connected";
   }
+  if (
+    typeof integration.liveStatusKey === "string" &&
+    integration.liveStatusKey.startsWith("database:")
+  ) {
+    const provider = integration.liveStatusKey.slice("database:".length);
+    return live.databaseProviders?.has(provider) ? "connected" : "not_connected";
+  }
   return "not_connected";
 }
 
@@ -42,6 +50,8 @@ export function useIntegrationsStatus() {
   const { data: jira, loading: jiraLoading } = usePipelineJiraSetup({ pollMs: 12000 });
   const [logTypes, setLogTypes] = useState(() => new Set());
   const [logsLoading, setLogsLoading] = useState(true);
+  const [databaseProviders, setDatabaseProviders] = useState(() => new Set());
+  const [databasesLoading, setDatabasesLoading] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
@@ -70,6 +80,31 @@ export function useIntegrationsStatus() {
     };
   }, [orgSlug]);
 
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setDatabasesLoading(true);
+      try {
+        const res = await listCustomerDatabases();
+        const list = Array.isArray(res) ? res : res?.databases ?? [];
+        const providers = new Set(
+          list
+            .map((db) => db.provider)
+            .filter(Boolean)
+            .map((t) => String(t).toLowerCase())
+        );
+        if (!cancelled) setDatabaseProviders(providers);
+      } catch {
+        if (!cancelled) setDatabaseProviders(new Set());
+      } finally {
+        if (!cancelled) setDatabasesLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [orgSlug]);
+
   const live = useMemo(
     () => ({
       githubConnected: Boolean(git?.connected && git?.provider !== "bitbucket"),
@@ -88,6 +123,7 @@ export function useIntegrationsStatus() {
       ),
       jiraConnected: Boolean(jira?.connected),
       logConnectedTypes: logTypes,
+      databaseProviders,
     }),
     [
       git?.connected,
@@ -97,6 +133,7 @@ export function useIntegrationsStatus() {
       git?.installationDetected,
       jira?.connected,
       logTypes,
+      databaseProviders,
     ]
   );
 
@@ -114,6 +151,6 @@ export function useIntegrationsStatus() {
   return {
     integrations,
     grouped,
-    loading: gitLoading || jiraLoading || logsLoading,
+    loading: gitLoading || jiraLoading || logsLoading || databasesLoading,
   };
 }

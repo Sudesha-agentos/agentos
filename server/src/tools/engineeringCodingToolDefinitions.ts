@@ -1,4 +1,5 @@
 import type Anthropic from "@anthropic-ai/sdk";
+import { CUSTOMER_DB_TOOL_DEFINITIONS } from "../customerDb/toolDefinitions";
 
 export const ENGINEERING_CODING_TOOL_DEFINITIONS: Anthropic.Tool[] = [
   // ── Navigation ────────────────────────────────────────────────────────────
@@ -250,4 +251,6 @@ Use to run the type-checker or tests after editing, then fix errors in-loop.
       required: ["command"],
     },
   },
+
+  ...CUSTOMER_DB_TOOL_DEFINITIONS,
 ];

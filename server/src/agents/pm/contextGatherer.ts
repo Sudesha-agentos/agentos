@@ -9,6 +9,7 @@ import { jiraTool } from "../../tools/jiraTool";
 import { logger } from "../../utils/logger";
 import { companyIntelligence } from "../../companyIntelligence";
 import { orgIntelligence } from "../../orgIntelligence";
+import { buildDatabaseCatalogPromptBlock } from "../../customerDb/promptBlock";
 import type { PmTicketInput, SynthesisSummary } from "./types";
 import { enrichTicketFromJira } from "./ticketEnrichment";
 import type { RetrievalResult } from "../../rag/retriever";
@@ -586,6 +587,9 @@ export async function gatherPmContext(
     companyProfile = null;
   }
   const companyContextBlock = companyIntelligence.toPromptBlock(companyProfile);
+  const databaseCatalogBlock = await buildDatabaseCatalogPromptBlock().catch(
+    () => "CUSTOMER DATABASES: catalog unavailable."
+  );
   const okrList =
     companyProfile?.strategicGoals?.length
       ? companyProfile.strategicGoals.join("; ")
@@ -596,7 +600,7 @@ export async function gatherPmContext(
     similarTicketsList,
     componentBugCount,
     okrList,
-    companyContextBlock,
+    companyContextBlock: [companyContextBlock, databaseCatalogBlock].filter(Boolean).join("\n\n"),
     companyName: companyProfile?.companyName?.trim() ?? "",
     companyWebsite: companyProfile?.website?.trim() ?? "",
     companyProductSummary: companyProfile?.productSummary?.trim() ?? "",

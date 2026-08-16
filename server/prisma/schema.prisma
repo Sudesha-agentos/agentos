@@ -381,6 +381,7 @@ model Organization {
   anomalyDetections       AnomalyDetection[]
   logIntelligenceConfig   LogIntelligenceConfig?
   canaryHypothesisLibrary CanaryHypothesisLibrary[]
+  databases               OrganizationDatabase[]
 
   @@index([domain])
 }
@@ -486,6 +487,70 @@ model OrganizationJiraConfig {
   referenceStatusesJson Json?
   completionSettingsJson Json?
   updatedAt             DateTime     @updatedAt
+}
+
+/// Customer-owned databases attached to a workspace (many per org).
+/// Passwords are AES-GCM encrypted at rest (same key as LogSource.config).
+model OrganizationDatabase {
+  id                    String   @id @default(cuid())
+  organizationId        String
+  organization          Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name                  String
+  /// postgresql | mysql | supabase
+  provider              String
+  /// development | staging | production
+  environment           String   @default("staging")
+  host                  String
+  port                  Int
+  databaseName          String
+  username              String
+  passwordEnc           Json
+  ssl                   Boolean  @default(true)
+  schemaAllowlist       Json     @default("[]")
+  autoMigrate           Boolean  @default(false)
+  requireConfirmToApply Boolean  @default(true)
+  lastIntrospectedAt    DateTime?
+  lastError             String?  @db.Text
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  tables                OrganizationDatabaseTable[]
+  migrations            OrganizationDatabaseMigration[]
+
+  @@index([organizationId, provider])
+  @@index([organizationId, environment])
+}
+
+model OrganizationDatabaseTable {
+  id          String   @id @default(cuid())
+  databaseId  String
+  database    OrganizationDatabase @relation(fields: [databaseId], references: [id], onDelete: Cascade)
+  schemaName  String
+  tableName   String
+  columns     Json     @default("[]")
+  primaryKeys Json     @default("[]")
+  foreignKeys Json     @default("[]")
+  indexes     Json     @default("[]")
+  rowEstimate Int?
+  updatedAt   DateTime @updatedAt
+
+  @@unique([databaseId, schemaName, tableName])
+  @@index([databaseId])
+}
+
+model OrganizationDatabaseMigration {
+  id         String    @id @default(cuid())
+  databaseId String
+  database   OrganizationDatabase @relation(fields: [databaseId], references: [id], onDelete: Cascade)
+  pipelineId String?
+  sql        String    @db.Text
+  /// pending | applied | failed | awaiting_confirm
+  status     String    @default("pending")
+  error      String?   @db.Text
+  appliedAt  DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([databaseId, createdAt])
+  @@index([pipelineId])
 }
 
 model AgentChatThread {

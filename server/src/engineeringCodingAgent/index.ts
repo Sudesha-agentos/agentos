@@ -104,6 +104,10 @@ export async function runEngineeringCodingAgentic(
   }
 
   try {
+    const { buildDatabaseCatalogPromptBlock } = await import("../customerDb/promptBlock");
+    const databaseCatalogBlock = await buildDatabaseCatalogPromptBlock(input.pipelineId).catch(
+      () => "CUSTOMER DATABASES: catalog unavailable."
+    );
     const loop = await runAgenticLoop({
       systemPrompt: buildEngineeringCodingSystemPrompt(mode, input.repoKnowledge),
       initialUserMessage: buildEngineeringCodingInitialUserMessage({
@@ -112,6 +116,7 @@ export async function runEngineeringCodingAgentic(
         compileFeedback: input.compileFeedback,
         implementationMode: mode,
         deliverableFiles: input.deliverableFiles,
+        databaseCatalogBlock,
       }),
       pipelineId: input.pipelineId,
       jiraKey: input.jiraKey,

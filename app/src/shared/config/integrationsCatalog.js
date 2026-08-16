@@ -10,7 +10,7 @@ export const INTEGRATION_CATEGORIES = [
 
 /**
  * connectKind:
- *  - native: dedicated settings page (GitHub / Jira)
+ *  - native: dedicated settings page (GitHub / Jira / databases)
  *  - log_source: one-click deep-link to Logs → Sources with provider preselected
  *  - coming_soon: notify-only
  */
@@ -56,23 +56,36 @@ const INTEGRATION_DEFS = [
     name: "PostgreSQL",
     category: "data_storage",
     description:
-      "Connect a managed Postgres database for pipeline artifacts, audit logs, and agent memory.",
-    catalogStatus: "coming_soon",
-    connectKind: "coming_soon",
+      "Attach an existing Postgres database (RDS, Neon, Cloud SQL, self-hosted). Agents read schema and apply migrations.",
+    catalogStatus: "available",
+    connectKind: "native",
     routeParts: ["settings", "integrations", "postgresql"],
     icon: null,
-    liveStatusKey: null,
+    liveStatusKey: "database:postgresql",
   },
   {
     id: "supabase",
     name: "Supabase",
     category: "data_storage",
-    description: "Sync workspace data with Supabase Postgres, auth, and edge functions.",
-    catalogStatus: "coming_soon",
-    connectKind: "coming_soon",
+    description:
+      "Attach your Supabase Postgres so Ananta can inspect tables and apply schema changes with the ticket.",
+    catalogStatus: "available",
+    connectKind: "native",
     routeParts: ["settings", "integrations", "supabase"],
     icon: "/marketing/integrations/supabase-wordmark.svg",
-    liveStatusKey: null,
+    liveStatusKey: "database:supabase",
+  },
+  {
+    id: "mysql",
+    name: "MySQL",
+    category: "data_storage",
+    description:
+      "Attach an existing MySQL or Aurora MySQL database. Agents can inspect schema and apply migrations.",
+    catalogStatus: "available",
+    connectKind: "native",
+    routeParts: ["settings", "integrations", "mysql"],
+    icon: null,
+    liveStatusKey: "database:mysql",
   },
   {
     id: "datadog",

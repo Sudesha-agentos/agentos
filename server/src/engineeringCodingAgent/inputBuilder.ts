@@ -25,6 +25,7 @@ export interface EngineeringCodingAgenticInput {
   compileFeedback?: string;
   implementationMode?: ImplementationMode;
   deliverableFiles?: Array<{ path: string; format: string; purpose: string }>;
+  databaseCatalogBlock?: string;
 }
 
 export function resolveCodingBranchName(): string {
@@ -219,6 +220,8 @@ ${generatedPrd?.implementationDeltaSummary ? `CODEBASE DELTA (build only net-new
 
 ${input.compileFeedback ? `SANDBOX COMPILE/TEST FEEDBACK — fix these errors before finishing:\n${input.compileFeedback}` : ""}
 
+${input.databaseCatalogBlock ? input.databaseCatalogBlock : "CUSTOMER DATABASES: none connected."}
+
 CRITICAL IMPLEMENTATION RULES:
 - The PRD + acceptance criteria above are the source of truth. Implement every criterion and user story unless it is explicitly out of scope.
 - criteriaMapping entries must each be realized in code (or content deliverables). Do not ship a partial subset.
@@ -227,6 +230,7 @@ CRITICAL IMPLEMENTATION RULES:
 
 Begin PHASE 1: explore the codebase (list_dir, grep, search_codebase, read_file),
 PHASE 2: implement using edit_file / write_file,
+PHASE 2b: if Database changes are listed above, list_databases then db_schema, then db_migrate on staging (not production unless a human confirmed),
 PHASE 3: verify with run_command (type-checker), fix errors,
 PHASE 4: return the final JSON summary.
   `.trim();

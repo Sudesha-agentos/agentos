@@ -28,6 +28,7 @@ import {
 } from "../engineering/codingArtifactStore";
 import { logger } from "../utils/logger";
 import type { ToolCallInput, ToolCallResult } from "./executor";
+import { executeCustomerDbTool, isCustomerDbTool } from "../customerDb/toolExecutor";
 
 function stringValue(value: unknown, fallback = ""): string {
   return typeof value === "string" ? value : fallback;
@@ -68,6 +69,16 @@ function buildDisplayLabel(toolName: string, input: Record<string, unknown>): st
       const cmd = typeof input.command === "string" ? input.command.slice(0, 60) : "command";
       return `Running: ${cmd}`;
     }
+    case "list_databases":
+      return "Listing customer databases";
+    case "db_schema":
+      return "Reading database schema";
+    case "db_query":
+      return "Querying customer database";
+    case "db_execute":
+      return "Writing to customer database";
+    case "db_migrate":
+      return "Migrating customer database";
     default:
       return toolName.replace(/_/g, " ");
   }
@@ -616,8 +627,18 @@ export async function executeEngineeringCodingToolCall(
         break;
       }
 
-      default:
+      default: {
+        if (isCustomerDbTool(toolCall.name)) {
+          result = await executeCustomerDbTool(
+            toolCall.name,
+            toolCall.input as Record<string, unknown>,
+            pipelineId
+          );
+          resultsFound = result && typeof result === "object" && "error" in result ? 0 : 1;
+          break;
+        }
         throw new Error(`Unknown engineering coding tool: ${toolCall.name}`);
+      }
     }
 
     const durationMs = Date.now() - startTime;

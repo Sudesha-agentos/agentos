@@ -7,6 +7,7 @@ import SettingsPipelinePage from "./settings/SettingsPipelinePage";
 import SettingsCodebaseIndexPage from "./settings/SettingsCodebaseIndexPage";
 import GitIntegration from "./GitIntegration";
 import JiraIntegration from "./JiraIntegration";
+import DatabaseIntegration from "./DatabaseIntegration";
 import CompanyIntelligence from "./CompanyIntelligence";
 
 export default function SettingsRoutes() {
@@ -18,6 +19,9 @@ export default function SettingsRoutes() {
         <Route path="integrations/github" element={<GitIntegration embedded />} />
         <Route path="integrations/bitbucket" element={<GitIntegration embedded defaultTab="bitbucket" />} />
         <Route path="integrations/jira" element={<JiraIntegration embedded />} />
+        <Route path="integrations/postgresql" element={<DatabaseIntegration embedded defaultProvider="postgresql" />} />
+        <Route path="integrations/supabase" element={<DatabaseIntegration embedded defaultProvider="supabase" />} />
+        <Route path="integrations/mysql" element={<DatabaseIntegration embedded defaultProvider="mysql" />} />
         <Route path="integrations" element={<SettingsIntegrationsPage />} />
         <Route path="integrations/:integrationId" element={<SettingsIntegrationDetailPage />} />
         <Route path="codebase-index" element={<SettingsCodebaseIndexPage />} />
