@@ -33,10 +33,10 @@ export function deriveReviewQueueItems(pipelines = [], orgPath = (...segments) =
         stage === "ENGINEERING_AGENT" || stage === "IMPLEMENTATION_VALIDATION";
       const severity = isPrd ? "critical" : isEng ? "warning" : "warning";
       const reason = isPrd
-        ? "PRD Gate Failed — Confidence 61%"
+        ? "PRD Gate Failed: Confidence 61%"
         : isEng
-          ? "Engineering check — 2 criteria unmapped"
-          : "Validation gate — human review required";
+          ? "Engineering check: 2 criteria unmapped"
+          : "Validation gate: human review required";
       const actionLabel = isPrd ? "Review PRD" : isEng ? "Review Plan" : "Review";
       const actionTo = isPrd
         ? orgPath("pipelines", p.id, "prd")

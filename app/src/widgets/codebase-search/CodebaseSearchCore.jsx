@@ -379,7 +379,7 @@ export default function CodebaseSearchCore({
                             {f.path}
                           </button>
                           {f.summary ? (
-                            <span className="ml-2 text-[11px] text-ink-dim">— {f.summary}</span>
+                            <span className="ml-2 text-[11px] text-ink-dim">: {f.summary}</span>
                           ) : null}
                         </li>
                       ))}

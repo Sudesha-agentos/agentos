@@ -12,7 +12,7 @@ export const AGENT_CHAT_CONFIG = {
       return getAgentImage("virin");
     },
     welcome:
-      "I help with discovery, tickets, and requirement quality. Mention any Jira key — I'll look it up. For code or QA, I'll point you to Ananta or Neel.",
+      "I help with discovery, tickets, and requirement quality. Mention any Jira key: I'll look it up. For code or QA, I'll point you to Ananta or Neel.",
     placeholder: "Ask me about a ticket, PRD readiness, or competitors…",
     suggestions: [
       "What do we know about PLT-100?",
@@ -35,7 +35,7 @@ export const AGENT_CHAT_CONFIG = {
       return getAgentImage("ananta");
     },
     welcome:
-      "I help implement tickets handed off from Virin — review plans, explain diffs, and answer questions about files being written for this ticket.",
+      "I help implement tickets handed off from Virin: review plans, explain diffs, and answer questions about files being written for this ticket.",
     placeholder: "Ask about the implementation plan, a file change, or acceptance criteria…",
     suggestions: [
       "Summarize the implementation plan for this ticket",
@@ -58,7 +58,7 @@ export const AGENT_CHAT_CONFIG = {
       return getAgentImage("neel");
     },
     welcome:
-      "I focus on test coverage, failures, and canary findings. Reference a ticket or pipeline — I'll fetch context. Product and code questions go to Virin or Ananta.",
+      "I focus on test coverage, failures, and canary findings. Reference a ticket or pipeline: I'll fetch context. Product and code questions go to Virin or Ananta.",
     placeholder: "Ask about test gaps, failures, or canary results…",
     suggestions: [
       "What are the biggest test coverage gaps?",

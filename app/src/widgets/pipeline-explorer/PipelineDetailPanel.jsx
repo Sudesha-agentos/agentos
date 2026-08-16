@@ -133,7 +133,7 @@ function ClassicPipelineDetailPanel({ pipelineId, onClose }) {
           <Panel>
             <PanelHeader kicker="Discovery" title="Product agent" />
             <p className="px-5 py-4 text-[13px] text-ink-dim sm:px-6">
-              Discovery has not started yet — the product agent runs after intake.
+              Discovery has not started yet: the product agent runs after intake.
             </p>
           </Panel>
         )}

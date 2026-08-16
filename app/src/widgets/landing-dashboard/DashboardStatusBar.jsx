@@ -8,7 +8,7 @@ const TONE_STYLES = {
 };
 
 /**
- * Five large linked numbers — cockpit status bar.
+ * Five large linked numbers: cockpit status bar.
  */
 export default function DashboardStatusBar({ metrics, loading }) {
   if (loading && !metrics?.length) {

@@ -144,7 +144,7 @@ function GitIntegrationContent({ setup, refetch, embedded = false, defaultTab = 
       searchParams.get("setup_action") === "authorize"
     ) {
       setTab("bitbucket");
-      setStatus("Bitbucket authorized — select a workspace and repository below.");
+      setStatus("Bitbucket authorized: select a workspace and repository below.");
       setSearchParams({}, { replace: true });
       void refetch();
     }
@@ -196,13 +196,13 @@ function GitIntegrationContent({ setup, refetch, embedded = false, defaultTab = 
             setIndexRunId(result.autoSelected.indexRunId);
           }
         } else if ((result.repositories ?? result.availableRepositories ?? []).length > 0) {
-          setStatus("GitHub App installed — choose a repository below.");
+          setStatus("GitHub App installed: choose a repository below.");
         } else if (result.accountLogin) {
           setStatus(
-            `GitHub App installed for ${result.accountLogin} — choose a repository below.`
+            `GitHub App installed for ${result.accountLogin}: choose a repository below.`
           );
         } else {
-          setStatus("GitHub App installed — grant repository access in GitHub if none appear below.");
+          setStatus("GitHub App installed: grant repository access in GitHub if none appear below.");
         }
         setSearchParams({}, { replace: true });
         await refetch();
@@ -336,7 +336,7 @@ function GitIntegrationContent({ setup, refetch, embedded = false, defaultTab = 
           {connected ? (
             <LabelPill label={connectedLabel ?? "Connected"} tone="success" />
           ) : installPendingFinish ? (
-            <LabelPill label="App installed — select repo" tone="warning" />
+            <LabelPill label="App installed: select repo" tone="warning" />
           ) : needsRepoPick ? (
             <LabelPill label="Select repository" tone="warning" />
           ) : null}
@@ -422,16 +422,16 @@ function GitIntegrationContent({ setup, refetch, embedded = false, defaultTab = 
               }
               subtitle={
                 installPendingFinish
-                  ? "GitHub App installed — select a repository to finish connecting AgentOX to your codebase."
+                  ? "GitHub App installed: select a repository to finish connecting AgentOX to your codebase."
                   : !githubAppEnabled
-                    ? "GitHub App env vars are not set on the server — use manual token setup below or configure GITHUB_APP_* on Render."
+                    ? "GitHub App env vars are not set on the server: use manual token setup below or configure GITHUB_APP_* on Render."
                     : undefined
               }
             />
             <div className="space-y-4 p-5 sm:p-6">
               {installPendingFinish && !status ? (
                 <p className="rounded-lg border border-amber-500/30 bg-amber-500/5 px-4 py-3 text-sm text-ink">
-                  GitHub App installed — select a repository below to finish setup.
+                  GitHub App installed: select a repository below to finish setup.
                   {accountLogin ? (
                     <>
                       {" "}
@@ -608,7 +608,7 @@ function GitIntegrationContent({ setup, refetch, embedded = false, defaultTab = 
               <PanelHeader kicker="Webhook" title="Managed by GitHub App" />
               <div className="space-y-2 p-5 sm:p-6 text-sm text-muted">
                 <p>
-                  Push and pull request events are sent to your API — no manual webhook
+                  Push and pull request events are sent to your API: no manual webhook
                   setup in the repo settings.
                 </p>
                 <p className="font-mono text-xs break-all rounded bg-surface-elevated p-3 text-ink">
@@ -864,7 +864,7 @@ function BitbucketPanel({
           }
           subtitle={
             !oauthConfigured
-              ? "Bitbucket OAuth env vars are not set — use app password below or configure BITBUCKET_OAUTH_CLIENT_ID/SECRET on Render."
+              ? "Bitbucket OAuth env vars are not set: use app password below or configure BITBUCKET_OAUTH_CLIENT_ID/SECRET on Render."
               : undefined
           }
         />
@@ -1198,7 +1198,7 @@ function ManualFields({
           className="mt-1 w-full rounded border border-border bg-surface px-3 py-2 font-mono text-sm"
           value={token}
           onChange={(e) => setToken(e.target.value)}
-          placeholder={tokenHint ? `Saved (${tokenHint}) — leave blank to keep` : "Required"}
+          placeholder={tokenHint ? `Saved (${tokenHint}): leave blank to keep` : "Required"}
           autoComplete="off"
         />
       </label>
@@ -1226,7 +1226,7 @@ function formatGitIntegrationError(error) {
   const message = error instanceof Error ? error.message : "GitHub request failed";
   const lower = message.toLowerCase();
   if (lower.includes("unauthorized") || lower.includes("401")) {
-    return "Session expired — sign in again, then retry Connect with GitHub.";
+    return "Session expired: sign in again, then retry Connect with GitHub.";
   }
   if (lower.includes("organization_required") || lower.includes("organization")) {
     return "Your workspace organization is missing. Complete onboarding or sign in again, then retry.";

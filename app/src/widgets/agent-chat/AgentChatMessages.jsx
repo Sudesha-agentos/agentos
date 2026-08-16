@@ -21,7 +21,7 @@ export function AgentChatMessages({ domain, messages, loading, compact = false }
         }`}
       >
         <p className="text-[13px] leading-relaxed text-app-ink-mute">
-          Ask {config.displayName} anything in their domain — mention a Jira ticket key for
+          Ask {config.displayName} anything in their domain: mention a Jira ticket key for
           ticket-specific context.
         </p>
       </div>

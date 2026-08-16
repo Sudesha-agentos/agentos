@@ -67,12 +67,12 @@ export default function TourOverlay({
               ) : null}
               {quizFeedback === "correct" ? (
                 <p className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-[13px] text-emerald-200">
-                  Correct — {step.quiz.explanation}
+                  Correct: {step.quiz.explanation}
                 </p>
               ) : null}
               {quizFeedback === "incorrect" ? (
                 <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-[13px] text-amber-100">
-                  Not quite — look for a district starting with{" "}
+                  Not quite: look for a district starting with{" "}
                   <code className="font-mono text-[12px]">{step.quiz.correctPathPrefix}</code>
                 </p>
               ) : null}

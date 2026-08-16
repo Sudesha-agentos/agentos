@@ -61,13 +61,13 @@ export default function JiraSetupGuide({
 
           <GuideSection number="1" title="Jira site URL (Base URL)">
             <p className="text-[14px] leading-relaxed text-ink-dim">
-              This is your Atlassian Cloud site — the same URL you use to open Jira in the
+              This is your Atlassian Cloud site: the same URL you use to open Jira in the
               browser.
             </p>
             <ol className="mt-3 list-decimal space-y-2 pl-5 text-[14px] text-ink-dim">
               <li>Open Jira in your browser.</li>
               <li>
-                Copy the origin only — no path after the host. Example:{" "}
+                Copy the origin only: no path after the host. Example:{" "}
                 <code className="font-mono text-[12px] text-indigo">
                   https://your-company.atlassian.net
                 </code>
@@ -95,7 +95,7 @@ export default function JiraSetupGuide({
                 .
               </li>
               <li>Click <strong className="text-ink">Create API token</strong>, name it e.g. AgentOX.</li>
-              <li>Copy the token immediately — you will not see it again.</li>
+              <li>Copy the token immediately: you will not see it again.</li>
               <li>Paste it into the <strong className="text-ink">API token</strong> field below.</li>
             </ol>
             <p className="mt-3 text-[13px] text-ink-mute">
@@ -116,7 +116,7 @@ export default function JiraSetupGuide({
             <p className="text-[14px] leading-relaxed text-ink-dim">
               The numeric ID of the Scrum/Kanban board you want the AI Worker column on.
             </p>
-            <p className="mt-2 font-medium text-ink">Option A — Board search (easiest)</p>
+            <p className="mt-2 font-medium text-ink">Option A: Board search (easiest)</p>
             <ol className="mt-2 list-decimal space-y-2 pl-5 text-[14px] text-ink-dim">
               <li>
                 Open{" "}
@@ -127,7 +127,7 @@ export default function JiraSetupGuide({
               </li>
               <li>Search by project name, pick a board, copy the ID shown.</li>
             </ol>
-            <p className="mt-4 font-medium text-ink">Option B — From Jira URL</p>
+            <p className="mt-4 font-medium text-ink">Option B: From Jira URL</p>
             <ol className="mt-2 list-decimal space-y-2 pl-5 text-[14px] text-ink-dim">
               <li>
                 In Jira go to <strong className="text-ink">Boards</strong> → your board.
@@ -217,7 +217,7 @@ export default function JiraSetupGuide({
                 <code className="font-mono text-[12px]">PIPELINE_JIRA_WEBHOOK_SECRET</code>
                 ), paste the <strong className="text-ink">same value</strong> in Jira&apos;s{" "}
                 <strong className="text-ink">Secret</strong> field. Jira signs deliveries with{" "}
-                <code className="font-mono text-[12px]">X-Hub-Signature</code> — do not use a
+                <code className="font-mono text-[12px]">X-Hub-Signature</code>: do not use a
                 custom header (Jira Cloud admin webhooks do not support that).
               </li>
               <li>

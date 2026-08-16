@@ -1,7 +1,7 @@
-/** v1 — keep in sync with server/src/roi/assumptions.ts */
+/** v1: keep in sync with server/src/roi/assumptions.ts */
 export const ROI_ASSUMPTIONS_VERSION = "1.0.0";
 
-/** Human labor baseline saved per agent pipeline run (ROI comparison) — NOT agent runtime. */
+/** Human labor baseline saved per agent pipeline run (ROI comparison): NOT agent runtime. */
 export const DEFAULT_ROI_ASSUMPTIONS = {
   version: ROI_ASSUMPTIONS_VERSION,
   baselineHoursPerRun: 32,

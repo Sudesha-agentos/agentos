@@ -10,7 +10,7 @@ const TONE = {
 };
 
 /**
- * Horizontal stage dots — readable in under one second.
+ * Horizontal stage dots: readable in under one second.
  */
 export default function StageRail({
   currentStage,

@@ -146,7 +146,7 @@ const mockAdapter = {
         productSummary: `${title} delivers a B2B SaaS platform for workflow automation and team collaboration.`,
         icp: "Mid-market and enterprise teams adopting AI-assisted product delivery.",
         revenueModel: "Subscription SaaS with tiered workspace pricing and usage-based API overage.",
-        pricingSummary: "Starter, Growth, and Enterprise tiers — exact pricing inferred from public marketing pages.",
+        pricingSummary: "Starter, Growth, and Enterprise tiers: exact pricing inferred from public marketing pages.",
         strategicGoals: [
           "Expand enterprise adoption",
           "Ship AI-native workflow features",
@@ -160,7 +160,7 @@ const mockAdapter = {
       ],
       technologies: ["Jina Reader", "Open Graph / JSON-LD meta", "Multi-page crawl (/about, /pricing)"],
       confidenceNotes:
-        "Mock mode — sample enrichment. Connect the API server for live Jina Reader + LLM structuring.",
+        "Mock mode: sample enrichment. Connect the API server for live Jina Reader + LLM structuring.",
       costUsd: 0,
       model: "mock",
     };
@@ -201,7 +201,7 @@ const mockAdapter = {
       model: "mock",
       confidenceNotes: productSummary
         ? `Mock competitors inferred from product: ${productSummary.slice(0, 80)}…`
-        : "Mock mode — connect API server for live competitor discovery.",
+        : "Mock mode: connect API server for live competitor discovery.",
     };
   },
 };

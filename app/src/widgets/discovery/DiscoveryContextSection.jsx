@@ -76,7 +76,7 @@ export default function DiscoveryContextSection({
       ) : null}
 
       {reuse.length > 0 ? (
-        <Block title="Org intelligence — reuse opportunities">
+        <Block title="Org intelligence: reuse opportunities">
           {reuse.map((r, i) => (
             <li
               key={`${r.component}-${i}`}

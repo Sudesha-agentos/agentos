@@ -110,7 +110,7 @@ function startTour() {
       activeController.navigate(stepPath(activeController, PRODUCT_TOUR_STEPS[idx - 1]));
       setTimeout(() => activeDriver?.movePrevious(), STEP_MOVE_DELAY_MS);
     },
-    // Fired by the ✕ button, overlay click, or Escape — treat as Skip so
+    // Fired by the ✕ button, overlay click, or Escape: treat as Skip so
     // the tour does not auto-restart on refresh.
     onDestroyStarted: () => {
       finishTour();

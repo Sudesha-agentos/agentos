@@ -31,7 +31,7 @@ export default function SettingsCodebaseIndexPage() {
         <h2 className="mt-1 text-lg font-semibold text-app-ink">Codebase indexing</h2>
         <p className="mt-2 max-w-2xl text-[14px] leading-relaxed text-app-ink-dim">
           Indexing runs in the background after you connect GitHub. Agents use these vectors for
-          semantic code search — this is not shown in the Ananta workspace UI.
+          semantic code search: this is not shown in the Ananta workspace UI.
         </p>
         <p className="mt-2 text-[13px] text-app-ink-dim">
           <Link to={orgPath("settings", "integrations", "github")} className="text-indigo hover:underline">

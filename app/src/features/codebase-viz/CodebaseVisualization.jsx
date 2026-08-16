@@ -358,7 +358,7 @@ export default function CodebaseVisualization({
             <input
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Semantic search — e.g. where is authentication handled"
+              placeholder="Semantic search: e.g. where is authentication handled"
               className="h-10 rounded-full border border-hairline bg-canvas/60 px-4 text-[13px] outline-none focus:border-indigo/40"
             />
             <form onSubmit={handleAskQuestion} className="flex gap-2">
@@ -516,7 +516,7 @@ export default function CodebaseVisualization({
             <div className="max-w-md rounded-2xl border border-hairline bg-surface p-8 text-center">
               <h2 className="font-display text-2xl text-ink">Welcome to your codebase</h2>
               <p className="mt-3 text-[14px] text-ink-dim">
-                This is a map of understanding — not just files. Take a guided tour or explore on
+                This is a map of understanding: not just files. Take a guided tour or explore on
                 your own.
               </p>
               <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:justify-center">

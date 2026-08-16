@@ -13,7 +13,7 @@ export default function ValidationCard({ validation }) {
         <div>
           <p className="type-kicker">Validation</p>
           <h3 className="type-section-title mt-1.5">
-            {passed ? "Gate passed" : "Gate failed — human review required"}
+            {passed ? "Gate passed" : "Gate failed: human review required"}
           </h3>
         </div>
         <div className="flex items-center gap-3">

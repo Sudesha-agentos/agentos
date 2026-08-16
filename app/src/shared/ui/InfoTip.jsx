@@ -1,5 +1,5 @@
 /**
- * Compact help icon — explanation on hover/focus, not inline copy.
+ * Compact help icon: explanation on hover/focus, not inline copy.
  */
 export default function InfoTip({ text, label = "More information", className = "" }) {
   if (!text) return null;

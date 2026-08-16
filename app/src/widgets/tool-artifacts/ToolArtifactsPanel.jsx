@@ -6,8 +6,8 @@ import { apiPath } from "../../shared/config/apiBase";
 
 const LANE_SUBTITLE = {
   engineering: "Aider, Tree-sitter, and mini-SWE / ACI outputs for this ticket.",
-  qa: "Semgrep, Playwright, Cover-Agent, and Hypothesis — run every ticket.",
-  canary: "Playwright monitor, OWASP ZAP, and Locust — run every canary cycle.",
+  qa: "Semgrep, Playwright, Cover-Agent, and Hypothesis: run every ticket.",
+  canary: "Playwright monitor, OWASP ZAP, and Locust: run every canary cycle.",
   codebase: "Codebase intelligence tool outputs.",
 };
 
@@ -271,7 +271,7 @@ export default function ToolArtifactsPanel({
             <p className="mt-1 text-app-ink-dim">
               Semgrep and/or Playwright are missing on the API host
               {hostStatus.required
-                ? " (OSS_TOOLS_REQUIRED — missing CLIs fail tickets instead of quiet skip)."
+                ? " (OSS_TOOLS_REQUIRED: missing CLIs fail tickets instead of quiet skip)."
                 : "."}{" "}
               Install via <code className="font-mono text-[12px]">scripts/install-oss-tools.sh</code>{" "}
               on Render (need ≥1GB RAM). Do not vendor full upstream repos.
@@ -315,7 +315,7 @@ export default function ToolArtifactsPanel({
                     hit?.summary ||
                     (host && !host.installed
                       ? `Host missing: ${host.installHint}`
-                      : "Waiting for ticket run — click to filter")
+                      : "Waiting for ticket run: click to filter")
                   }
                 >
                   {tool.label}

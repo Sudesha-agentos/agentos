@@ -28,7 +28,7 @@ function EmptyState({ onAnalyze, analyzing, error }) {
         <p className="type-kicker">Ananta Brain</p>
         <p className="mt-2 type-section-title">Not ready yet</p>
         <p className="mt-2 type-body">
-          Analyze this repository to build clusters, symbols, processes, and call edges — then
+          Analyze this repository to build clusters, symbols, processes, and call edges: then
           explore with Force / Tree / Circles layouts and query tools.
         </p>
         {error ? <p className="mt-3 text-sm text-danger">{error}</p> : null}
@@ -358,7 +358,7 @@ export default function GitNexusExplorer({ branch = "main" }) {
       setPayload(data);
       setProcesses(res?.processes || []);
       if (!data?.nodes?.length) {
-        setError(data ? "Graph is empty — try analyzing again." : "No graph payload.");
+        setError(data ? "Graph is empty: try analyzing again." : "No graph payload.");
       }
     } catch (err) {
       setPayload(null);

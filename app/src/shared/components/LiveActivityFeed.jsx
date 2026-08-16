@@ -27,7 +27,7 @@ export default function LiveActivityFeed({ events, loading }) {
   if (!events?.length) {
     return (
       <p className="py-8 text-center text-sm text-app-ink-dim">
-        No activity yet — pipelines will appear here as they run.
+        No activity yet: pipelines will appear here as they run.
       </p>
     );
   }

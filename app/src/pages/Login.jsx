@@ -59,7 +59,7 @@ export default function Login() {
 
   function handleGoogleSignIn() {
     setError("");
-    // Mock mode has no Google OAuth — don't pretend the redirect will work.
+    // Mock mode has no Google OAuth: don't pretend the redirect will work.
     if (DATA_MODE === "mock") {
       setError(
         "Google sign-in needs REST mode. Set VITE_API_URL to your Render API in app/.env and restart Vite."
@@ -95,7 +95,7 @@ export default function Login() {
           </h1>
           <p className="mt-2 text-center text-[15px] text-[#6B6B6B]">
             {isSignup
-              ? "Start your workspace — connect Jira and run your first pipeline."
+              ? "Start your workspace: connect Jira and run your first pipeline."
               : "Sign in to run pipelines, manage company context, and work with Virin, Ananta, and Neel."}
           </p>
 

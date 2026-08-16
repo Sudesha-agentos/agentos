@@ -346,7 +346,7 @@ function SourcesPanel({ sources, catalog, ingestDocs, onChanged, initialProvider
         <ul className="divide-y divide-app-border px-5 pb-4">
           {(sources ?? []).length === 0 ? (
             <li className="py-4 text-[13px] text-app-ink-mute">
-              No sources linked yet. Add a provider below — Test connection before
+              No sources linked yet. Add a provider below: Test connection before
               saving when possible.
             </li>
           ) : (

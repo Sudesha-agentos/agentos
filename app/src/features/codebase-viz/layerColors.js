@@ -44,7 +44,7 @@ export function languageColor(language) {
   return { ...style, tag: key };
 }
 
-/** Agent activity layer — purple for agent, human heat otherwise. */
+/** Agent activity layer: purple for agent, human heat otherwise. */
 export function agentColor(lastModified, lastModifiedBy) {
   if (lastModifiedBy === "agent") {
     return { fill: "rgba(168, 85, 247, 0.85)", stroke: "#c084fc", pulse: true, tag: "agent" };

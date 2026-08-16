@@ -59,7 +59,7 @@ function mockReply(domain, content) {
   return {
     id: `mock-${Date.now()}`,
     role: "assistant",
-    content: `**Mock ${domain} reply** — connect the API server for live tool calls.\n\nYou asked: "${content.slice(0, 120)}${content.length > 120 ? "…" : ""}"\n\nI would call \`${toolHint}\` and synthesize an answer from domain data.`,
+    content: `**Mock ${domain} reply**: connect the API server for live tool calls.\n\nYou asked: "${content.slice(0, 120)}${content.length > 120 ? "…" : ""}"\n\nI would call \`${toolHint}\` and synthesize an answer from domain data.`,
     metadata: { toolCallLog: [{ tool: toolHint, query: content.slice(0, 40), resultsFound: 3 }] },
     createdAt: new Date().toISOString(),
   };

@@ -1,4 +1,4 @@
-/** AgentOX marketing copy — single source of truth for the landing page. */
+/** AgentOX marketing copy: single source of truth for the landing page. */
 
 export const BRAND = {
   name: "AgentOX",
@@ -22,7 +22,7 @@ export const HERO = {
   badge: "Early access · Works with Jira, GitHub & Bitbucket",
   headline: "From Jira ticket to reviewed PR. Autonomously.",
   subhead:
-    "Three AI agents — Virin, Ananta, and Neel — analyze your ticket, write the code, and run the tests. You approve at every gate.",
+    "Three AI agents: Virin, Ananta, and Neel: analyze your ticket, write the code, and run the tests. You approve at every gate.",
   primaryCta: { label: "Get early access", href: "/login?signup" },
   secondaryCta: { label: "See how it works", href: "#how-it-works" },
   note: "No credit card · Setup in 30 minutes",
@@ -62,12 +62,12 @@ export const HOW_IT_WORKS = {
     {
       number: "02",
       title: "Agents run",
-      body: "Pick a ticket. Virin validates the requirements, Ananta writes the code, Neel runs the tests — each handoff passes a validation gate before the next agent starts.",
+      body: "Pick a ticket. Virin validates the requirements, Ananta writes the code, Neel runs the tests: each handoff passes a validation gate before the next agent starts.",
     },
     {
       number: "03",
       title: "You review",
-      body: "A draft PR lands with the PRD, implementation plan, and QA report attached. Approve, request changes, or override — results write back to Jira automatically.",
+      body: "A draft PR lands with the PRD, implementation plan, and QA report attached. Approve, request changes, or override: results write back to Jira automatically.",
     },
   ],
 };
@@ -75,7 +75,7 @@ export const HOW_IT_WORKS = {
 export const AGENTS = {
   id: "agents",
   eyebrow: "Meet the agents",
-  headline: "A product manager, an engineer, and a QA — working in sequence.",
+  headline: "A product manager, an engineer, and a QA: working in sequence.",
   subhead:
     "Each agent completes its stage and passes a validation gate before the next one starts. If confidence is low, the pipeline pauses and asks you.",
   cards: [
@@ -114,11 +114,11 @@ export const FEATURES = {
     },
     {
       title: "Codebase intelligence",
-      body: "Your repository is indexed into a semantic map. Agents cite real files and follow existing patterns — no blank-chat hallucinations.",
+      body: "Your repository is indexed into a semantic map. Agents cite real files and follow existing patterns: no blank-chat hallucinations.",
     },
     {
       title: "Sandboxed test execution",
-      body: "QA doesn't just plan tests, it runs them — in an isolated sandbox against the actual branch. No execution, no approval.",
+      body: "QA doesn't just plan tests, it runs them: in an isolated sandbox against the actual branch. No execution, no approval.",
     },
     {
       title: "Human approval gates",
@@ -140,7 +140,7 @@ export const SECURITY = {
   eyebrow: "Security",
   headline: "Your code stays yours.",
   subhead:
-    "Codebase intelligence stores summaries and embeddings — not a wholesale copy of your source. Your data never trains the models.",
+    "Codebase intelligence stores summaries and embeddings: not a wholesale copy of your source. Your data never trains the models.",
   modes: [
     {
       name: "Managed cloud",
@@ -148,7 +148,7 @@ export const SECURITY = {
     },
     {
       name: "Your VPC or on-prem",
-      body: "Everything — data, agents, and optional self-hosted models — runs inside your own network. Nothing leaves.",
+      body: "Everything: data, agents, and optional self-hosted models: runs inside your own network. Nothing leaves.",
     },
   ],
   footnote: "SOC 2 Type 1 & 2 roadmap in progress.",
@@ -159,7 +159,7 @@ export const PRICING = {
   eyebrow: "Pricing",
   headline: "Simple plans that pay for themselves.",
   subhead:
-    "A pipeline run is one ticket taken through discovery to a PRD — revised tickets don't count twice.",
+    "A pipeline run is one ticket taken through discovery to a PRD: revised tickets don't count twice.",
   plans: [
     {
       id: "starter",
@@ -169,7 +169,7 @@ export const PRICING = {
       tagline: "For teams running their first features through the pipeline.",
       features: [
         "40 pipeline runs per month",
-        "All three agents — Virin, Ananta, Neel",
+        "All three agents: Virin, Ananta, Neel",
         "1 connected repository",
         "Jira integration & writeback",
         "PRD, implementation & QA gates",
@@ -222,7 +222,7 @@ export const FAQ = {
   items: [
     {
       q: "Does AgentOX replace my developers?",
-      a: "No. It removes the rework loop — unclear requirements, missed criteria, untested edge cases. Your engineers review every PR and keep the final decision at every gate.",
+      a: "No. It removes the rework loop: unclear requirements, missed criteria, untested edge cases. Your engineers review every PR and keep the final decision at every gate.",
     },
     {
       q: "What happens when a ticket is unclear?",
@@ -230,7 +230,7 @@ export const FAQ = {
     },
     {
       q: "What access does it need?",
-      a: "OAuth into Jira and a GitHub App or Bitbucket OAuth connection to your repository. Agents work on branches and open draft PRs — they never push to your default branch.",
+      a: "OAuth into Jira and a GitHub App or Bitbucket OAuth connection to your repository. Agents work on branches and open draft PRs: they never push to your default branch.",
     },
     {
       q: "How is my code protected?",
@@ -252,7 +252,7 @@ export const FINAL_CTA = {
   subhead:
     "Setup takes 30 minutes. Your first run shows you exactly what your team's rework has been costing.",
   primaryCta: { label: "Get early access", href: "/login?signup" },
-  fallback: "Questions? Talk to the founders —",
+  fallback: "Questions? Talk to the founders.",
 };
 
 export const FOOTER = {

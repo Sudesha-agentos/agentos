@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 import { forceCenter, forceLink, forceManyBody, forceSimulation } from "d3";
 
 /**
- * Module-level relationship graph — collapsed clusters, not a file hairball.
+ * Module-level relationship graph: collapsed clusters, not a file hairball.
  */
 export default function ModuleGraphView({ nodes, edges, highlightPaths, onSelectModule }) {
   const svgRef = useRef(null);

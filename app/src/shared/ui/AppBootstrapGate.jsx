@@ -33,7 +33,7 @@ export default function AppBootstrapGate({ children }) {
     };
   }, [docReady]);
 
-  // Don't block the public marketing shell on auth/session checks — those can hang
+  // Don't block the public marketing shell on auth/session checks: those can hang
   // when the API is down or slow while a stale token exists in localStorage.
   const booting = !docReady || !minElapsed;
 

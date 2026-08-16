@@ -522,7 +522,7 @@ export function PmTechHandoffSection({ jiraKey, analysisComplete }) {
       const msg = err.message ?? "Handoff failed";
       setHandoffError(
         msg.includes("not found")
-          ? `${msg} — re-run Analyze ticket if the server restarted since this analysis completed.`
+          ? `${msg}: re-run Analyze ticket if the server restarted since this analysis completed.`
           : msg
       );
       setHandoffData(null);
@@ -545,7 +545,7 @@ export function PmTechHandoffSection({ jiraKey, analysisComplete }) {
       const msg = err.message ?? "Failed to start coding pipeline";
       setHandoffError(
         msg.includes("not found")
-          ? `${msg} — re-run Analyze ticket if the server restarted since this analysis completed.`
+          ? `${msg}: re-run Analyze ticket if the server restarted since this analysis completed.`
           : msg
       );
     } finally {

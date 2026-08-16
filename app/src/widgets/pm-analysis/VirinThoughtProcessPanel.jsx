@@ -35,7 +35,7 @@ export function PipelineBlockingAlert({ live, className = "" }) {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-[11px] font-semibold uppercase tracking-wide text-warning">
-            Blocked — needs your input
+            Blocked: needs your input
           </p>
           <p className="mt-1 text-sm font-medium text-app-ink">
             {live.jiraKey} · {live.currentStageLabel}
@@ -101,7 +101,7 @@ export function VirinThoughtProcessContent({ live, className = "" }) {
               {isPaused ? "Product agent paused" : "Virin thought process"}
             </p>
             <p className="mt-1 text-sm font-medium text-app-ink">
-              {live.jiraKey} — {live.summary}
+              {live.jiraKey}: {live.summary}
             </p>
           </div>
           <StatusPill status={live.status} />
@@ -130,7 +130,7 @@ export function VirinThoughtProcessContent({ live, className = "" }) {
                     }
                   >
                     {step.label}
-                    {step.status === "BLOCKED" ? " — blocked" : null}
+                    {step.status === "BLOCKED" ? ": blocked" : null}
                   </span>
                 </li>
               ))}

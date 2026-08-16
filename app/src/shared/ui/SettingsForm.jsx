@@ -3,9 +3,12 @@ import { TitleWithInfo } from "./InfoTip";
 /**
  * Untitled UI–style settings section primitives: label column left, controls right.
  */
-export function SettingsSection({ title, info, children, className = "" }) {
+export function SettingsSection({ title, info, children, className = "", ...rest }) {
   return (
-    <section className={`border-b border-app-border py-6 last:border-b-0 last:pb-0 ${className}`}>
+    <section
+      className={`border-b border-app-border py-6 last:border-b-0 last:pb-0 ${className}`}
+      {...rest}
+    >
       {title ? (
         <div className="mb-6">
           <h2 className="flex items-center gap-1.5 text-sm font-semibold text-app-ink">

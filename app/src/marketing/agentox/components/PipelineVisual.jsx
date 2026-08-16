@@ -30,7 +30,7 @@ export default function PipelineVisual() {
   const isActive = (i) => (reduced ? true : i <= active);
 
   return (
-    <div className="ax-pipeline" role="img" aria-label="AgentOX pipeline: Jira ticket, Virin product agent, Ananta engineering agent, Neel QA agent, draft pull request — with a human gate between each stage">
+    <div className="ax-pipeline" role="img" aria-label="AgentOX pipeline: Jira ticket, Virin product agent, Ananta engineering agent, Neel QA agent, draft pull request, with a human gate between each stage">
       <div className="ax-pipeline-title">One ticket through the pipeline</div>
       <div className="ax-pipeline-track">
         {PIPELINE_STAGES.map((stage, i) => (
