@@ -1,8 +1,7 @@
-import { useRef } from "react";
 import { Link } from "react-router-dom";
-import TorusFooter from "../torus/components/TorusFooter";
-import TorusNav from "../torus/components/TorusNav";
-import { useTorusTheme } from "../torus/hooks/useTorusTheme";
+import Nav from "../agentox/components/Nav";
+import Footer from "../agentox/components/Footer";
+import "../agentox/agentoxMarketing.css";
 import "../torus/torusMarketing.css";
 import {
   DOCS_CODE_META,
@@ -392,13 +391,11 @@ function ToolCatalog({ tools }) {
 }
 
 export default function DocsCodePage() {
-  const rootRef = useRef(null);
-  const { isLight, toggleTheme } = useTorusTheme(rootRef);
-
   return (
-    <div ref={rootRef} className="torus-marketing min-h-screen">
-      <TorusNav onToggleTheme={toggleTheme} isLight={isLight} />
-      <main
+    <div className="agentox-chrome">
+      <Nav />
+      <div className="torus-marketing min-h-screen">
+        <main
         className="page docs-code-page"
         style={{ paddingTop: "120px", paddingBottom: "80px" }}
       >
@@ -545,7 +542,8 @@ export default function DocsCodePage() {
           </div>
         </div>
       </main>
-      <TorusFooter />
+      </div>
+      <Footer />
       <style>{`
         @media (max-width: 900px) {
           .docs-code-layout {

@@ -1,5 +1,5 @@
-import TorusLandingPage from "../torus/TorusLandingPage";
+import AgentOxLandingPage from "../agentox/AgentOxLandingPage";
 
 export default function LandingPage() {
-  return <TorusLandingPage />;
+  return <AgentOxLandingPage />;
 }

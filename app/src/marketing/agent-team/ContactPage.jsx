@@ -1,14 +1,17 @@
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
-import TorusFooter from "../torus/components/TorusFooter";
-import TorusNav from "../torus/components/TorusNav";
-import { useTorusTheme } from "../torus/hooks/useTorusTheme";
-import { BRAND } from "../torus/torusPageContent";
-import "../torus/torusMarketing.css";
+import Nav from "../agentox/components/Nav";
+import Footer from "../agentox/components/Footer";
+import { BRAND } from "../agentox/content";
+import "../agentox/agentoxMarketing.css";
+
+const FIELDS = [
+  { id: "name", label: "Name", type: "text" },
+  { id: "email", label: "Email", type: "email" },
+  { id: "company", label: "Company", type: "text" },
+];
 
 export default function ContactPage() {
-  const rootRef = useRef(null);
-  const { isLight, toggleTheme } = useTorusTheme(rootRef);
   const [sent, setSent] = useState(false);
 
   function onSubmit(e) {
@@ -17,113 +20,64 @@ export default function ContactPage() {
   }
 
   return (
-    <div ref={rootRef} className="torus-marketing min-h-screen">
-      <TorusNav onToggleTheme={toggleTheme} isLight={isLight} />
-      <main className="page" style={{ paddingTop: "120px", paddingBottom: "64px" }}>
-        <p className="cta-label">CONTACT</p>
-        <h1 className="mission-headline" style={{ maxWidth: "640px" }}>
-          Talk to us about your pipeline.
-        </h1>
-        <p className="cta-description">
-          Tell us about your Jira workflow and we&apos;ll show how Virin runs discovery, Ananta plans
-          against your codebase, and Neel holds the QA gate before writeback.
-        </p>
+    <div className="agentox-marketing">
+      <Nav />
+      <main className="ax-contact">
+        <div className="ax-container">
+          <div className="ax-eyebrow">Contact</div>
+          <h1 className="ax-h2" style={{ maxWidth: "560px" }}>
+            Talk to us about your pipeline.
+          </h1>
+          <p className="ax-subhead" style={{ maxWidth: "620px" }}>
+            Tell us about your Jira workflow and we&apos;ll show how Virin runs discovery, Ananta
+            codes against your repository, and Neel holds the QA gate before writeback.
+          </p>
 
-        <div className="email-layout" style={{ marginTop: "48px" }}>
-          <form onSubmit={onSubmit} className="email-frame" style={{ borderColor: "var(--line)" }}>
-            {sent ? (
-              <div className="email-body-area" style={{ clipPath: "none" }}>
-                Thanks — we&apos;ll be in touch within one business day.
-              </div>
-            ) : (
-              <div className="email-body-area" style={{ clipPath: "none" }}>
-                {[
-                  { id: "name", label: "NAME", type: "text" },
-                  { id: "email", label: "EMAIL", type: "email" },
-                  { id: "company", label: "COMPANY", type: "text" },
-                ].map((field) => (
-                  <label key={field.id} style={{ display: "block", marginBottom: "20px" }}>
-                    <span
-                      style={{
-                        fontFamily: "var(--font-mono)",
-                        fontSize: "10px",
-                        letterSpacing: "2px",
-                        color: "var(--text-faint)",
-                      }}
-                    >
-                      {field.label}
-                    </span>
-                    <input
-                      type={field.type}
-                      required
-                      style={{
-                        display: "block",
-                        width: "100%",
-                        marginTop: "8px",
-                        padding: "12px",
-                        background: "var(--surface)",
-                        border: "1px solid var(--line)",
-                        color: "var(--text)",
-                        fontFamily: "var(--font-body)",
-                        fontSize: "14px",
-                      }}
-                    />
+          <div className="ax-contact-layout">
+            <form onSubmit={onSubmit} className="ax-form-card">
+              {sent ? (
+                <div className="ax-form-success">
+                  Thanks — we&apos;ll be in touch within one business day.
+                </div>
+              ) : (
+                <>
+                  {FIELDS.map((field) => (
+                    <label key={field.id} className="ax-field">
+                      <span>{field.label}</span>
+                      <input type={field.type} name={field.id} required />
+                    </label>
+                  ))}
+                  <label className="ax-field">
+                    <span>Message</span>
+                    <textarea name="message" required rows={5} />
                   </label>
-                ))}
-                <label style={{ display: "block", marginBottom: "24px" }}>
-                  <span
-                    style={{
-                      fontFamily: "var(--font-mono)",
-                      fontSize: "10px",
-                      letterSpacing: "2px",
-                      color: "var(--text-faint)",
-                    }}
-                  >
-                    MESSAGE
-                  </span>
-                  <textarea
-                    required
-                    rows={5}
-                    style={{
-                      display: "block",
-                      width: "100%",
-                      marginTop: "8px",
-                      padding: "12px",
-                      background: "var(--surface)",
-                      border: "1px solid var(--line)",
-                      color: "var(--text)",
-                      fontFamily: "var(--font-body)",
-                      fontSize: "14px",
-                      resize: "vertical",
-                    }}
-                  />
-                </label>
-                <button type="submit" className="btn btn-primary">
-                  SEND MESSAGE
-                </button>
-              </div>
-            )}
-          </form>
+                  <button type="submit" className="ax-btn ax-btn-primary">
+                    Send message
+                  </button>
+                </>
+              )}
+            </form>
 
-          <div className="email-sidebar" style={{ background: "transparent", border: "none" }}>
-            <div className="email-sidebar-card" style={{ border: "1px solid var(--line)" }}>
-              <div className="email-sidebar-card-label">EMAIL</div>
-              <h3>{BRAND.email}</h3>
-              <p>We respond within one business day.</p>
-            </div>
-            <div className="email-sidebar-card" style={{ border: "1px solid var(--line)" }}>
-              <div className="email-sidebar-card-label">EARLY ACCESS</div>
-              <h3>Ready to run a pipeline?</h3>
-              <p>
-                <Link to="/login" state={{ mode: "signup" }} style={{ color: "var(--accent)" }}>
-                  Request early access →
-                </Link>
-              </p>
-            </div>
+            <aside>
+              <div className="ax-aside-card">
+                <div className="ax-aside-card-label">Email</div>
+                <h3>{BRAND.email}</h3>
+                <p>We respond within one business day.</p>
+              </div>
+              <div className="ax-aside-card">
+                <div className="ax-aside-card-label">Early access</div>
+                <h3>Ready to run a pipeline?</h3>
+                <p>
+                  <Link to="/login" state={{ mode: "signup" }}>
+                    Get early access →
+                  </Link>
+                </p>
+              </div>
+            </aside>
           </div>
         </div>
       </main>
-      <TorusFooter />
+      <Footer />
     </div>
   );
 }
