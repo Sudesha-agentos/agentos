@@ -20,12 +20,8 @@ export const NAV = {
 
 export const HERO = {
   badge: "Early access · Works with Jira, GitHub & Bitbucket",
-  welcome: "Welcome to",
-  appName: "AgentOX",
+  welcome: "Welcome to AgentOX.",
   headline: "From Jira ticket to reviewed PR. Autonomously.",
-  purposeTitle: "Purpose of AgentOX",
-  purpose:
-    "AgentOX is a web application for software teams. Its purpose is to take a Jira ticket through requirements, implementation, and QA, then open a draft pull request for human review. Sign in with Google to create or access your AgentOX workspace and connect tools you authorize, such as Jira, GitHub, or Bitbucket. Three AI agents — Virin (product), Ananta (engineering), and Neel (QA) — run in sequence. You approve at every gate; AgentOX does not merge to your default branch without you.",
   subhead:
     "Three AI agents: Virin, Ananta, and Neel: analyze your ticket, write the code, and run the tests. You approve at every gate.",
   primaryCta: { label: "Get early access", href: "/login?signup" },
