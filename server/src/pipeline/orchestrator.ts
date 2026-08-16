@@ -271,14 +271,24 @@ export class PipelineOrchestrator {
         productStage.agentOutput.parsed,
         productStage.enrichedPrdDocument
       );
-      const codingStage = await this.runEngineeringCodingAgent(
-        pipeline.id,
-        normalizedTicket,
-        productStage.agentOutput.parsed,
-        engStage.output,
-        productStage.enrichedPrdDocument,
-        engStage.stageLogId
-      );
+      let codingStage: Awaited<ReturnType<typeof this.runEngineeringCodingAgent>>;
+      try {
+        codingStage = await this.runEngineeringCodingAgent(
+          pipeline.id,
+          normalizedTicket,
+          productStage.agentOutput.parsed,
+          engStage.output,
+          productStage.enrichedPrdDocument,
+          engStage.stageLogId
+        );
+      } catch (err) {
+        // Close the ENGINEERING_AGENT stage log so it doesn't stay RUNNING
+        // forever and confuse resume()'s completed-stage detection.
+        await pipelineRepo
+          .failStage(engStage.stageLogId, err instanceof Error ? err.message : String(err))
+          .catch(() => undefined);
+        throw err;
+      }
       const implementationBranch = codingStage.implementationBranch;
       const implementationOutput = codingStage.output;
       const implementationValidation = await this.validateImplementationStage(
@@ -322,11 +332,6 @@ export class PipelineOrchestrator {
         implementationBranch
       );
       const qaOutput = qaStage.agentOutput;
-      await writeQaToTicket(
-        normalizedTicket.jiraKey,
-        qaOutput.parsed,
-        qaStage.executionReport
-      );
 
       const canaryChangedFiles = (implementationOutput.parsed.codeChanges ?? [])
         .map((c) => c.filePath)
@@ -372,6 +377,13 @@ export class PipelineOrchestrator {
         await ticketRepo.setStatus(ticket.id, "AWAITING_HUMAN");
         return;
       }
+      // Write QA results to Jira only after the QA gate passes — otherwise the
+      // ticket would show QA as done while the pipeline is paused for review.
+      await writeQaToTicket(
+        normalizedTicket.jiraKey,
+        qaOutput.parsed,
+        qaStage.executionReport
+      );
       if (canaryResult?.findings.length) {
         await auditRepo.log(pipeline.id, "CANARY_FINDINGS", {
           runId: canaryResult.runId,
@@ -526,16 +538,23 @@ export class PipelineOrchestrator {
           productStage.agentOutput.parsed,
           productStage.enrichedPrdDocument
         );
-        const codingResult = await this.runEngineeringCodingAgent(
-          pipelineId,
-          normalizedTicket,
-          productStage.agentOutput.parsed,
-          engStage.output,
-          productStage.enrichedPrdDocument,
-          engStage.stageLogId
-        );
-        implementationBranch = codingResult.implementationBranch;
-        implementationOutput = codingResult.output;
+        try {
+          const codingResult = await this.runEngineeringCodingAgent(
+            pipelineId,
+            normalizedTicket,
+            productStage.agentOutput.parsed,
+            engStage.output,
+            productStage.enrichedPrdDocument,
+            engStage.stageLogId
+          );
+          implementationBranch = codingResult.implementationBranch;
+          implementationOutput = codingResult.output;
+        } catch (err) {
+          await pipelineRepo
+            .failStage(engStage.stageLogId, err instanceof Error ? err.message : String(err))
+            .catch(() => undefined);
+          throw err;
+        }
       } else {
         const engLog = await pipelineRepo.getStageOutput(pipelineId, "ENGINEERING_AGENT");
         const engOutput = engLog?.output as (ImplementationOutput & {
@@ -548,18 +567,40 @@ export class PipelineOrchestrator {
           parsed,
           metadata: { inputTokens: 0, outputTokens: 0, costUsd: 0, durationMs: 0 },
         };
-        const needsCoding = !parsed.codingSummary && !(parsed.codeChanges?.length);
+        // Re-run coding only when nothing was produced AND no branch was
+        // pushed — a pushed branch means code already exists on the remote.
+        const needsCoding =
+          !implementationBranch &&
+          !parsed.codingSummary?.trim() &&
+          !(parsed.codeChanges?.length);
         if (needsCoding) {
-          const codingResult = await this.runEngineeringCodingAgent(
+          // Start a fresh stage log so the re-run's output (including the
+          // pushed branch) is persisted for subsequent resumes.
+          const codingLog = await pipelineRepo.startStage({
             pipelineId,
-            normalizedTicket,
-            productStage.agentOutput.parsed,
-            implementationOutput,
-            productStage.enrichedPrdDocument,
-            null
-          );
-          implementationBranch = codingResult.implementationBranch;
-          implementationOutput = codingResult.output;
+            stage: "ENGINEERING_AGENT",
+            inputJson: {
+              resume: true,
+              reason: "coding_output_missing",
+            } as Prisma.InputJsonValue,
+          });
+          try {
+            const codingResult = await this.runEngineeringCodingAgent(
+              pipelineId,
+              normalizedTicket,
+              productStage.agentOutput.parsed,
+              implementationOutput,
+              productStage.enrichedPrdDocument,
+              codingLog.id
+            );
+            implementationBranch = codingResult.implementationBranch;
+            implementationOutput = codingResult.output;
+          } catch (err) {
+            await pipelineRepo
+              .failStage(codingLog.id, err instanceof Error ? err.message : String(err))
+              .catch(() => undefined);
+            throw err;
+          }
         }
       }
 
@@ -621,11 +662,6 @@ export class PipelineOrchestrator {
         };
       }
       const qaOutput = qaStage.agentOutput;
-      await writeQaToTicket(
-        normalizedTicket.jiraKey,
-        qaOutput.parsed,
-        qaStage.executionReport
-      );
 
       const canaryChangedFilesResume = (implementationOutput.parsed.codeChanges ?? [])
         .map((c) => c.filePath)
@@ -665,6 +701,13 @@ export class PipelineOrchestrator {
         await ticketRepo.setStatus(ticket.id, "AWAITING_HUMAN");
         return;
       }
+      // Write QA results to Jira only after the QA gate passes — otherwise the
+      // ticket would show QA as done while the pipeline is paused for review.
+      await writeQaToTicket(
+        normalizedTicket.jiraKey,
+        qaOutput.parsed,
+        qaStage.executionReport
+      );
 
       if (canaryResult?.findings.length) {
         await auditRepo.log(pipelineId, "CANARY_FINDINGS", {
@@ -1164,6 +1207,7 @@ export class PipelineOrchestrator {
 
     let codingResult: Awaited<ReturnType<typeof runEngineeringCodingAgentic>> | null = null;
     let implementationBranch: string | null = null;
+    let compileFailed = false;
 
     try {
       // Run the agentic loop (one attempt — agent handles its own verify/fix loop in Phase 2)
@@ -1245,7 +1289,6 @@ export class PipelineOrchestrator {
       }
 
       // Safety gate compile (monorepo-aware: server/, app/, or repo root)
-      let compileFailed = false;
       if (implementationMode !== "content" && workspace) {
         try {
           const compileResult = await runWorkspaceSafetyCompile(workspace.workspaceDir);
@@ -1467,6 +1510,9 @@ export class PipelineOrchestrator {
       ...implementationOutput.parsed,
       codeChanges: codingResult.codeChanges,
       codingSummary: codingResult.codingSummary,
+      // Surface the safety-compile result so the implementation gate can
+      // block QA from running against code that does not build.
+      compileFailed,
     };
 
     const output: AgentOutput<ImplementationOutput> = {
@@ -1763,7 +1809,32 @@ export class PipelineOrchestrator {
       logger.warn({ reasons: gate.reasons }, "QA security gate blocked pipeline");
     }
 
-    return mergeSecurityGateIntoValidation(validation, gate);
+    const merged = mergeSecurityGateIntoValidation(validation, gate);
+
+    // Enforce the execution gate from the sandbox report itself. The QA
+    // validator only sees the agent's self-reported confidenceBreakdown; if
+    // the agent omits it, plan-only confidence would slip through unchecked.
+    const executionStatus = qaStage.executionReport?.executionStatus ?? null;
+    if (
+      executionStatus !== "ran" &&
+      !merged.issues.some((i) => i.code === "TESTS_NOT_EXECUTED")
+    ) {
+      return {
+        ...merged,
+        passed: false,
+        issues: [
+          ...merged.issues,
+          {
+            code: "TESTS_NOT_EXECUTED",
+            severity: "error" as const,
+            message: executionStatus
+              ? `Sandbox tests were not executed (status: ${executionStatus}) — cannot approve on plan-only confidence.`
+              : "QA execution report missing — cannot verify tests ran; human review required.",
+          },
+        ],
+      };
+    }
+    return merged;
   }
 
   private async validateQaStage(
@@ -1794,6 +1865,19 @@ export class PipelineOrchestrator {
   ): Promise<boolean> {
     assertPipelineNotCancelled(pipelineId);
     if (validation.passed) return true;
+    // A recorded human override for this gate means a reviewer explicitly
+    // approved continuing despite the failed validation. Without this check,
+    // resume re-validates the same output and pauses forever.
+    const override = await pipelineRepo.getLatestOverride(pipelineId, stage);
+    if (override) {
+      await auditRepo.log(pipelineId, "HUMAN_OVERRIDE_APPLIED", {
+        stage,
+        overriddenBy: override.overriddenBy,
+        overriddenAt: override.overriddenAt.toISOString(),
+        bypassedIssues: validation.issues.map((i) => i.message),
+      });
+      return true;
+    }
     await stateManager.pauseForHuman(
       pipelineId,
       stage,

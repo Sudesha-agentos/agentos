@@ -210,8 +210,10 @@ function criterionIsCovered(linkedCriterion: string, prdCriterion: string): bool
   const prd = normalizeCriterion(prdCriterion);
   if (!linked || !prd) return false;
   if (linked === prd) return true;
-  // Allow minor truncation when the model shortens the criterion slightly.
-  if (linked.length >= 24 && prd.startsWith(linked)) return true;
-  if (prd.length >= 24 && linked.startsWith(prd)) return true;
+  // Allow truncation or partial quoting: containment either way once the
+  // shorter string is long enough to be unambiguous. QA agents often link a
+  // fragment of the BDD criterion rather than its exact prefix.
+  if (linked.length >= 24 && prd.includes(linked)) return true;
+  if (prd.length >= 24 && linked.includes(prd)) return true;
   return false;
 }

@@ -36,7 +36,11 @@ export async function resolveGitIntegrationSetupState(
     }
     if (pg?.installationId) {
       merged.provider = merged.provider ?? "github";
-      merged.authMethod = merged.authMethod ?? "github_app";
+      // A real GitHub App install supersedes a stale PAT authMethod from an
+      // older connect — otherwise repo listing/selection gates never fire.
+      if (!merged.authMethod || merged.authMethod === "pat") {
+        merged.authMethod = "github_app";
+      }
       merged.installationId = merged.installationId ?? pg.installationId;
       merged.workspace = merged.workspace || pg.accountLogin;
       if (pg.selectedRepoOwner && pg.selectedRepoName) {
@@ -51,7 +55,9 @@ export async function resolveGitIntegrationSetupState(
     pg = await getLatestGithubInstallState();
     if (pg?.installationId) {
       merged.provider = merged.provider ?? "github";
-      merged.authMethod = merged.authMethod ?? "github_app";
+      if (!merged.authMethod || merged.authMethod === "pat") {
+        merged.authMethod = "github_app";
+      }
       merged.installationId = merged.installationId ?? pg.installationId;
       if (pg.selectedRepoOwner && pg.selectedRepoName) {
         merged.workspace = merged.workspace || pg.selectedRepoOwner;

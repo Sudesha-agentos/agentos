@@ -34,6 +34,7 @@ const implementationSchema = z.object({
   blockers: z.array(z.string()),
   implementationMode: z.enum(["code", "content"]).optional(),
   targetFiles: z.array(z.string()).optional(),
+  compileFailed: z.boolean().optional(),
   confidenceScore: z.number().min(0).max(1),
   confidenceReason: z.string().min(8),
 });
@@ -108,6 +109,14 @@ export function validateImplementation(
       code: "LOW_CONFIDENCE",
       severity: "error",
       message: `Implementation confidence ${data.confidenceScore} below 0.7 threshold.`,
+    });
+  }
+  if (data.compileFailed) {
+    issues.push({
+      code: "COMPILE_FAILED",
+      severity: "error",
+      message:
+        "Safety compile failed on the implementation branch — the pushed code does not build. Human review required before QA runs.",
     });
   }
 

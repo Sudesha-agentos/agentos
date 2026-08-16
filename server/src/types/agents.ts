@@ -69,6 +69,8 @@ export interface ImplementationOutput {
   targetFiles?: string[];
   codeChanges?: CodeChange[];
   codingSummary?: string;
+  /** True when the post-coding safety compile failed on the pushed branch. */
+  compileFailed?: boolean;
 }
 
 export interface TestCaseCitation {
