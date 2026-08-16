@@ -1,6 +1,5 @@
 import crypto from "crypto";
 import type { OrgRole } from "../../generated/prisma/client";
-import { logger } from "../../utils/logger";
 
 export type SessionUser = {
   id: string;
@@ -15,8 +14,11 @@ export type SessionUser = {
 
 type AuthTokenPayload = SessionUser & {
   issuedAt: string;
+  exp: number;
   onboardingCompleted?: boolean;
 };
+
+const AUTH_TOKEN_TTL_SECONDS = 12 * 60 * 60;
 
 export type AuthSessionResponse = {
   token: string;
@@ -84,7 +86,7 @@ export function canUseFastSessionPath(payload: AuthTokenPayload): boolean {
 
 export function resolveSessionFromAuthHeader(req: {
   header: (name: string) => string | undefined;
-  query: { token?: string };
+  query?: { token?: string };
 }): AuthSessionResponse | null {
   const token = extractAuthToken(req);
   if (!token) return null;
@@ -109,14 +111,39 @@ function authSecret(): string {
 
 const DEV_AUTH_SECRET = "agentos-dev-auth-secret-change-in-production";
 
-/** Warn when production uses the default JWT secret (invalidates tokens on every deploy). */
+export function isProductionEnv(): boolean {
+  return process.env.NODE_ENV === "production";
+}
+
+export function isDemoLoginEnabled(): boolean {
+  return !isProductionEnv() && process.env.AUTH_ENABLE_DEMO_LOGIN === "true";
+}
+
+export function isAnyLoginEnabled(): boolean {
+  return !isProductionEnv() && process.env.AUTH_ALLOW_ANY_LOGIN === "true";
+}
+
+/** Refuse to boot when production is missing required secrets or has auth backdoors enabled. */
 export function validateAuthConfig(): void {
+  if (!isProductionEnv()) return;
+
   const secret = authSecret();
-  if (process.env.NODE_ENV === "production" && secret === DEV_AUTH_SECRET) {
-    logger.warn(
-      "AUTH_JWT_SECRET is not set — using insecure default. Set AUTH_JWT_SECRET on Render " +
-        "and VITE_API_MODE=rest + VITE_API_URL on the frontend."
+  if (secret === DEV_AUTH_SECRET) {
+    throw new Error(
+      "AUTH_JWT_SECRET is required in production. Set a unique secret before starting the API."
     );
+  }
+  if (process.env.AUTH_ALLOW_ANY_LOGIN === "true") {
+    throw new Error("AUTH_ALLOW_ANY_LOGIN cannot be enabled in production.");
+  }
+  if (process.env.AUTH_ENABLE_DEMO_LOGIN === "true") {
+    throw new Error("AUTH_ENABLE_DEMO_LOGIN cannot be enabled in production.");
+  }
+  if (!process.env.CORS_ORIGIN?.trim()) {
+    throw new Error("CORS_ORIGIN is required in production.");
+  }
+  if (!process.env.LOG_SOURCE_ENCRYPTION_KEY?.trim()) {
+    throw new Error("LOG_SOURCE_ENCRYPTION_KEY is required in production.");
   }
 }
 
@@ -155,7 +182,11 @@ function verifyAuthToken(token: string): AuthTokenPayload | null {
   }
 
   try {
-    return JSON.parse(decodeBase64Url(body)) as AuthTokenPayload;
+    const payload = JSON.parse(decodeBase64Url(body)) as AuthTokenPayload;
+    if (typeof payload.exp !== "number" || payload.exp < Math.floor(Date.now() / 1000)) {
+      return null;
+    }
+    return payload;
   } catch {
     return null;
   }
@@ -172,21 +203,18 @@ export function getRegisteredEmails() {
 
 export function extractAuthToken(req: {
   header: (name: string) => string | undefined;
-  query: { token?: string };
+  query?: { token?: string };
 }): string | undefined {
   const header = req.header("authorization");
   if (header?.toLowerCase().startsWith("bearer ")) {
     return header.slice(7).trim();
-  }
-  if (typeof req.query.token === "string") {
-    return req.query.token;
   }
   return undefined;
 }
 
 export function resolveUserFromAuthHeader(req: {
   header: (name: string) => string | undefined;
-  query: { token?: string };
+  query?: { token?: string };
 }): SessionUser | null {
   const token = extractAuthToken(req);
   if (!token) return null;
@@ -256,15 +284,18 @@ export async function issueSessionForUserId(userId: string) {
   const onboardingCompleted = onboarding?.completed ?? false;
 
   const issuedAt = new Date().toISOString();
+  const exp = Math.floor(Date.now() / 1000) + AUTH_TOKEN_TTL_SECONDS;
   const token = signAuthToken({
     ...sessionUser,
     issuedAt,
+    exp,
     onboardingCompleted,
   });
 
   return buildSessionResponse(token, {
     ...sessionUser,
     issuedAt,
+    exp,
     onboardingCompleted,
     organizationRole: membership?.role ?? sessionUser.organizationRole,
   });

@@ -721,6 +721,7 @@ function GithubManualPanel({ setup, refetch }) {
               tokenHint={setup?.git?.hasToken ? setup.git.tokenHint : null}
               webhookSecret={webhookSecret}
               setWebhookSecret={setWebhookSecret}
+              webhookSecretConfigured={Boolean(setup?.git?.webhookSecretConfigured)}
               defaultBranch={defaultBranch}
               setDefaultBranch={setDefaultBranch}
               workspaceLabel="Owner (org or user)"
@@ -1119,6 +1120,7 @@ function BitbucketManualPanel({ setup, refetch }) {
               tokenHint={setup?.git?.hasToken ? setup.git.tokenHint : null}
               webhookSecret={webhookSecret}
               setWebhookSecret={setWebhookSecret}
+              webhookSecretConfigured={Boolean(setup?.git?.webhookSecretConfigured)}
               defaultBranch={defaultBranch}
               setDefaultBranch={setDefaultBranch}
               workspaceLabel={meta?.workspaceLabel ?? "Workspace slug"}
@@ -1155,6 +1157,7 @@ function ManualFields({
   tokenHint,
   webhookSecret,
   setWebhookSecret,
+  webhookSecretConfigured,
   defaultBranch,
   setDefaultBranch,
   workspaceLabel,
@@ -1211,7 +1214,12 @@ function ManualFields({
         />
       </label>
       <label className="block text-sm">
-        <span className="text-muted">Webhook secret (optional)</span>
+        <span className="text-muted">
+          Webhook secret{" "}
+          {webhookSecretConfigured
+            ? "(stored — enter a new value to rotate)"
+            : "(optional)"}
+        </span>
         <input
           className="mt-1 w-full rounded border border-border bg-surface px-3 py-2 font-mono text-sm"
           value={webhookSecret}

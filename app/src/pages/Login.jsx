@@ -13,8 +13,8 @@ export default function Login() {
   const location = useLocation();
   const { login, signup } = useAuth();
   const isSignup = location.state?.mode === "signup";
-  const [email, setEmail] = useState(isSignup ? "" : DEMO_CREDENTIAL_HINT.email);
-  const [password, setPassword] = useState(isSignup ? "" : DEMO_CREDENTIAL_HINT.password);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [pending, setPending] = useState(false);
   const [googlePending, setGooglePending] = useState(false);
   const [error, setError] = useState("");

@@ -116,6 +116,18 @@ export async function connectPipelineJira(input: {
     : getPublicPipelineJiraCredentials();
   const projectKey = input.projectKeys?.[0] ?? jira.projectKeys[0] ?? null;
 
+  let webhookSecret = "";
+  if (input.organizationId) {
+    const { loadOrganizationJiraConfig } = await import(
+      "../../organization/jiraConfigStore"
+    );
+    webhookSecret =
+      (await loadOrganizationJiraConfig(input.organizationId))?.webhookSecret ?? "";
+  } else {
+    const { getActivePipelineJiraCredentials } = await import("./credentialsStore");
+    webhookSecret = getActivePipelineJiraCredentials().webhookSecret;
+  }
+
   let webhookRegistration: {
     registered: boolean;
     created: boolean;
@@ -126,12 +138,12 @@ export async function connectPipelineJira(input: {
   if (
     input.autoRegisterWebhook !== false &&
     input.webhookUrl &&
-    jira.webhookSecret
+    webhookSecret
   ) {
     try {
       const result = await ensurePipelineJiraWebhook({
         webhookUrl: input.webhookUrl,
-        secret: jira.webhookSecret,
+        secret: webhookSecret,
         projectKey,
       });
       webhookRegistration = {

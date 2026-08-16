@@ -18,7 +18,6 @@ import { startEngineeringHandoff } from "../../agents/pm/startEngineeringHandoff
 import type { PmAnalysisListFilter } from "../../agents/pm/handoffStatus";
 import type { PmStageId, PmTicketInput, RetrospectiveInput } from "../../agents/pm/types";
 import { getPipelineQueueState } from "../../queue/inProcessRunner";
-import { resolveUserFromAuthHeader } from "./authSession";
 import { requireOrganizationUser, withOrganizationContext } from "../orgRequestContext";
 import { NotFoundError, ValidationError } from "../../utils/errors";
 
@@ -30,18 +29,23 @@ import { clearPipelineCancelByJiraKey, stopWorkingSession } from "../../pipeline
 
 const router = Router();
 
-function backgroundOrgFromRequest(req: Request): string | undefined {
-  return resolveUserFromAuthHeader(req)?.organizationId ?? undefined;
+function requirePmOrg(req: Request, res: import("express").Response) {
+  return requireOrganizationUser(req, res);
 }
 
-router.get("/analysis/:ticketId/export", (req, res, next) => {
+router.get("/analysis/:ticketId/export", async (req, res, next) => {
   try {
-    const record = pmAnalysisStore.get(req.params.ticketId);
-    if (!record) throw new NotFoundError("PM analysis not found");
-    if (!record.generatedPrd) {
-      throw new ValidationError("PRD not generated — complete Virin analysis first");
-    }
-    res.json(buildProductPackageExport(record));
+    const user = requirePmOrg(req, res);
+    if (!user?.organizationId) return;
+
+    await withOrganizationContext(user.organizationId, async () => {
+      const record = pmAnalysisStore.get(req.params.ticketId);
+      if (!record) throw new NotFoundError("PM analysis not found");
+      if (!record.generatedPrd) {
+        throw new ValidationError("PRD not generated — complete Virin analysis first");
+      }
+      res.json(buildProductPackageExport(record));
+    });
   } catch (err) {
     next(err);
   }
@@ -103,6 +107,9 @@ router.get("/analysis/:ticketId", async (req, res, next) => {
 
 router.post("/analyze/:ticketId/resume", async (req, res, next) => {
   try {
+    const user = requirePmOrg(req, res);
+    if (!user?.organizationId) return;
+
     const jiraKey = req.params.ticketId.trim().toUpperCase();
     if (!jiraKey) throw new ValidationError("ticketId is required");
 
@@ -132,7 +139,7 @@ router.post("/analyze/:ticketId/resume", async (req, res, next) => {
     startPmAnalysisInBackground(
       jiraKey,
       () => runPmAnalysisPipeline({ jiraKey, resumeFrom }),
-      { organizationId: backgroundOrgFromRequest(req) }
+      { organizationId: user.organizationId }
     );
 
     res.status(202).json({
@@ -148,6 +155,9 @@ router.post("/analyze/:ticketId/resume", async (req, res, next) => {
 
 router.post("/analyze/:ticketId/answer", async (req, res, next) => {
   try {
+    const user = requirePmOrg(req, res);
+    if (!user?.organizationId) return;
+
     const jiraKey = req.params.ticketId.trim().toUpperCase();
     const answer = String(req.body?.answer ?? "").trim();
     if (!answer) throw new ValidationError("answer is required");
@@ -155,7 +165,7 @@ router.post("/analyze/:ticketId/answer", async (req, res, next) => {
     startPmAnalysisInBackground(
       jiraKey,
       () => submitVirinAnswer(jiraKey, answer),
-      { organizationId: backgroundOrgFromRequest(req) }
+      { organizationId: user.organizationId }
     );
 
     res.status(202).json({
@@ -170,6 +180,9 @@ router.post("/analyze/:ticketId/answer", async (req, res, next) => {
 
 router.post("/analyze/:ticketId/confirm", async (req, res, next) => {
   try {
+    const user = requirePmOrg(req, res);
+    if (!user?.organizationId) return;
+
     const jiraKey = req.params.ticketId.trim().toUpperCase();
     const confirmed = req.body?.confirmed !== false;
     const feedback = req.body?.feedback ? String(req.body.feedback) : undefined;
@@ -177,7 +190,7 @@ router.post("/analyze/:ticketId/confirm", async (req, res, next) => {
     startPmAnalysisInBackground(
       jiraKey,
       () => confirmVirinSolution(jiraKey, confirmed, feedback),
-      { organizationId: backgroundOrgFromRequest(req) }
+      { organizationId: user.organizationId }
     );
 
     res.status(202).json({
@@ -194,6 +207,9 @@ router.post("/analyze/:ticketId/confirm", async (req, res, next) => {
 
 router.post("/analyze/:ticketId", async (req, res, next) => {
   try {
+    const user = requirePmOrg(req, res);
+    if (!user?.organizationId) return;
+
     const jiraKey = req.params.ticketId.trim().toUpperCase();
     if (!jiraKey) throw new ValidationError("ticketId is required");
 
@@ -221,7 +237,7 @@ router.post("/analyze/:ticketId", async (req, res, next) => {
           ticket: body?.ticket,
           mode: body?.mode ?? "interactive",
         }),
-      { organizationId: backgroundOrgFromRequest(req) }
+      { organizationId: user.organizationId }
     );
 
     res.status(202).json({
@@ -237,6 +253,9 @@ router.post("/analyze/:ticketId", async (req, res, next) => {
 
 router.post("/analyze/:ticketId/cancel", async (req, res, next) => {
   try {
+    const user = requirePmOrg(req, res);
+    if (!user?.organizationId) return;
+
     const jiraKey = req.params.ticketId.trim().toUpperCase();
     if (!jiraKey) throw new ValidationError("ticketId is required");
 
@@ -269,6 +288,10 @@ router.post("/analyze/:ticketId/cancel", async (req, res, next) => {
 
 router.post("/post-ship/:ticketId", async (req, res, next) => {
   try {
+    const user = requirePmOrg(req, res);
+    if (!user?.organizationId) return;
+
+    await withOrganizationContext(user.organizationId, async () => {
     const jiraKey = req.params.ticketId.trim().toUpperCase();
     const body = (req.body ?? {}) as RetrospectiveInput;
     const record = await runVirinPostShip({
@@ -281,6 +304,7 @@ router.post("/post-ship/:ticketId", async (req, res, next) => {
       postShip: record.postShip,
       costUsd: estimateAnalysisCost(record),
     });
+    });
   } catch (err) {
     next(err);
   }
@@ -288,11 +312,16 @@ router.post("/post-ship/:ticketId", async (req, res, next) => {
 
 router.get("/handoff/:ticketId", async (req, res, next) => {
   try {
+    const user = requirePmOrg(req, res);
+    if (!user?.organizationId) return;
+
+    await withOrganizationContext(user.organizationId, async () => {
     const jiraKey = req.params.ticketId.trim().toUpperCase();
     if (!jiraKey) throw new ValidationError("ticketId is required");
 
     const result = await getTechAgentHandoff(jiraKey);
     res.json(result);
+    });
   } catch (err) {
     next(err);
   }
@@ -300,11 +329,16 @@ router.get("/handoff/:ticketId", async (req, res, next) => {
 
 router.post("/handoff/:ticketId", async (req, res, next) => {
   try {
+    const user = requirePmOrg(req, res);
+    if (!user?.organizationId) return;
+
+    await withOrganizationContext(user.organizationId, async () => {
     const jiraKey = req.params.ticketId.trim().toUpperCase();
     if (!jiraKey) throw new ValidationError("ticketId is required");
 
     const result = await prepareTechAgentHandoff(jiraKey);
     res.json(result);
+    });
   } catch (err) {
     next(err);
   }
@@ -312,9 +346,8 @@ router.post("/handoff/:ticketId", async (req, res, next) => {
 
 router.post("/handoff/:ticketId/start-pipeline", async (req, res, next) => {
   try {
-    const user = resolveUserFromAuthHeader(req);
+    const user = requirePmOrg(req, res);
     if (!user?.organizationId) {
-      res.status(403).json({ error: "organization_required" });
       return;
     }
 
@@ -353,6 +386,10 @@ router.post("/handoff/:ticketId/start-pipeline", async (req, res, next) => {
 
 router.post("/retrospective/:ticketId", async (req, res, next) => {
   try {
+    const user = requirePmOrg(req, res);
+    if (!user?.organizationId) return;
+
+    await withOrganizationContext(user.organizationId, async () => {
     const jiraKey = req.params.ticketId.trim().toUpperCase();
     const body = (req.body ?? {}) as RetrospectiveInput;
 
@@ -364,6 +401,7 @@ router.post("/retrospective/:ticketId", async (req, res, next) => {
       jiraKey,
       retrospective: record.retrospective,
       costUsd: estimateAnalysisCost(record),
+    });
     });
   } catch (err) {
     next(err);

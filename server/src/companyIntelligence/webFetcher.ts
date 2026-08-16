@@ -1,4 +1,5 @@
 import { logger } from "../utils/logger";
+import { assertSafeOutboundUrl } from "../security/assertSafeOutboundUrl";
 
 export type WebFetchSource = {
   url: string;
@@ -30,16 +31,8 @@ function normalizeWebsite(input: string): string {
   const trimmed = input.trim();
   if (!trimmed) throw new Error("Website URL is required.");
   const withScheme = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
-  try {
-    const url = new URL(withScheme);
-    if (!["http:", "https:"].includes(url.protocol)) {
-      throw new Error("Only http and https URLs are supported.");
-    }
-    return url.origin;
-  } catch (err) {
-    if (err instanceof Error && err.message.includes("Only http")) throw err;
-    throw new Error("Enter a valid website URL (e.g. https://example.com).");
-  }
+  const url = assertSafeOutboundUrl(withScheme);
+  return url.origin;
 }
 
 function pageUrl(origin: string, path: string): string {

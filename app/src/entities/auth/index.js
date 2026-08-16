@@ -14,7 +14,6 @@ const ONBOARDING_PREFIX = "agentos.onboarding.";
 
 export const DEMO_CREDENTIAL_HINT = {
   email: "demo@agentos.ai",
-  password: "agentos123",
 };
 
 function persistSession(session) {

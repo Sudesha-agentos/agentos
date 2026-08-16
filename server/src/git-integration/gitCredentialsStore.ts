@@ -43,6 +43,7 @@ export interface PublicGitCredentials {
   hasToken: boolean;
   tokenHint: string | null;
   webhookSecret: string;
+  webhookSecretConfigured: boolean;
   defaultBranch: string;
   configured: boolean;
   authMethod: GitAuthMethod | null;
@@ -366,6 +367,7 @@ export function getPublicGitCredentials(): PublicGitCredentials {
       hasToken: false,
       tokenHint: null,
       webhookSecret: "",
+      webhookSecretConfigured: false,
       defaultBranch: "main",
       configured: false,
       authMethod: null,
@@ -396,7 +398,8 @@ export function getPublicGitCredentials(): PublicGitCredentials {
       (creds.authMethod === "github_app" && Boolean(creds.installationId)) ||
       (creds.authMethod === "oauth" && Boolean(creds.refreshToken)),
     tokenHint: displayToken ? tokenHint(displayToken) : null,
-    webhookSecret: creds.webhookSecret,
+    webhookSecret: "",
+    webhookSecretConfigured: Boolean(creds.webhookSecret),
     defaultBranch: creds.defaultBranch,
     configured: connected,
     authMethod: creds.authMethod,

@@ -234,6 +234,7 @@ export async function getPublicOrganizationGitConfig(
       hasToken: false,
       tokenHint: null,
       webhookSecret: "",
+      webhookSecretConfigured: false,
       defaultBranch: "main",
       configured: false,
       authMethod: null,
@@ -265,7 +266,8 @@ export async function getPublicOrganizationGitConfig(
       (creds.authMethod === "github_app" && Boolean(creds.installationId)) ||
       (creds.authMethod === "oauth" && Boolean(creds.refreshToken)),
     tokenHint: displayToken ? tokenHint(displayToken) : null,
-    webhookSecret: creds.webhookSecret,
+    webhookSecret: "",
+    webhookSecretConfigured: Boolean(creds.webhookSecret),
     defaultBranch: creds.defaultBranch,
     configured: connected,
     authMethod: creds.authMethod,

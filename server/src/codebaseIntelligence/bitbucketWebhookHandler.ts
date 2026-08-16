@@ -24,17 +24,15 @@ type BitbucketPushPayload = {
 
 function verifySignature(req: Request): boolean {
   const secret = getGitWebhookSecret("bitbucket");
-  if (!secret) return true;
+  if (!secret) return false;
   const sig = req.header("x-hub-signature");
   if (!sig) return false;
   const body = (req as Request & { rawBody?: string }).rawBody ?? "";
   const digest = crypto.createHmac("sha256", secret).update(body).digest("hex");
   const expected = sig.startsWith("sha256=") ? sig.slice(7) : sig;
-  try {
-    return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(digest));
-  } catch {
-    return false;
-  }
+  const left = crypto.createHash("sha256").update(expected).digest();
+  const right = crypto.createHash("sha256").update(digest).digest();
+  return crypto.timingSafeEqual(left, right);
 }
 
 export async function handleBitbucketWebhook(

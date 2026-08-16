@@ -22,7 +22,9 @@ export function pgPoolConfig(connectionString: string): PoolConfig {
 
   return {
     connectionString: stripped,
-    ssl: isLocal ? undefined : { rejectUnauthorized: false },
+    ssl: isLocal
+      ? undefined
+      : { rejectUnauthorized: process.env.PG_SSL_REJECT_UNAUTHORIZED === "true" },
     max: poolMax,
     idleTimeoutMillis: 20_000,
     connectionTimeoutMillis: 15_000,

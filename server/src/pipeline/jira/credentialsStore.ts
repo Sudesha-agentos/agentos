@@ -29,6 +29,7 @@ export interface PipelineJiraCredentialsPublic {
   hasApiToken: boolean;
   tokenHint: string | null;
   webhookSecret: string;
+  webhookSecretConfigured: boolean;
   projectKeys: string[];
   configured: boolean;
   source: "database" | "environment" | "none";
@@ -257,7 +258,8 @@ export function getPublicPipelineJiraCredentials(): PipelineJiraCredentialsPubli
     email: merged.email,
     hasApiToken: Boolean(merged.apiToken),
     tokenHint: tokenHint(merged.apiToken),
-    webhookSecret: merged.webhookSecret,
+    webhookSecret: "",
+    webhookSecretConfigured: Boolean(merged.webhookSecret),
     projectKeys: merged.projectKeys,
     configured,
     source: configured

@@ -53,21 +53,16 @@ export function createApp(): express.Express {
     const configured =
       process.env.CORS_ORIGIN?.split(",").map((o) => o.trim()).filter(Boolean) ??
       [];
-    // Always allow local Vite during development of the marketing/app UI.
-    const localDevOrigins = ["http://localhost:5173", "http://127.0.0.1:5173"];
-    const allowed =
-      configured.length > 0
-        ? [...new Set([...configured, ...localDevOrigins])]
-        : ["*"];
+    const localDevOrigins =
+      process.env.NODE_ENV === "production"
+        ? []
+        : ["http://localhost:5173", "http://127.0.0.1:5173"];
+    const allowed = [...new Set([...configured, ...localDevOrigins])];
     const origin = req.header("origin");
-    if (origin && (allowed.includes("*") || allowed.includes(origin))) {
+    if (origin && allowed.includes(origin)) {
       res.setHeader("Access-Control-Allow-Origin", origin);
       res.setHeader("Vary", "Origin");
-      if (!allowed.includes("*")) {
-        res.setHeader("Access-Control-Allow-Credentials", "true");
-      }
-    } else if (allowed.includes("*")) {
-      res.setHeader("Access-Control-Allow-Origin", "*");
+      res.setHeader("Access-Control-Allow-Credentials", "true");
     }
     res.setHeader(
       "Access-Control-Allow-Methods",

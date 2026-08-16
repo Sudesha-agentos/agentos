@@ -200,8 +200,11 @@ router.get("/integration/setup", async (req, res, next) => {
   }
 });
 
-router.get("/integration/diagnostics", async (_req, res, next) => {
+router.get("/integration/diagnostics", async (req, res, next) => {
   try {
+    const user = await requireOrganizationUserFromDb(req, res);
+    if (!user?.organizationId) return;
+
     const githubProbe = isGithubAppConfigured()
       ? await probeGithubAppCredentials()
       : { ok: false, error: "github_app_not_configured" };
@@ -323,16 +326,14 @@ router.get("/oauth/github/callback", async (req, res) => {
   if (stateInvalid) {
     logger.warn(
       { installationId: installationId || null },
-      "github oauth callback state invalid — continuing when installation_id present"
+      "github oauth callback rejected — invalid state"
     );
-    if (!installationId) {
-      if (frontend) {
-        res.redirect(`${frontend}?github_error=invalid_state`);
-        return;
-      }
-      res.status(400).json({ error: "invalid_oauth_state" });
+    if (frontend) {
+      res.redirect(`${frontend}?github_error=invalid_state`);
       return;
     }
+    res.status(400).json({ error: "invalid_oauth_state" });
+    return;
   }
 
   let installError: string | null = null;
@@ -368,6 +369,9 @@ router.get("/oauth/github/callback", async (req, res) => {
 });
 
 router.post("/github/sync-install", async (req, res) => {
+  const user = await requireOrganizationUserFromDb(req, res);
+  if (!user?.organizationId) return;
+
   try {
     const installations = await listAppInstallations();
     if (!installations.length) {
@@ -380,7 +384,7 @@ router.post("/github/sync-install", async (req, res) => {
     const requested = req.body?.installationId
       ? String(req.body.installationId)
       : String(installations[0]!.id);
-    const result = await completeGithubInstallation(requested);
+    const result = await completeGithubInstallation(requested, user.organizationId);
     res.json({ synced: true, ...result });
   } catch (err) {
     const message = err instanceof Error ? err.message : "sync_install_failed";
@@ -672,6 +676,10 @@ router.post("/index/full", async (req, res, next) => {
 
 router.get("/index/status", async (req, res, next) => {
   try {
+    const user = await requireOrganizationUserFromDb(req, res);
+    if (!user?.organizationId) return;
+
+    await withOrganizationContext(user.organizationId, async () => {
     const runId = typeof req.query.runId === "string" ? req.query.runId : undefined;
     const branchName =
       typeof req.query.branch === "string" ? req.query.branch : undefined;
@@ -688,12 +696,16 @@ router.get("/index/status", async (req, res, next) => {
       branchName: run.branchName,
       progress: indexRunProgress(run),
     });
+    });
   } catch (err) {
     next(err);
   }
 });
 
 router.get("/index/progress", async (req, res) => {
+  const user = await requireOrganizationUserFromDb(req, res);
+  if (!user?.organizationId) return;
+
   const runId = typeof req.query.runId === "string" ? req.query.runId : undefined;
   const branchName =
     typeof req.query.branch === "string" ? req.query.branch : undefined;
@@ -715,26 +727,28 @@ router.get("/index/progress", async (req, res) => {
 
   const poll = async () => {
     try {
-      const run = runId
-        ? await getIndexRunById(runId)
-        : await getLatestIndexRun({ branchName });
-      if (!run) {
-        send({ active: false, progress: null });
-        res.end();
-        return;
-      }
-      const progress = indexRunProgress(run);
-      send({
-        active: !progress.done,
-        runId: run.id,
-        branchName: run.branchName,
-        progress,
+      await withOrganizationContext(user.organizationId!, async () => {
+        const run = runId
+          ? await getIndexRunById(runId)
+          : await getLatestIndexRun({ branchName });
+        if (!run) {
+          send({ active: false, progress: null });
+          res.end();
+          return;
+        }
+        const progress = indexRunProgress(run);
+        send({
+          active: !progress.done,
+          runId: run.id,
+          branchName: run.branchName,
+          progress,
+        });
+        if (progress.done) {
+          res.end();
+          return;
+        }
+        if (!closed) setTimeout(poll, 1500);
       });
-      if (progress.done) {
-        res.end();
-        return;
-      }
-      if (!closed) setTimeout(poll, 1500);
     } catch (err) {
       send({
         error: err instanceof Error ? err.message : "progress_poll_failed",

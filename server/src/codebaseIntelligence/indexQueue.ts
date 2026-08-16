@@ -259,7 +259,10 @@ export async function getLatestIndexRun(input?: {
 }
 
 export async function getIndexRunById(runId: string) {
-  return prismaAny.codebaseIndexRun.findUnique({ where: { id: runId } });
+  const organizationId = requireActiveOrganizationId();
+  return prismaAny.codebaseIndexRun.findFirst({
+    where: { id: runId, organizationId },
+  });
 }
 
 export function indexRunProgress(run: {

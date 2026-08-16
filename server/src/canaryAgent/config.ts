@@ -1,5 +1,6 @@
 import type { CanaryEnvironment } from "./types";
 import { getCanaryRuntimeSettings } from "./settingsStore";
+import { assertSafeOutboundUrl } from "../security/assertSafeOutboundUrl";
 
 export function isCanaryEnabled(): boolean {
   return process.env.CANARY_ENABLED !== "false";
@@ -8,17 +9,22 @@ export function isCanaryEnabled(): boolean {
 export function resolveCanaryTargetUrl(environment: CanaryEnvironment): string | null {
   const settings = getCanaryRuntimeSettings();
 
+  let resolved: string | null = null;
   if (environment === "production") {
-    return settings.productionBaseUrl || null;
-  }
-  if (environment === "preview" || environment === "feature_branch") {
+    resolved = settings.productionBaseUrl || null;
+  } else if (environment === "preview" || environment === "feature_branch") {
     const template = process.env.CANARY_PREVIEW_URL_TEMPLATE?.trim();
     const branch = process.env.CANARY_DEFAULT_BRANCH?.trim() || "main";
     if (template) {
-      return template.replace("{branch}", branch);
+      resolved = template.replace("{branch}", branch);
     }
+  } else {
+    resolved = settings.stagingBaseUrl || null;
   }
-  return settings.stagingBaseUrl || null;
+
+  if (!resolved) return null;
+  assertSafeOutboundUrl(resolved);
+  return resolved;
 }
 
 export function resolveCanaryAuthHeader(): Record<string, string> {

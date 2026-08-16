@@ -1,15 +1,46 @@
 import { Router } from "express";
 import { runCanaryCycle } from "../../canaryAgent";
+import { getCanaryRuntimeSettings } from "../../canaryAgent/settingsStore";
 import { canaryRunRepo } from "../../db/repositories/canaryRunRepo";
 import { runCanaryInBackground } from "../../queue/inProcessRunner";
+import { ValidationError } from "../../utils/errors";
+import { assertSafeOutboundUrl } from "../../security/assertSafeOutboundUrl";
+import {
+  requireOrganizationUser,
+  withOrganizationContext,
+} from "../orgRequestContext";
 
 const router = Router();
 
-router.get("/runs", async (_req, res, next) => {
+function resolveManualTargetUrl(requested?: string): string | undefined {
+  if (!requested) return undefined;
+  const normalized = requested.replace(/\/+$/, "");
+  assertSafeOutboundUrl(normalized);
+  const settings = getCanaryRuntimeSettings();
+  const allowed = [settings.stagingBaseUrl, settings.productionBaseUrl]
+    .filter(Boolean)
+    .map((url) => url.replace(/\/+$/, ""));
+  const allowedMatch = allowed.some(
+    (base) => normalized === base || normalized.startsWith(`${base}/`)
+  );
+  if (!allowedMatch) {
+    throw new ValidationError(
+      "targetUrl must match the configured staging or production URL"
+    );
+  }
+  return normalized;
+}
+
+router.get("/runs", async (req, res, next) => {
   try {
-    const runs = await canaryRunRepo.listRecent(30);
-    res.json({
-      items: runs.map(mapRun),
+    const user = requireOrganizationUser(req, res);
+    if (!user?.organizationId) return;
+
+    await withOrganizationContext(user.organizationId, async () => {
+      const runs = await canaryRunRepo.listRecent(30, user.organizationId);
+      res.json({
+        items: runs.map(mapRun),
+      });
     });
   } catch (err) {
     next(err);
@@ -18,12 +49,17 @@ router.get("/runs", async (_req, res, next) => {
 
 router.get("/runs/:id", async (req, res, next) => {
   try {
-    const run = await canaryRunRepo.getById(req.params.id);
-    if (!run) {
-      res.status(404).json({ error: "not_found" });
-      return;
-    }
-    res.json(mapRun(run));
+    const user = requireOrganizationUser(req, res);
+    if (!user?.organizationId) return;
+
+    await withOrganizationContext(user.organizationId, async () => {
+      const run = await canaryRunRepo.getById(req.params.id, user.organizationId);
+      if (!run) {
+        res.status(404).json({ error: "not_found" });
+        return;
+      }
+      res.json(mapRun(run));
+    });
   } catch (err) {
     next(err);
   }
@@ -31,41 +67,53 @@ router.get("/runs/:id", async (req, res, next) => {
 
 router.post("/run", async (req, res, next) => {
   try {
-    const environment = String(req.body?.environment ?? "staging");
-    const scope = String(req.body?.scope ?? "full");
-    const async = req.body?.async !== false;
-    const pipelineId = req.body?.pipelineId ? String(req.body.pipelineId) : undefined;
-    const jiraKey = req.body?.jiraKey ? String(req.body.jiraKey) : undefined;
-    const targetUrl = req.body?.targetUrl ? String(req.body.targetUrl) : undefined;
+    const user = requireOrganizationUser(req, res);
+    if (!user?.organizationId) return;
 
-    const input = {
-      pipelineId,
-      jiraKey,
-      trigger: "manual" as const,
-      environment: environment as "staging" | "production" | "preview" | "feature_branch",
-      scope: scope as "full" | "critical_paths" | "changed_files",
-      targetUrl,
-      orientation: req.body?.orientation,
-    };
+    await withOrganizationContext(user.organizationId, async () => {
+      const environment = String(req.body?.environment ?? "staging");
+      const scope = String(req.body?.scope ?? "full");
+      const async = req.body?.async !== false;
+      const pipelineId = req.body?.pipelineId ? String(req.body.pipelineId) : undefined;
+      const jiraKey = req.body?.jiraKey ? String(req.body.jiraKey) : undefined;
+      const targetUrl = resolveManualTargetUrl(
+        req.body?.targetUrl ? String(req.body.targetUrl) : undefined
+      );
 
-    if (async) {
-      const { started, runId } = runCanaryInBackground(input);
-      res.status(202).json({ status: started ? "started" : "already_running", runId });
-      return;
-    }
+      const input = {
+        pipelineId,
+        jiraKey,
+        trigger: "manual" as const,
+        environment: environment as "staging" | "production" | "preview" | "feature_branch",
+        scope: scope as "full" | "critical_paths" | "changed_files",
+        targetUrl,
+        orientation: req.body?.orientation,
+      };
 
-    const result = await runCanaryCycle(input);
-    res.json(result);
+      if (async) {
+        const { started, runId } = runCanaryInBackground(input);
+        res.status(202).json({ status: started ? "started" : "already_running", runId });
+        return;
+      }
+
+      const result = await runCanaryCycle(input);
+      res.json(result);
+    });
   } catch (err) {
     next(err);
   }
 });
 
-router.get("/nightly-summary", async (_req, res, next) => {
+router.get("/nightly-summary", async (req, res, next) => {
   try {
-    const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
-    const summary = await canaryRunRepo.nightlySummary(since);
-    res.json(summary);
+    const user = requireOrganizationUser(req, res);
+    if (!user?.organizationId) return;
+
+    await withOrganizationContext(user.organizationId, async () => {
+      const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      const summary = await canaryRunRepo.nightlySummary(since, user.organizationId);
+      res.json(summary);
+    });
   } catch (err) {
     next(err);
   }

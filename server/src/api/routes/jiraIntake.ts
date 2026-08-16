@@ -1,5 +1,9 @@
 import { Router } from "express";
 import { searchBoardByKeyword } from "../../jira-intake/boardSearchService";
+import {
+  requireOrganizationUser,
+  withOrganizationContext,
+} from "../orgRequestContext";
 
 const router = Router();
 
@@ -10,6 +14,9 @@ router.get("/health", (_req, res) => {
 });
 
 router.get("/boards/search", async (req, res) => {
+  const user = requireOrganizationUser(req, res);
+  if (!user?.organizationId) return;
+
   const keyword = String(req.query.keyword || "").trim();
   const searchIn = String(req.query.searchIn || "description").toLowerCase();
 
@@ -26,14 +33,15 @@ router.get("/boards/search", async (req, res) => {
   }
 
   try {
-    const result = await searchBoardByKeyword(keyword, searchIn);
-    res.json(result);
+    await withOrganizationContext(user.organizationId, async () => {
+      const result = await searchBoardByKeyword(keyword, searchIn);
+      res.json(result);
+    });
   } catch (err) {
     const e = err as Error & { status?: number; body?: unknown };
     const status = e.status && e.status >= 400 ? e.status : 502;
     res.status(status).json({
       error: e.message,
-      details: e.body || undefined,
     });
   }
 });
