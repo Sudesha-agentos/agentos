@@ -36,7 +36,7 @@ export default function PipelineDetail() {
     try {
       if (canResume) {
         await resume(item.id);
-        setActionMsg("Pipeline resumed — check Active tab for live progress.");
+        setActionMsg("Pipeline resumed: check Active tab for live progress.");
       } else {
         await run(item.ticketId);
         setActionMsg("Pipeline re-run queued.");
@@ -245,7 +245,7 @@ export default function PipelineDetail() {
           />
           {artifacts.length === 0 ? (
             <p className="px-5 py-8 text-[13px] text-ink-dim sm:px-6">
-              No engineering or QA artifacts yet — they appear after the implementation and QA stages complete.
+              No engineering or QA artifacts yet: they appear after the implementation and QA stages complete.
             </p>
           ) : (
             <ul className="divide-y divide-hairline">

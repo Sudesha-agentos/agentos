@@ -199,7 +199,7 @@ function AwaitingInputBanner({ analysis, handlers }) {
       <VirinThinkingBanner
         prominent
         label={`${VIRIN_NAME} is thinking…`}
-        subtitle="Working on the next question in the background — this stays until Virin asks again."
+        subtitle="Working on the next question in the background: this stays until Virin asks again."
       />
     );
   }

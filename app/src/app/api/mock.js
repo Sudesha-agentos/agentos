@@ -77,7 +77,7 @@ const MOCK_PIPELINES = [
     completedAt: null,
     ticket: {
       jiraKey: "PROD-1839",
-      normalizedData: { summary: "Pipeline started — PRD generation" },
+      normalizedData: { summary: "Pipeline started: PRD generation" },
     },
   },
   {
@@ -89,7 +89,7 @@ const MOCK_PIPELINES = [
     completedAt: null,
     ticket: {
       jiraKey: "PROD-1844",
-      normalizedData: { summary: "PRD generation complete — engineering queued" },
+      normalizedData: { summary: "PRD generation complete: engineering queued" },
     },
   },
   {
@@ -387,9 +387,9 @@ const MOCK_GENERATED_PRD = {
     },
   ],
   edgeCases: [
-    "Empty date range requested — API returns 400 with validation message",
-    "Export job interrupted mid-stream — job marked failed and admin notified",
-    "Download link accessed after 7-day expiry — returns 410 Gone",
+    "Empty date range requested: API returns 400 with validation message",
+    "Export job interrupted mid-stream: job marked failed and admin notified",
+    "Download link accessed after 7-day expiry: returns 410 Gone",
   ],
   definitionOfDone: [
     "Export API endpoints deployed with workspace_admin RBAC enforced",
@@ -562,7 +562,7 @@ const MOCK_QA = {
   testCases: [
     {
       id: "TC-001",
-      title: "Admin requests export — job enqueued and email sent",
+      title: "Admin requests export: job enqueued and email sent",
       type: "integration",
       linkedCriterion:
         "Given an admin with role workspace_admin, when they request an export for a date range up to 90 days, then a background job is enqueued and they receive a confirmation email within 60 seconds.",
@@ -689,7 +689,7 @@ const MOCK_AUDIT = [
   { event: "STAGE_ADVANCED", metadata: { from: "PRODUCT_AGENT", to: "PRD_VALIDATION" }, timestamp: minutes(13.5) },
   {
     event: "AWAITING_HUMAN",
-    metadata: { stage: "PRD_VALIDATION", reason: "PRD confidence 0.62 below 0.7 threshold — human clarification required." },
+    metadata: { stage: "PRD_VALIDATION", reason: "PRD confidence 0.62 below 0.7 threshold: human clarification required." },
     timestamp: minutes(13.4),
   },
 ];
@@ -722,7 +722,7 @@ const MOCK_VALIDATIONS = {
       {
         code: "LOW_CONFIDENCE",
         severity: "error",
-        message: "PRD confidence 0.62 below 0.7 threshold — human clarification required.",
+        message: "PRD confidence 0.62 below 0.7 threshold: human clarification required.",
       },
     ],
     checkedAt: minutes(13.4),
@@ -814,7 +814,7 @@ const MOCK_ENGINEERING_RUNS = {
       risks: [
         {
           level: "HIGH",
-          text: "Exchange rate API has no SLA — fallback to cached rates; cold cache falls back to USD.",
+          text: "Exchange rate API has no SLA: fallback to cached rates; cold cache falls back to USD.",
         },
       ],
       filesCreated: [
@@ -835,7 +835,7 @@ const MOCK_ENGINEERING_RUNS = {
         kind: "service",
         humanModified: false,
         summary:
-          "Core conversion service — reads Redis cache, calls ECB API, exposes convertPrice and fallback helpers.",
+          "Core conversion service: reads Redis cache, calls ECB API, exposes convertPrice and fallback helpers.",
         content: `export class CurrencyService {\n  async convertPrice(amount: number, from: string, to: string) {\n    // ...\n  }\n  fallbackToDefault() {\n    // ...\n  }\n}`,
         criteriaIds: ["AC-1", "AC-2"],
       },
@@ -873,7 +873,7 @@ const MOCK_ENGINEERING_RUNS = {
     ],
     pr: {
       title: "feat(checkout): multi-currency display with ECB rates",
-      description: "Implements PROD-1842 — currency conversion at checkout with Redis cache and fallback.",
+      description: "Implements PROD-1842: currency conversion at checkout with Redis cache and fallback.",
       labels: ["agent-generated", "checkout"],
       draft: true,
       url: "https://github.com/example/repo/pull/847",
@@ -937,7 +937,7 @@ const MOCK_ENGINEERING_RUNS = {
         id: "s5",
         label: "Writing currency.service.ts…",
         status: "in_progress",
-        detail: "Writing file — 847 tokens generated",
+        detail: "Writing file: 847 tokens generated",
       },
       { id: "s6", label: "Writing exchange-rate.helper.ts…", status: "pending" },
       { id: "s7", label: "Writing tests…", status: "pending" },
@@ -1146,7 +1146,7 @@ const MOCK_CANARY_RUNS = [
     targetUrl: "http://localhost:4000",
     status: "COMPLETED",
     phase: "synthesis",
-    summary: "Critical paths healthy — no confirmed findings.",
+    summary: "Critical paths healthy: no confirmed findings.",
     error: null,
     startedAt: minutes(130),
     completedAt: minutes(128),
@@ -1634,7 +1634,7 @@ export const mockApi = {
           currentStage: "IMPLEMENTATION_VALIDATION",
           currentStageLabel: "Implementation gate (before Neel)",
           message:
-            "Paused at implementation gate — resume or override to hand off to Neel",
+            "Paused at implementation gate: resume or override to hand off to Neel",
           updatedAt: new Date(now - 600_000).toISOString(),
         },
       ],
@@ -1647,7 +1647,7 @@ export const mockApi = {
           status: "FAILED",
           currentStage: "QA_AGENT",
           currentStageLabel: "Neel (QA)",
-          message: "Failed at Neel (QA) — open pipeline or resume to retry",
+          message: "Failed at Neel (QA): open pipeline or resume to retry",
           updatedAt: new Date(now - 900_000).toISOString(),
         },
       ],
@@ -1808,7 +1808,7 @@ export const mockApi = {
     await delay(100);
     return {
       filePath,
-      summary: "Mock file interior — function blocks inside this module.",
+      summary: "Mock file interior: function blocks inside this module.",
       blocks: [
         { id: "fn1", name: "render", kind: "function", x: 8, y: 8, w: 940, h: 80, lineCount: 40 },
         { id: "fn2", name: "hitTest", kind: "function", x: 8, y: 96, w: 940, h: 60, lineCount: 28 },
@@ -2244,9 +2244,9 @@ export const mockApi = {
         currentStage: activePipeline.currentStage,
         currentStageLabel: STAGE_LABELS[activePipeline.currentStage] ?? activePipeline.currentStage,
         currentAction: blockReason
-          ? `Blocked — ${blockReason}`
+          ? `Blocked: ${blockReason}`
           : latest?.detail
-            ? `${latest.label} — ${latest.detail}`
+            ? `${latest.label}: ${latest.detail}`
             : latest?.label ?? "Running…",
         runningStage: activePipeline.currentStage,
         runningStageLabel: STAGE_LABELS[activePipeline.currentStage] ?? activePipeline.currentStage,
@@ -2584,9 +2584,9 @@ const MOCK_PM_RETROSPECTIVE = {
   priorityAccuracy: "accepted",
   priorityOverrideAnalysis: "PM accepted NOW recommendation without override.",
   effortAccuracy: "accurate",
-  effortVariance: "0 — actual 5 points matched estimate.",
-  fileDetectionAccuracy: "80% — primary handler identified; one config file missed.",
-  acQuality: "4/5 — happy path complete; one edge case added during implementation.",
+  effortVariance: "0: actual 5 points matched estimate.",
+  fileDetectionAccuracy: "80%: primary handler identified; one config file missed.",
+  acQuality: "4/5: happy path complete; one edge case added during implementation.",
   rootCauseOfErrors: ["Config file not in semantic search top-k results."],
   learningSignals: ["Boost config pattern tags in codebase index for billing tickets."],
   patternFlag: "none",
@@ -2641,7 +2641,7 @@ const MOCK_PM_ANALYSIS_FULL = {
   context: {
     reporterTier: "enterprise",
     churnRate: "3/12 commits (25%) touched candidate files in last 30 days",
-    capacityRemaining: "3 slot(s) available — 2 running of 5 concurrency target",
+    capacityRemaining: "3 slot(s) available: 2 running of 5 concurrency target",
     inflightCount: "2",
     componentBugCount: "1 open bug-like tickets sharing components",
     orgIntelligenceSummary:
@@ -2669,7 +2669,7 @@ const MOCK_PM_ANALYSIS_FULL = {
     realUserProblem: "Finance teams cannot prevent runaway usage charges across workspaces.",
     missingContext: ["Exact alert channel preferences", "Whether limits are hard or soft"],
     relatedTicketsSummary: "Two similar billing tickets open in the last quarter.",
-    reporterContext: "Enterprise customer success escalation — high urgency implied.",
+    reporterContext: "Enterprise customer success escalation: high urgency implied.",
     okrAlignment: "Directly supports enterprise churn reduction OKR.",
     redFlags: ["Revenue impact if limits fail silently"],
   },
@@ -2694,10 +2694,10 @@ const MOCK_PM_ANALYSIS_FULL = {
       { path: "server/src/billing/limits.ts", reason: "Core limit enforcement", role: "primary", confidence: 88, riskLevel: "high" },
       { path: "app/src/widgets/billing/BillingPanel.jsx", reason: "Admin UI for limits", role: "primary", confidence: 75, riskLevel: "medium" },
     ],
-    recentChangeConnection: "Commit abc1234 adjusted metering hooks last week — possible related surface.",
+    recentChangeConnection: "Commit abc1234 adjusted metering hooks last week: possible related surface.",
     dependencyWarnings: ["server/src/billing/metering.ts may need coordinated changes"],
-    scopeAssessment: "Touches billing service and admin UI — moderate blast radius across two modules.",
-    suggestedFirstFile: "server/src/billing/limits.ts — defines current limit model.",
+    scopeAssessment: "Touches billing service and admin UI: moderate blast radius across two modules.",
+    suggestedFirstFile: "server/src/billing/limits.ts: defines current limit model.",
   },
   effortEstimate: {
     tshirt: "M",
@@ -2715,9 +2715,9 @@ const MOCK_PM_ANALYSIS_FULL = {
       { step: "1", action: "Add WorkspaceLimit model in server/src/billing/limits.ts", why: "Persistence layer for caps", watchOut: "Migration required" },
       { step: "2", action: "Expose REST endpoints in billing routes", why: "Admin UI needs API", watchOut: "Auth scope for enterprise admins only" },
     ],
-    whereNotToTouch: ["server/src/billing/invoicing.ts — out of scope"],
+    whereNotToTouch: ["server/src/billing/invoicing.ts: out of scope"],
     testingGuidance: "Test limit enforcement at threshold and alert firing.",
-    alternativeApproach: "Feature flag per workspace — slower rollout but lower risk.",
+    alternativeApproach: "Feature flag per workspace: slower rollout but lower risk.",
     openQuestionsForEngineer: ["Hard stop vs notify-only when limit reached?"],
   },
   prioritization: {
@@ -2741,9 +2741,9 @@ const MOCK_PM_ANALYSIS_FULL = {
     definitionOfDone: ["Code merged", "Tests passing", "AC verified", "CS notified"],
   },
   artifacts: {
-    engineeringPing: "PLT-1287 — workspace billing limits for enterprise admins.\nLikely files: server/src/billing/limits.ts, BillingPanel.jsx\nPriority: NOW (high revenue risk)\nGotcha: confirm hard vs soft limit before starting",
+    engineeringPing: "PLT-1287: workspace billing limits for enterprise admins.\nLikely files: server/src/billing/limits.ts, BillingPanel.jsx\nPriority: NOW (high revenue risk)\nGotcha: confirm hard vs soft limit before starting",
     stakeholderUpdate: "We've reviewed your billing limits request and understand the need to cap workspace spend. Engineering is scoping the change now. We'll share a timeline within this sprint.",
-    pmOneLiner: "Feature — Workspace billing limits for enterprise — Revenue risk, 3 active accounts — M / complexity 5 — NOW",
+    pmOneLiner: "Feature: Workspace billing limits for enterprise: Revenue risk, 3 active accounts: M / complexity 5: NOW",
     sprintPlanningNote: "Enterprise CS escalated billing caps. High alignment with churn OKR. ~4.5h agent pipeline estimate; main risk is billing module test coverage. Done = limits enforced + admin UI + alerts.",
   },
   retrospective: null,
@@ -2785,9 +2785,9 @@ function buildMockPmHandoff(ticketId) {
     recommendation: prio.recommendation,
     realUserProblem: enrichment.realUserProblem,
     cleanSummary: enrichment.cleanSummary,
-    suggestedFirstFile: impact.suggestedFirstFile.split(" — ")[0] ?? impact.suggestedFirstFile,
+    suggestedFirstFile: impact.suggestedFirstFile.split(": ")[0] ?? impact.suggestedFirstFile,
     suggestedFirstFileReason:
-      impact.suggestedFirstFile.split(" — ")[1] ?? impact.recentChangeConnection,
+      impact.suggestedFirstFile.split(": ")[1] ?? impact.recentChangeConnection,
     affectedFiles: impact.affectedFiles,
     whereNotToTouch: impl.whereNotToTouch,
     recentCommitHistory:
@@ -2810,7 +2810,7 @@ function buildMockPmHandoff(ticketId) {
     codeSnapshots,
   };
 
-  const prompt = `# Tech Agent Handoff — ${key}\n\n## 1. TICKET CONTEXT\n\n${enrichment.cleanSummary}\n\n## 12. CURRENT CODE — PRIMARY FILES\n\n${codeSnapshots.map((s) => `### ${s.path}\n\`\`\`\n${s.content}\n\`\`\``).join("\n\n")}`;
+  const prompt = `# Tech Agent Handoff: ${key}\n\n## 1. TICKET CONTEXT\n\n${enrichment.cleanSummary}\n\n## 12. CURRENT CODE: PRIMARY FILES\n\n${codeSnapshots.map((s) => `### ${s.path}\n\`\`\`\n${s.content}\n\`\`\``).join("\n\n")}`;
 
   return { handoff, prompt, codeSnapshots };
 }
@@ -2965,7 +2965,7 @@ function buildMockTour(branch = "main", source = "cache") {
       {
         id: "welcome",
         title: "Welcome to AgentOX",
-        narration: `This tour walks branch ${branch} from the galaxy view down into the districts that matter most — server automation, product UI, and codebase intelligence.`,
+        narration: `This tour walks branch ${branch} from the galaxy view down into the districts that matter most: server automation, product UI, and codebase intelligence.`,
         focusPath: null,
         zoomLevel: "galaxy",
       },
@@ -3013,7 +3013,7 @@ function buildMockTour(branch = "main", source = "cache") {
           prompt: "Click the district that contains HTTP route handlers.",
           correctPathPrefix: "server",
           explanation:
-            "REST routes live under server/src/api/routes — keep handlers thin and push logic into services.",
+            "REST routes live under server/src/api/routes: keep handlers thin and push logic into services.",
         },
       },
       {
@@ -3037,7 +3037,7 @@ function buildMockTour(branch = "main", source = "cache") {
         quiz: {
           prompt: "Where are Prisma models and SQL migrations defined?",
           correctPathPrefix: "server",
-          explanation: "Database schema lives in server/prisma — tour cache uses CodebaseTourCache.",
+          explanation: "Database schema lives in server/prisma: tour cache uses CodebaseTourCache.",
         },
       },
     ],
@@ -3142,13 +3142,13 @@ function buildMockVisualization(branch) {
       districts: [
         {
           path: "server",
-          summary: "Backend — agents, pipeline, codebase intelligence, and APIs.",
+          summary: "Backend: agents, pipeline, codebase intelligence, and APIs.",
           fileCount: 6,
           primaryPattern: "service-layer",
         },
         {
           path: "app",
-          summary: "Frontend — visualization UI, entities, and product pages.",
+          summary: "Frontend: visualization UI, entities, and product pages.",
           fileCount: 4,
           primaryPattern: "ui-component",
         },
@@ -3157,7 +3157,7 @@ function buildMockVisualization(branch) {
         {
           id: "shape",
           title: "The shape of this codebase",
-          narration: `Branch ${branch} is split between server (agents & APIs) and app (product UI). The server district is larger — most business automation lives there.`,
+          narration: `Branch ${branch} is split between server (agents & APIs) and app (product UI). The server district is larger: most business automation lives there.`,
           focusPath: null,
           zoomLevel: "galaxy",
         },
@@ -3172,7 +3172,7 @@ function buildMockVisualization(branch) {
         {
           id: "viz",
           title: "The visualization layer",
-          narration: "The district map itself lives in app/src/features/codebase-viz — Canvas for scale, React for panels and tour mode.",
+          narration: "The district map itself lives in app/src/features/codebase-viz: Canvas for scale, React for panels and tour mode.",
           focusPath: "app",
           zoomLevel: "district",
           highlightPaths: nodes.filter((n) => n.path.includes("codebase-viz")).map((n) => n.path),

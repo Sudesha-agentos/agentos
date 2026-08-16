@@ -236,7 +236,7 @@ export default function CompanyIntelligence({ embedded = false }) {
       backLabel="← Settings"
       kicker="Business intelligence"
       title="Company profile"
-      info={`Start with your website — we scrape public pages and pre-fill company details. ${AGENT_NAMES.VIRIN} validates every idea against this before writing a PRD.`}
+      info={`Start with your website: we scrape public pages and pre-fill company details. ${AGENT_NAMES.VIRIN} validates every idea against this before writing a PRD.`}
     >
 
       <form onSubmit={handleSave} className="space-y-5">
@@ -266,7 +266,7 @@ export default function CompanyIntelligence({ embedded = false }) {
                 className={inputClass}
               />
             </Field>
-            <Field label="Website" info="Homepage URL — used for Jina Reader + meta scraping.">
+            <Field label="Website" info="Homepage URL: used for Jina Reader + meta scraping.">
               <input
                 type="url"
                 value={form?.website ?? ""}
@@ -320,7 +320,7 @@ export default function CompanyIntelligence({ embedded = false }) {
                 </p>
               ) : null}
               <p className="mt-2 text-[12px] text-warning">
-                Review all fields below — scraped data can be incomplete or outdated.
+                Review all fields below: scraped data can be incomplete or outdated.
               </p>
             </div>
           )}
@@ -360,7 +360,7 @@ export default function CompanyIntelligence({ embedded = false }) {
         <Panel>
           <PanelHeader kicker="Strategy" title="Goals & boundaries" />
           <div className="grid gap-5 px-5 py-5 sm:grid-cols-2 sm:px-6">
-            <Field label="Strategic goals" info="One per line — replaces hardcoded OKRs.">
+            <Field label="Strategic goals" info="One per line: replaces hardcoded OKRs.">
               <textarea
                 value={form?.strategicGoalsText ?? ""}
                 onChange={(e) => update("strategicGoalsText", e.target.value)}
@@ -400,7 +400,7 @@ export default function CompanyIntelligence({ embedded = false }) {
           <div className="space-y-4 px-5 py-5 sm:px-6">
             {(form?.competitors ?? []).length === 0 ? (
               <p className="text-[13px] text-app-ink-mute">
-                No competitors yet — fetch from web or add manually.
+                No competitors yet: fetch from web or add manually.
               </p>
             ) : (
               (form.competitors ?? []).map((comp, index) => (
@@ -472,7 +472,7 @@ export default function CompanyIntelligence({ embedded = false }) {
           <PanelHeader
             kicker="Generated · editable"
             title="Business context"
-            info={`Inferred from your indexed codebase. Edit freely — ${AGENT_NAMES.VIRIN} reads this verbatim.`}
+            info={`Inferred from your indexed codebase. Edit freely: ${AGENT_NAMES.VIRIN} reads this verbatim.`}
             right={
               <button
                 type="button"
@@ -490,7 +490,7 @@ export default function CompanyIntelligence({ embedded = false }) {
               onChange={(e) => update("businessContext", e.target.value)}
               rows={12}
               className={`${inputClass} resize-y leading-relaxed`}
-              placeholder="Connect GitHub, index the repo, then Generate from codebase — or write your own business context here."
+              placeholder="Connect GitHub, index the repo, then Generate from codebase: or write your own business context here."
             />
           </div>
         </Panel>

@@ -60,7 +60,7 @@ function FileIntelligencePanel({ filePath, branch, onOpenFile }) {
     return (
       <div className="flex h-full items-center justify-center p-8">
         <p className="max-w-sm text-center text-[13px] text-ink-dim">
-          Select a file from the tree to view its intelligence summary — exports,
+          Select a file from the tree to view its intelligence summary: exports,
           imports, patterns, and connections. Full file content is not loaded.
         </p>
       </div>

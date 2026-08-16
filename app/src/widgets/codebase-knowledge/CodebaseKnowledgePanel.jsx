@@ -285,7 +285,7 @@ export default function CodebaseKnowledgePanel({ branch = "main" }) {
             </article>
           ) : (
             <p className="text-[13px] text-ink-dim">
-              Graph wiki unavailable — run index / gn analyze first.
+              Graph wiki unavailable: run index / gn analyze first.
             </p>
           )
         ) : null}

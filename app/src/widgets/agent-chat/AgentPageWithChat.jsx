@@ -5,7 +5,7 @@ import { AgentChatAvatar } from "./AgentChatAvatar";
 import { getAgentChatConfig } from "./agentChatConfig";
 
 /**
- * Floating corner widget — click to open a discussion popup.
+ * Floating corner widget: click to open a discussion popup.
  * Portaled to document.body so position:fixed works on animated pages.
  */
 export function AgentPageWithChat({

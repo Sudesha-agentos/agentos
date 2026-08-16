@@ -45,7 +45,7 @@ export type NavSubItem = {
   tab?: string;
 };
 
-/** Three agent personas — sub-nav reveals on expand in sidebar. */
+/** Three agent personas: sub-nav reveals on expand in sidebar. */
 export function buildAgentNav(slug: string): Array<{
   id: AgentNavId;
   to: string;
@@ -140,7 +140,7 @@ export function buildPipelineSubNav(slug: string): Array<{
 /** @deprecated Use buildPipelineSubNav(slug) */
 export const PIPELINE_SUB_NAV = buildPipelineSubNav("app");
 
-/** Sidebar groups — post-login landing UX. */
+/** Sidebar groups: post-login landing UX. */
 export function buildAppNavSections(slug: string) {
   const agentNav = buildAgentNav(slug);
   return [

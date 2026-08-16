@@ -26,7 +26,7 @@ function NotificationDismissButton({ onDismiss, className = "" }) {
 }
 
 /**
- * Top-bar notifications — review queue items plus recent pipeline activity.
+ * Top-bar notifications: review queue items plus recent pipeline activity.
  */
 export default function NotificationCenter() {
   const orgPath = useOrgPathBuilder();

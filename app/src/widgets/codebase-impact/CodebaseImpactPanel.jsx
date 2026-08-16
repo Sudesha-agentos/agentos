@@ -29,7 +29,7 @@ function ImpactList({ title, items, empty }) {
                 <span className="ml-2 text-ink-mute">via {item.via}</span>
               ) : null}
               {item.reason ? (
-                <span className="ml-2 text-ink-dim">— {item.reason}</span>
+                <span className="ml-2 text-ink-dim">: {item.reason}</span>
               ) : null}
             </li>
           ))}

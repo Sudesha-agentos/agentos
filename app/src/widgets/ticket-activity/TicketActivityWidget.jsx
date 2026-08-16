@@ -108,7 +108,7 @@ function normalizeEdit(edit) {
   };
 }
 
-/** One chip per pipeline stage — resumes create multiple stage logs for the same stage. */
+/** One chip per pipeline stage: resumes create multiple stage logs for the same stage. */
 function uniqueStagePosition(stages = [], currentStage) {
   const seen = new Set((stages ?? []).map((s) => s.stage).filter(Boolean));
   if (currentStage) seen.add(currentStage);

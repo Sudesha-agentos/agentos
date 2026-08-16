@@ -61,7 +61,7 @@ export default function CodebaseInsightsPanel({ branch = "main" }) {
             <li key={file.path} className="py-4 first:pt-2">
               <p className="font-mono text-[12px] text-indigo">{file.path}</p>
               <p className="mt-1 text-[13px] leading-relaxed text-ink-dim">
-                {file.summary ?? "No summary — re-index with OPENAI_API_KEY set."}
+                {file.summary ?? "No summary: re-index with OPENAI_API_KEY set."}
               </p>
               {file.patterns?.length ? (
                 <p className="mt-2 font-mono text-[10px] uppercase tracking-[0.12em] text-ink-mute">

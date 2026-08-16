@@ -96,7 +96,7 @@ function shouldPreferExplorerItem(candidate, existing) {
   return explorerStatusRank(candidate.status) > explorerStatusRank(existing.status);
 }
 
-/** One card per jiraKey — prefer the most relevant pipeline record for the current stage. */
+/** One card per jiraKey: prefer the most relevant pipeline record for the current stage. */
 export function mergePipelineExplorerItems(pmSummaries, classicItems, queuedItems) {
   const byKey = new Map();
 

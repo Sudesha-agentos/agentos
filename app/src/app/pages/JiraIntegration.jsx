@@ -34,7 +34,7 @@ const OAUTH_ERROR_MESSAGES = {
   connect_failed: "Atlassian authorized the app, but the server could not save the connection.",
   no_jira_site: "No Jira Cloud site was found for this Atlassian account.",
   access_denied:
-    "Atlassian blocked the connection — the OAuth app is in development mode and only its creator can authorize it. Use the API token method below, or ask the app owner to publish the Atlassian OAuth app.",
+    "Atlassian blocked the connection: the OAuth app is in development mode and only its creator can authorize it. Use the API token method below, or ask the app owner to publish the Atlassian OAuth app.",
 };
 
 export default function JiraIntegration({ embedded = false }) {
@@ -461,7 +461,7 @@ function JiraIntegrationContent({ setup, refetchSetup, embedded = false }) {
           : selectedIntakeColumnMeta?.statuses ?? [];
       setStatusMessage(
         triggerStatuses.length
-          ? `AI Worker column "${intakeColumn}" saved — pipeline triggers on Jira status: ${triggerStatuses.join(", ")}.`
+          ? `AI Worker column "${intakeColumn}" saved: pipeline triggers on Jira status: ${triggerStatuses.join(", ")}.`
           : `AI Worker intake column set to "${intakeColumn}".`
       );
       await refetchSetup();
@@ -492,7 +492,7 @@ function JiraIntegrationContent({ setup, refetchSetup, embedded = false }) {
       });
       setStatusMessage(
         synced > 0
-          ? `Reference columns saved — synced ${synced} ticket(s), embedded ${embedded} new/changed.`
+          ? `Reference columns saved: synced ${synced} ticket(s), embedded ${embedded} new/changed.`
           : "Reference columns saved. Tickets in these columns are stored for context only (not pipelined)."
       );
       await refetchSetup();
@@ -528,8 +528,8 @@ function JiraIntegrationContent({ setup, refetchSetup, embedded = false }) {
       });
       setStatusMessage(
         errors > 0
-          ? `Jira vector index finished with ${errors} error(s) — ${synced} synced, ${embedded} embedded, ${skipped} unchanged.`
-          : `Jira vector index complete — ${synced} ticket(s) synced, ${embedded} embedded, ${skipped} unchanged.`
+          ? `Jira vector index finished with ${errors} error(s): ${synced} synced, ${embedded} embedded, ${skipped} unchanged.`
+          : `Jira vector index complete: ${synced} ticket(s) synced, ${embedded} embedded, ${skipped} unchanged.`
       );
       await refetchSetup();
     } catch (err) {
@@ -682,7 +682,7 @@ function JiraIntegrationContent({ setup, refetchSetup, embedded = false }) {
               </button>
             </div>
             <p className="text-xs text-app-ink-mute">
-              Webhook URL: <code className="text-indigo">{setup.webhookUrl}</code> — events: created, updated, deleted
+              Webhook URL: <code className="text-indigo">{setup.webhookUrl}</code>: events: created, updated, deleted
             </p>
           </div>
         ) : (
@@ -706,7 +706,7 @@ function JiraIntegrationContent({ setup, refetchSetup, embedded = false }) {
                     → open your OAuth app → Distribution → set <strong>Sharing</strong>.
                     <br />
                     <span className="mt-1 block font-medium text-app-ink">
-                      In the meantime, use the API token form below — it works for everyone.
+                      In the meantime, use the API token form below: it works for everyone.
                     </span>
                   </p>
                 </div>
@@ -758,7 +758,7 @@ function JiraIntegrationContent({ setup, refetchSetup, embedded = false }) {
           <form className="grid gap-4 border-t border-app-border p-4 md:grid-cols-2 sm:px-6" onSubmit={handleConnect}>
           <label className="block text-sm md:col-span-2">
             <span className="type-kicker text-app-ink-mute">
-              {connected ? "Update API token credentials" : "API token — works for everyone"}
+              {connected ? "Update API token credentials" : "API token: works for everyone"}
             </span>
           </label>
             <label className="block text-sm">
@@ -785,7 +785,7 @@ function JiraIntegrationContent({ setup, refetchSetup, embedded = false }) {
                 className="mt-1.5 w-full rounded-app-sm border border-app-border bg-app-surface px-3 py-2 text-sm"
                 value={apiToken}
                 onChange={(e) => setApiToken(e.target.value)}
-                placeholder={setup?.jira?.hasApiToken ? "Saved — leave blank to keep" : "Required"}
+                placeholder={setup?.jira?.hasApiToken ? "Saved: leave blank to keep" : "Required"}
               />
             </label>
             <p className="text-xs text-app-ink-mute md:col-span-2">
@@ -816,7 +816,7 @@ function JiraIntegrationContent({ setup, refetchSetup, embedded = false }) {
         <Panel>
           <PanelHeader
             title="Pipeline settings"
-            subtitle="Choose your Jira project and board — loaded automatically from your site."
+            subtitle="Choose your Jira project and board: loaded automatically from your site."
           />
           <form
             className="grid gap-4 p-4 md:grid-cols-2 sm:px-6"
@@ -848,7 +848,7 @@ function JiraIntegrationContent({ setup, refetchSetup, embedded = false }) {
                 </option>
                 {jiraProjects.map((p) => (
                   <option key={p.key} value={p.key}>
-                    {p.key} — {p.name}
+                    {p.key}: {p.name}
                   </option>
                 ))}
               </select>
@@ -907,7 +907,7 @@ function JiraIntegrationContent({ setup, refetchSetup, embedded = false }) {
         <Panel>
           <PanelHeader
             title="AI Worker intake column"
-            subtitle="Only Task and Bug tickets are picked up. AgentOX watches the Jira workflow status behind the column — not the column label. If Jira says “Move to In Progress” when you drag a ticket into AI Worker, that status name is what triggers intake."
+            subtitle="Only Task and Bug tickets are picked up. AgentOX watches the Jira workflow status behind the column: not the column label. If Jira says “Move to In Progress” when you drag a ticket into AI Worker, that status name is what triggers intake."
           />
           <form className="flex flex-wrap items-end gap-3 p-4 sm:px-6" onSubmit={handleSaveIntakeColumn}>
             <label className="block min-w-[240px] flex-1 text-sm">
@@ -958,7 +958,7 @@ function JiraIntegrationContent({ setup, refetchSetup, embedded = false }) {
               selectedIntakeColumnMeta.statuses[0].toLowerCase() !==
                 selectedIntakeColumnMeta.name.toLowerCase() ? (
                 <span className="mt-1 block">
-                  Renaming the column in Jira does not rename the workflow status — save
+                  Renaming the column in Jira does not rename the workflow status: save
                   here after any column change so intake stays in sync.
                 </span>
               ) : null}
@@ -971,7 +971,7 @@ function JiraIntegrationContent({ setup, refetchSetup, embedded = false }) {
                 <LabelPill key={status} label={status} tone="indigo" className="ml-1" />
               ))}
               <span className="mt-2 block text-xs text-app-ink-mute">
-                Issue types: Task, Bug only — Stories and Epics in this column are ignored.
+                Issue types: Task, Bug only: Stories and Epics in this column are ignored.
               </span>
             </p>
           ) : null}
@@ -982,7 +982,7 @@ function JiraIntegrationContent({ setup, refetchSetup, embedded = false }) {
         <Panel>
           <PanelHeader
             title="Reference columns (context only)"
-            subtitle="Done, Resolved, and similar columns — synced to Postgres and vector DB for RAG. Never start the agent pipeline."
+            subtitle="Done, Resolved, and similar columns: synced to Postgres and vector DB for RAG. Never start the agent pipeline."
           />
           <form className="space-y-4 p-4 sm:px-6" onSubmit={handleSaveReferenceColumns}>
             {!referenceColumnOptions.length ? (
@@ -1027,7 +1027,7 @@ function JiraIntegrationContent({ setup, refetchSetup, embedded = false }) {
         <Panel>
           <PanelHeader
             title="Jira vector index (RAG)"
-            subtitle="Embeds ticket summaries and descriptions into Supabase pgvector for semantic search. Only reference + AI Worker statuses are vectorized — not the whole backlog."
+            subtitle="Embeds ticket summaries and descriptions into Supabase pgvector for semantic search. Only reference + AI Worker statuses are vectorized: not the whole backlog."
             right={
               <JiraVectorIndexStatus
                 compact
@@ -1051,7 +1051,7 @@ function JiraIntegrationContent({ setup, refetchSetup, embedded = false }) {
               <strong className="text-app-ink">Where to configure:</strong> pick reference columns
               above (Done, Resolved, …), save, then use{" "}
               <strong className="text-app-ink">Index Jira vectors</strong> below. New or updated
-              tickets only — already-embedded tickets are skipped. Requires{" "}
+              tickets only: already-embedded tickets are skipped. Requires{" "}
               <code className="font-mono text-[12px]">OPENAI_API_KEY</code> on the server.
             </p>
             <div className="flex flex-wrap items-center gap-3">

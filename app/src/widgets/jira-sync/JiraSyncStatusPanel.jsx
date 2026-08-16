@@ -77,7 +77,7 @@ export default function JiraSyncStatusPanel({ setupSync, connected = true }) {
         {latestRun?.status === "COMPLETED" && !running ? (
           <p className="text-[13px] text-success">
             Last sync finished {latestRun.completedAt ? formatRelativeTime(latestRun.completedAt) : "recently"}
-            {latestRun.issuesSynced != null ? ` — ${latestRun.issuesSynced} ticket(s) updated.` : "."}
+            {latestRun.issuesSynced != null ? `: ${latestRun.issuesSynced} ticket(s) updated.` : "."}
           </p>
         ) : null}
         {latestRun?.status === "FAILED" && !running ? (

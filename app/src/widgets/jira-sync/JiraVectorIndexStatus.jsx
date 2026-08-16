@@ -49,7 +49,7 @@ function resolveIndexState({
     return {
       tone: "warning",
       label: "Not indexed",
-      detail: `${total} synced ticket(s) — none embedded yet. Click Index Jira vectors.`,
+      detail: `${total} synced ticket(s): none embedded yet. Click Index Jira vectors.`,
     };
   }
 

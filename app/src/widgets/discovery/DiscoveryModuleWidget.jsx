@@ -48,7 +48,7 @@ export default function DiscoveryModuleWidget({ parsed, stage, rawOutput }) {
           stage.status === "RUNNING"
             ? "Running discovery pipeline"
             : stage.status === "AWAITING_HUMAN"
-              ? "Paused — clarification needed"
+              ? "Paused: clarification needed"
               : "Discovery complete"
         }
         right={

@@ -48,7 +48,7 @@ const RECOMMENDATION = {
   approve: {
     border: "border-success/40 bg-success/10",
     text: "text-success",
-    label: "Approved — ready to merge",
+    label: "Approved: ready to merge",
   },
   approve_with_conditions: {
     border: "border-warning/40 bg-warning/10",
@@ -63,7 +63,7 @@ const RECOMMENDATION = {
   block: {
     border: "border-danger/40 bg-danger/10",
     text: "text-danger",
-    label: "Blocked — do not merge",
+    label: "Blocked: do not merge",
   },
 };
 
@@ -82,7 +82,7 @@ const HEATMAP = {
 };
 
 const CANARY_PHASE = {
-  reconnaissance: "Reconnaissance — mapping endpoints",
+  reconnaissance: "Reconnaissance: mapping endpoints",
   hypotheses: "Generating adversarial hypotheses",
   exploration: "Probing live application",
   synthesis: "Synthesising findings",
@@ -191,7 +191,7 @@ function SummarySection({ report }) {
       {report.inProgress || status === "running" || status === "pending" ? (
         <p className="rounded-app-sm border border-indigo/25 bg-indigo/5 px-3 py-2 text-[13px] text-app-ink-dim">
           {report.executionMessage ||
-            "Neel is still working — metrics fill in when the QA stage completes."}
+            "Neel is still working: metrics fill in when the QA stage completes."}
         </p>
       ) : null}
 
@@ -304,7 +304,7 @@ function SummarySection({ report }) {
           {status && status !== "ran" ? (
             <p className="mb-2 text-xs text-danger">
               Execution: {status}
-              {report.executionMessage ? ` — ${report.executionMessage}` : ""}
+              {report.executionMessage ? `: ${report.executionMessage}` : ""}
             </p>
           ) : null}
           <ul className="space-y-1.5">
@@ -1169,7 +1169,7 @@ export default function QaCenter() {
     try {
       await pipelineAdapter.resume(pipelineId);
       setInboxMsg(
-        "Pipeline resumed — Neel will start after the implementation gate."
+        "Pipeline resumed: Neel will start after the implementation gate."
       );
       setSelectedPipelineId(pipelineId);
       setTab("workspace");

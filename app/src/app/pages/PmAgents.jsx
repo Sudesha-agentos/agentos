@@ -351,7 +351,7 @@ export default function PmAgents() {
         {isStopped ? (
           <p className="border-t border-app-border bg-app-surface-muted/30 px-5 py-3 text-[13px] text-app-ink-dim sm:px-6">
             Session stopped. Keep this ticket selected and click <strong>Start again with {VIRIN_NAME}</strong> to
-            run it manually — it will not auto-resume.
+            run it manually: it will not auto-resume.
           </p>
         ) : null}
 

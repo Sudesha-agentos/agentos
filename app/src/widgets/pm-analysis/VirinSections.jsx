@@ -267,7 +267,7 @@ export function VirinConversationPanel({ analysis, onAnswer, onConfirm, busy, pr
           <VirinThinkingBanner
             prominent={false}
             label={`${VIRIN_NAME} is thinking…`}
-            subtitle="Your answer was sent — preparing the next question."
+            subtitle="Your answer was sent: preparing the next question."
           />
         ) : null}
       </div>
@@ -561,7 +561,7 @@ function VirinInputPanel({
         <div className="flex items-center justify-between gap-3">
           <p className="text-[12px] text-app-ink-mute">
             {hasPresets
-              ? "Options reflect your company, business context, and codebase — pick one or Other."
+              ? "Options reflect your company, business context, and codebase: pick one or Other."
               : `${VIRIN_NAME} asks one question, then listens.`}
           </p>
           <button
@@ -703,7 +703,7 @@ export function VirinCodebaseSection({ analysis: codebaseAnalysis, expanded = fa
       <Panel>
         <PanelHeader kicker="Stage 3" title="Codebase analysis" />
         <p className="px-5 py-8 text-center text-[13px] text-app-ink-dim sm:px-6">
-          Runs after discovery — {VIRIN_NAME} maps modules, reuse, and technical constraints.
+          Runs after discovery: {VIRIN_NAME} maps modules, reuse, and technical constraints.
         </p>
       </Panel>
     );
@@ -853,7 +853,7 @@ export function VirinCodebaseSection({ analysis: codebaseAnalysis, expanded = fa
                 {codebaseAnalysis.alreadyShippedNote?.trim() ||
                   (codebaseAnalysis.overlapVerdict === "already_shipped"
                     ? "This capability looks already implemented. Prefer verify/close over a full rebuild."
-                    : "Substantial pieces already exist — scope engineering to the gaps only.")}
+                    : "Substantial pieces already exist: scope engineering to the gaps only.")}
               </p>
             </div>
           </div>
@@ -901,7 +901,7 @@ export function VirinCodebaseSection({ analysis: codebaseAnalysis, expanded = fa
               </ol>
             ) : (
               <p className="px-4 py-5 text-[13px] text-success">
-                No material build gap identified — verify the existing behavior before shipping.
+                No material build gap identified: verify the existing behavior before shipping.
               </p>
             )}
           </section>

@@ -142,7 +142,7 @@ export function RoiCalculatorPanel({
               Baseline hours per pipeline run: {DEFAULT_ROI_ASSUMPTIONS.baselineHoursPerRun}h
             </li>
             <li>
-              Stage savings — Product {(DEFAULT_ROI_ASSUMPTIONS.productSavingsPct * 100).toFixed(0)}
+              Stage savings: Product {(DEFAULT_ROI_ASSUMPTIONS.productSavingsPct * 100).toFixed(0)}
               %, Engineering {(DEFAULT_ROI_ASSUMPTIONS.engineeringSavingsPct * 100).toFixed(0)}%,
               QA {(DEFAULT_ROI_ASSUMPTIONS.qaSavingsPct * 100).toFixed(0)}%
             </li>

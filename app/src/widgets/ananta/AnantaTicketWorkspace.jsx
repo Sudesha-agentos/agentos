@@ -130,7 +130,7 @@ export default function AnantaTicketWorkspace({
           A
         </div>
         <h2 className="mt-6 text-xl font-semibold text-app-ink">
-          {jiraKey} — handoff received
+          {jiraKey}: handoff received
         </h2>
         <p className="mt-2 max-w-md text-sm text-app-ink-dim">
           Virin completed the engineering handoff. The coding pipeline will appear here once
@@ -213,7 +213,7 @@ export default function AnantaTicketWorkspace({
           {isPlanParseFailure ? (
             <p className="mt-2 text-[13px] text-app-ink-dim">
               Ananta failed while building the implementation plan (before writing any files).
-              Resume the pipeline to retry — ensure the PRD lists{" "}
+              Resume the pipeline to retry: ensure the PRD lists{" "}
               <span className="font-mono">deliverableFiles</span> for document tickets.
             </p>
           ) : run.filesCreated === 0 && run.filesModified === 0 && codingStarted ? (
@@ -230,7 +230,7 @@ export default function AnantaTicketWorkspace({
                   <span className="font-mono text-[10px] uppercase text-app-ink-mute">
                     {entry.event.replaceAll("_", " ")}
                   </span>
-                  {" — "}
+                  {": "}
                   {entry.summary}
                 </li>
               ))}
@@ -303,7 +303,7 @@ export default function AnantaTicketWorkspace({
       {run.currentStage === "IMPLEMENTATION_VALIDATION" && run.status === "RUNNING" ? (
         <div className="mb-4 rounded-app-sm border border-indigo/25 bg-indigo/5 px-5 py-4 sm:px-6">
           <p className="text-sm font-medium text-app-ink">
-            Checking implementation — {AGENT_NAMES.NEEL} starts next
+            Checking implementation: {AGENT_NAMES.NEEL} starts next
           </p>
           <p className="mt-1 text-[13px] text-app-ink-dim">
             Ananta finished coding. If the gate passes, {AGENT_NAMES.NEEL} will write and run tests
@@ -328,12 +328,12 @@ export default function AnantaTicketWorkspace({
               : run.qaPhaseState === "paused"
                 ? `${AGENT_NAMES.NEEL} needs review`
                 : run.qaPhaseState === "done"
-                  ? `Handed off to ${AGENT_NAMES.NEEL} — QA complete`
+                  ? `Handed off to ${AGENT_NAMES.NEEL}: QA complete`
                   : `${AGENT_NAMES.NEEL} is running QA`}
           </p>
           <p className="mt-1 text-[13px] text-app-ink-dim">
             {run.qaPhaseState === "running"
-              ? "Ananta finished coding. Open Neel to watch tests and coverage as they appear — stats show after the QA stage completes."
+              ? "Ananta finished coding. Open Neel to watch tests and coverage as they appear: stats show after the QA stage completes."
               : run.qaPhaseState === "failed"
                 ? "QA did not finish. Open the pipeline or Neel inbox to resume/retry."
                 : run.qaPhaseState === "paused"
@@ -355,7 +355,7 @@ export default function AnantaTicketWorkspace({
             <p className="type-kicker">{AGENT_NAMES.ANANTA} · Tech</p>
             <div className="mt-1 flex flex-wrap items-center gap-2">
               <h1 className="text-lg font-semibold text-app-ink">
-                {run.jiraKey} — {run.summary}
+                {run.jiraKey}: {run.summary}
               </h1>
               <span
                 className={`rounded-full px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${
@@ -652,13 +652,13 @@ export default function AnantaTicketWorkspace({
               onClick={() => setCostOpen((v) => !v)}
               className="hover:text-app-ink"
             >
-              ${run.costUsd?.toFixed(2)} — {run.toolCallCount} tool calls — {run.durationMinutes}{" "}
+              ${run.costUsd?.toFixed(2)}: {run.toolCallCount} tool calls: {run.durationMinutes}{" "}
               min
             </button>
           </div>
           {costOpen ? (
             <div className="w-full rounded-app-sm border border-app-border bg-app-surface-muted px-4 py-3 text-xs text-app-ink-dim">
-              Token breakdown by phase — engineering plan, coding loop, sandbox compile. Full
+              Token breakdown by phase: engineering plan, coding loop, sandbox compile. Full
               ticket cost includes Product and QA stages.
             </div>
           ) : null}
@@ -748,7 +748,7 @@ function LiveRunPanel({ steps, currentActivity, activityFeed }) {
     <div className="flex flex-col border-b border-app-border sm:border-b-0 sm:border-r">
       {/* Current in-flight activity */}
       <div className="border-b border-app-border px-5 py-4 lg:px-6">
-        <p className="type-kicker mb-3">{AGENT_NAMES.ANANTA} — Live</p>
+        <p className="type-kicker mb-3">{AGENT_NAMES.ANANTA}: Live</p>
         {currentActivity ? (
           <div className="flex items-center gap-3 rounded-app-sm border border-indigo/30 bg-indigo/5 px-3 py-2.5">
             <span className="size-2 animate-pulse rounded-full bg-indigo shrink-0" />

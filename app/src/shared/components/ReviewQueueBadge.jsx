@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import { useOrgPathBuilder } from "../providers/OrgRouteProvider";
 
 /**
- * Global review-queue indicator — visible from every screen.
+ * Global review-queue indicator: visible from every screen.
  */
 export default function ReviewQueueBadge({ count, className = "" }) {
   const orgPath = useOrgPathBuilder();

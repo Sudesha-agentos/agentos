@@ -66,7 +66,7 @@ export default function VirinAwaitingAnantaPanel({
     <Panel>
       <PanelHeader
         kicker="Handoff queue"
-        title="Completed by Virin — not yet with Ananta"
+        title="Completed by Virin: not yet with Ananta"
         subtitle="These tickets finished product discovery and have a PRD, but engineering has not started."
       />
       {error ? (

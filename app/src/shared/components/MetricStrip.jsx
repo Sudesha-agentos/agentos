@@ -1,5 +1,5 @@
 /**
- * Cockpit metrics bar — five numbers, compact type.
+ * Cockpit metrics bar: five numbers, compact type.
  */
 export default function MetricStrip({ metrics, loading }) {
   if (loading && !metrics) {

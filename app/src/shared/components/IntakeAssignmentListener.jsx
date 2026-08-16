@@ -66,7 +66,7 @@ export default function IntakeAssignmentListener() {
       try {
         await dismissActivityEvent(toast.id);
       } catch {
-        /* best-effort — still hide locally */
+        /* best-effort: still hide locally */
       }
     }
     setToast(null);

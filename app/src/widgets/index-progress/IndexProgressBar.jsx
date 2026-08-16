@@ -30,7 +30,7 @@ export default function IndexProgressBar({
     return (
       <div className={`rounded-lg border border-success/30 bg-success/5 p-4 ${className}`}>
         <p className="text-sm text-success">
-          Index complete — {progress.filesIndexed} new, {progress.filesUpdated} updated
+          Index complete: {progress.filesIndexed} new, {progress.filesUpdated} updated
           {progress.filesDeleted ? `, ${progress.filesDeleted} removed` : ""}.
         </p>
       </div>

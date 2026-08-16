@@ -91,8 +91,8 @@ export default function PipelineQueuePanel({ setup, showHeader = true, onRefresh
           skipped ? `skipped ${skipped}` : null,
           errors ? `${errors} error${errors === 1 ? "" : "s"}` : null,
           result.source ? `via ${result.source}` : null,
-          result.errors?.[0]?.message ? `— ${result.errors[0].message}` : null,
-          result.skipReasons?.[0]?.message ? `— ${result.skipReasons[0].message}` : null,
+          result.errors?.[0]?.message ? `: ${result.errors[0].message}` : null,
+          result.skipReasons?.[0]?.message ? `: ${result.skipReasons[0].message}` : null,
         ]
           .filter(Boolean)
           .join(", ")
@@ -185,7 +185,7 @@ export default function PipelineQueuePanel({ setup, showHeader = true, onRefresh
                               <span>
                                 {entry.label}
                                 {entry.detail ? (
-                                  <span className="text-white/45"> — {entry.detail}</span>
+                                  <span className="text-white/45">: {entry.detail}</span>
                                 ) : null}
                               </span>
                               <span className="shrink-0 text-[10px] text-white/35">

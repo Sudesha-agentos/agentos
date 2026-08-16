@@ -40,7 +40,7 @@ export default function AgentPipelineLiveStatus({ agentKey, className = "" }) {
         title={
           isPaused
             ? `${active.jiraKey} paused at ${active.currentStageLabel}`
-            : `${active.jiraKey} — ${active.currentStageLabel}`
+            : `${active.jiraKey}: ${active.currentStageLabel}`
         }
         right={<StatusPill status={active.status} />}
       />

@@ -397,7 +397,7 @@ function DependencyLines({ stages, slugIndex }) {
 
   return (
     <p className="mt-4 border-t border-[#ddd] pt-3 text-[11px] text-[#888]">
-      {crossLinks.length} cross-stage dependencies — complete upstream tickets to unlock downstream work.
+      {crossLinks.length} cross-stage dependencies: complete upstream tickets to unlock downstream work.
     </p>
   );
 }

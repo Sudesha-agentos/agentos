@@ -30,7 +30,7 @@ export default function RoiCalculatorPage() {
         </h1>
         <p className="mt-4 max-w-2xl text-[15px] leading-relaxed text-ink-dim">
           Model how AgentOX pays for itself across Product, Engineering, and QA agents.
-          Tune team size, pipeline volume, and rework — then compare tiers.
+          Tune team size, pipeline volume, and rework: then compare tiers.
         </p>
 
         <div className="app-theme app-shell-gradient mt-8 rounded-app border border-hairline/40 shadow-app-card">

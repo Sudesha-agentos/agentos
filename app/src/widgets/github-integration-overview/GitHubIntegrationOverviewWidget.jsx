@@ -35,9 +35,9 @@ export default function GitHubIntegrationOverviewWidget({ embedded = false }) {
               {repoLabel
                 ? `Repository · ${repoLabel}`
                 : needsRepoSelection || installationDetected
-                  ? "GitHub App installed — select a repository on the Git page"
+                  ? "GitHub App installed: select a repository on the Git page"
                   : data?.githubAppConfigured
-                    ? "GitHub App ready — install to pick a repository"
+                    ? "GitHub App ready: install to pick a repository"
                     : "Not connected · install GitHub App or use PAT"}
             </p>
             {data?.authMethod ? (

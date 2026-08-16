@@ -1,6 +1,6 @@
-/** Public SaaS tiers (Pilot is internal — see PILOT_PLAN). */
+/** Public SaaS tiers (Pilot is internal: see PILOT_PLAN). */
 export const PIPELINE_RUN_DEFINITION =
-  "A pipeline run is counted each time a ticket completes discovery and produces a PRD — regardless of whether it proceeds to Engineering or QA. Tickets that fail validation and are revised do not count as additional runs.";
+  "A pipeline run is counted each time a ticket completes discovery and produces a PRD: regardless of whether it proceeds to Engineering or QA. Tickets that fail validation and are revised do not count as additional runs.";
 
 export const BILLING_PLANS = [
   {
@@ -34,7 +34,7 @@ export const BILLING_PLANS = [
       "Everything in Starter, plus:",
       "Up to 150 pipeline runs per month",
       "Up to 5 connected repositories",
-      "Codebase Intelligence Layer — visual map, semantic search, AI tour",
+      "Codebase Intelligence Layer: visual map, semantic search, AI tour",
       "Branch tracking & human-change detection",
       "Slack integration with actionable approvals",
       "Cost Intelligence dashboard & ROI tracking",
@@ -56,7 +56,7 @@ export const BILLING_PLANS = [
     included: [
       "Everything in Growth, plus:",
       "Unlimited pipeline runs (fair-use)",
-      "Unlimited repositories — multi-repo intelligence",
+      "Unlimited repositories: multi-repo intelligence",
       "Compliance & audit reports (SOC2-ready exports)",
       "SSO / SAML",
       "Dedicated Slack channel + onboarding support",
@@ -71,7 +71,7 @@ export const BILLING_PLANS = [
   },
 ];
 
-/** Hidden sales tier — not shown on public marketing pricing. */
+/** Hidden sales tier: not shown on public marketing pricing. */
 export const PILOT_PLAN = {
   id: "pilot",
   name: "Pilot",
@@ -79,7 +79,7 @@ export const PILOT_PLAN = {
   period: "month",
   pipelineRunsCap: 20,
   durationDays: 90,
-  description: "Design partner program — capped usage, time-limited. Converts cleanly to a paid tier.",
+  description: "Design partner program: capped usage, time-limited. Converts cleanly to a paid tier.",
 };
 
 export const BILLING_ADDONS = [
@@ -109,7 +109,7 @@ export function planRoiCalculatorHref(planId) {
   return `/app/costs?${params.toString()}`;
 }
 
-/** Structured tier economics for ROI calculator — sync with server/src/roi/assumptions.ts */
+/** Structured tier economics for ROI calculator: sync with server/src/roi/assumptions.ts */
 export const PLAN_PRICING = {
   starter: { monthlyPrice: 1999, runsCap: 40, overagePerRun: 40 },
   growth: { monthlyPrice: 4999, runsCap: 150, overagePerRun: 35 },

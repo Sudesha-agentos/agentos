@@ -453,7 +453,7 @@ export default function Onboarding() {
                     >
                       <p className="font-medium">Create a new workspace</p>
                       <p className={`mt-1 text-sm ${orgChoice === "create" ? "text-white/80" : "text-[#6B6B6B]"}`}>
-                        Start fresh with your own org — integrations stay private to your team.
+                        Start fresh with your own org: integrations stay private to your team.
                       </p>
                     </button>
                     {orgChoice === "create" ? (

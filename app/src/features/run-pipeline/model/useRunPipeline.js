@@ -17,7 +17,7 @@ export function useRunPipeline() {
         const msg =
           result.message ??
           (result.skipped
-            ? "Pipeline was not started — ticket may already be active, paused for review, or completed."
+            ? "Pipeline was not started: ticket may already be active, paused for review, or completed."
             : "Pipeline was not started.");
         const err = new Error(msg);
         setError(err);
@@ -40,7 +40,7 @@ export function useRunPipeline() {
       const result = await pipelineAdapter.resume(pipelineId);
       setLastResult(result);
       if (result.started === false && !result.queued) {
-        const err = new Error("Pipeline resume did not start — it may already be running.");
+        const err = new Error("Pipeline resume did not start: it may already be running.");
         setError(err);
         throw err;
       }

@@ -68,10 +68,7 @@ export default function SettingsIntegrationsPage() {
     <div className="space-y-2">
       <IntegrationsOverviewWidget />
 
-      <SettingsSection
-        title="Integrations"
-
-      >
+      <SettingsSection title="Integrations" data-tour="integrations">
         {grouped.map((section) => (
           <div key={section.id} className="border-t border-app-border py-6 first:border-t-0 first:pt-0">
             <h3 className="text-xs font-semibold text-app-ink-dim">{section.label}</h3>

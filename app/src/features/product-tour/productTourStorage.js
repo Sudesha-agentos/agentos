@@ -1,4 +1,4 @@
-/** First-login product tour "seen" flag — same pattern as agentos-viz-tour-seen. */
+/** First-login product tour "seen" flag: same pattern as agentos-viz-tour-seen. */
 
 const KEY_PREFIX = "agentos.product-tour-seen.";
 
@@ -18,7 +18,7 @@ export function markProductTourSeen(userId) {
   try {
     localStorage.setItem(keyFor(userId), "1");
   } catch {
-    // Storage unavailable — tour will re-offer next session, which is fine.
+    // Storage unavailable: tour will re-offer next session, which is fine.
   }
 }
 

@@ -58,7 +58,7 @@ export default function GitHubSetupGuideWidget({
             <p className="text-[14px] leading-relaxed text-ink-dim">
               Register an app under your org or personal account.{" "}
               <strong className="text-ink">Contents (Code) must be Read and write</strong>{" "}
-              so Ananta can push branches — read-only Contents will block engineering pushes.
+              so Ananta can push branches: read-only Contents will block engineering pushes.
             </p>
             {githubApp?.permissions?.length ? (
               <ul className="mt-3 space-y-1 rounded-[0.85rem] border border-hairline bg-canvas/40 px-4 py-3 font-mono text-[11px] text-ink-dim">
@@ -164,7 +164,7 @@ export default function GitHubSetupGuideWidget({
                 After redirect, pick the repository AgentOX should index and push to.
               </li>
               <li>
-                Push and pull request webhooks are managed by the GitHub App — no manual repo
+                Push and pull request webhooks are managed by the GitHub App: no manual repo
                 webhook setup.
               </li>
             </ol>

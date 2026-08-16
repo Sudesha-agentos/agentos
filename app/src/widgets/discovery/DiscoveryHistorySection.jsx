@@ -9,7 +9,7 @@ export default function DiscoveryHistorySection({
   if (!historicalIntelligence) {
     return (
       <p className="text-[13px] text-ink-dim">
-        No historical intelligence — vector store had no similar tickets for this
+        No historical intelligence: vector store had no similar tickets for this
         query.
       </p>
     );
