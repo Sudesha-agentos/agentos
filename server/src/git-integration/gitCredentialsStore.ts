@@ -393,6 +393,7 @@ export function getPublicGitCredentials(): PublicGitCredentials {
     username: creds.username,
     hasToken:
       Boolean(displayToken) ||
+      (creds.authMethod === "github_app" && Boolean(creds.installationId)) ||
       (creds.authMethod === "oauth" && Boolean(creds.refreshToken)),
     tokenHint: displayToken ? tokenHint(displayToken) : null,
     webhookSecret: creds.webhookSecret,

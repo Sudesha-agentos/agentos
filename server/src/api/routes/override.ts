@@ -2,7 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { auditRepo } from "../../db/repositories/auditRepo";
 import { pipelineRepo } from "../../db/repositories/pipelineRepo";
-import { runPipelineInBackground } from "../../queue/inProcessRunner";
+import { resumePipelineInBackground } from "../../queue/inProcessRunner";
 import { stateManager } from "../../pipeline/stateManager";
 import { prisma } from "../../db/client";
 import { NotFoundError, ValidationError } from "../../utils/errors";
@@ -59,11 +59,16 @@ router.post("/:pipelineId/override", async (req, res, next) => {
       reason: parsed.data.reason,
     });
 
-    // Resuming after override re-queues the pipeline. The orchestrator will
-    // pick up the most recent stage output, which now reflects the override
-    // because we wrote it as a new HumanOverride row.
+    // Resume (not restart) the pipeline: resume() reuses completed stage
+    // outputs and the orchestrator's gates consult the HumanOverride row we
+    // just wrote, so the overridden validation no longer pauses the run.
     await stateManager.advance(pipeline.id, nextStageAfter(parsed.data.stage));
-    void runPipelineInBackground(pipeline.ticketId);
+    void resumePipelineInBackground(
+      pipeline.ticketId,
+      pipeline.ticket.jiraKey,
+      pipeline.id,
+      pipeline.organizationId
+    );
 
     res.status(202).json({ ok: true });
   } catch (err) {

@@ -138,6 +138,13 @@ export const pipelineRepo = {
     return [...new Set(logs.map((l) => l.stage))];
   },
 
+  async getLatestOverride(pipelineId: string, stage: PipelineStage) {
+    return prisma.humanOverride.findFirst({
+      where: { pipelineId, stage },
+      orderBy: { overriddenAt: "desc" },
+    });
+  },
+
   async recordOverride(input: {
     pipelineId: string;
     stage: PipelineStage;

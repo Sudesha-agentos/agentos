@@ -1,4 +1,4 @@
-import { getGitClient } from "../integrations/gitProvider";
+import { getGitClientAsync } from "../integrations/gitProvider";
 import { getActiveOrganizationId } from "../organization/context";
 import { logger } from "../utils/logger";
 import {
@@ -12,7 +12,7 @@ export async function resolveRepoIndexBranch(
   preferredBranch?: string
 ): Promise<string> {
   const ctx = getRepoContext();
-  const client = getGitClient();
+  const client = await getGitClientAsync();
   const meta = await client.testConnection(ctx);
   const remoteDefault = meta.defaultBranch?.trim() || "main";
   const preferred =

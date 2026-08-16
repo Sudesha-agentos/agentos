@@ -97,6 +97,16 @@ export function validatePrd(prd: unknown, options?: ValidatePrdOptions): Validat
       message: `PRD quality score ${data.confidenceScore} below 0.7 threshold — human clarification required.`,
     });
   }
+  // PM-agent PRDs already passed product review, so they skip the standard
+  // threshold — but a near-zero score means the analysis never really
+  // completed and must not reach the coding agent unreviewed.
+  if (options?.source === "pm_agents" && data.confidenceScore < 0.5) {
+    issues.push({
+      code: "LOW_CONFIDENCE",
+      severity: "error",
+      message: `PM-agent PRD confidence ${data.confidenceScore} below 0.5 minimum floor — human review required.`,
+    });
+  }
 
   const errorCount = issues.filter((i) => i.severity === "error").length;
   const passed = errorCount === 0;
