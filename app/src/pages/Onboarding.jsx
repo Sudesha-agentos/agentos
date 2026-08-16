@@ -13,6 +13,7 @@ import {
   saveOnboardingStep,
 } from "../entities/onboarding";
 import { useAuth } from "../shared/providers/useAuth";
+import { setProductTourPending } from "../features/product-tour/productTourStorage";
 import BrandLogo from "../shared/ui/BrandLogo";
 import { sessionHomePath } from "../shared/routing/orgPaths";
 import {
@@ -222,7 +223,8 @@ export default function Onboarding() {
           console.warn("Company profile save failed after onboarding:", profileErr);
         });
 
-        navigate(homePath, { replace: true });
+        setProductTourPending();
+        navigate(homePath, { replace: true, state: { startProductTour: true } });
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : "Something went wrong";

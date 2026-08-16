@@ -13,6 +13,7 @@ import MobileNav from "./MobileNav";
 import Sidebar from "./Sidebar";
 import TopBar from "./TopBar";
 import IntakeAssignmentListener from "../../shared/components/IntakeAssignmentListener";
+import ProductTourController from "../../features/product-tour/ProductTourController";
 
 function AppShellContent() {
   const { collapsed } = useSidebarCollapsed();
@@ -62,6 +63,7 @@ export default function AppShell() {
             <GithubOAuthRedirect />
             <JiraOAuthRedirect />
             <IntakeAssignmentListener />
+            <ProductTourController />
             <AppShellContent />
           </div>
         </SidebarProvider>
