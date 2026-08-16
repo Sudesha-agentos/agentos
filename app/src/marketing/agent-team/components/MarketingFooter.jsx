@@ -45,6 +45,11 @@ export default function MarketingFooter() {
           <p className="text-[11px] font-semibold uppercase tracking-wider text-white/40">Company</p>
           <ul className="mt-4 space-y-2 text-[14px] text-white/70">
             <li>
+              <Link to="/welcome" className="hover:text-white">
+                Welcome to AgentOX
+              </Link>
+            </li>
+            <li>
               <a href="/#clients" className="hover:text-white">
                 Clients
               </a>
@@ -94,6 +99,9 @@ export default function MarketingFooter() {
           </div>
           <div className="flex flex-wrap items-center justify-center gap-4 text-[12px] text-white/45">
             <span>© {new Date().getFullYear()} AgentOX</span>
+            <Link to="/welcome" className="hover:text-white/70">
+              Welcome to AgentOX
+            </Link>
             <Link to="/privacy" className="hover:text-white/70">
               Privacy Policy
             </Link>

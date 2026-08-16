@@ -269,6 +269,7 @@ export const FOOTER = {
     {
       title: "Company",
       links: [
+        { label: "Welcome to AgentOX", href: "/welcome" },
         { label: "Contact", href: "/contact" },
         { label: "Docs", href: "/docs-code" },
         { label: "Sign in", href: "/login" },
@@ -284,6 +285,7 @@ export const FOOTER = {
   ],
   legal: `© ${new Date().getFullYear()} AgentOX. All rights reserved.`,
   legalLinks: [
+    { label: "Welcome to AgentOX", href: "/welcome" },
     { label: "Privacy Policy", href: "/privacy" },
     { label: "Terms & Conditions", href: "/terms" },
   ],

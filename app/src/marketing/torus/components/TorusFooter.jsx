@@ -23,6 +23,9 @@ export default function TorusFooter() {
             <a href="/contact" className="footer-contact">
               Contact
             </a>
+            <a href="/welcome" className="footer-contact">
+              Welcome to AgentOX
+            </a>
             <a href="/privacy" className="footer-contact">
               Privacy Policy
             </a>
