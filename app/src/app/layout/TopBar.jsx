@@ -3,6 +3,7 @@ import NotificationCenter from "../../shared/components/NotificationCenter";
 import { useAppTheme } from "../../shared/hooks/useAppTheme";
 import { useOrg } from "../../shared/providers/OrgRouteProvider";
 import { useCodebaseCommandPalette } from "../../widgets/codebase-search/useCodebaseCommandPalette";
+import { PRODUCT_TOUR_START_EVENT } from "../../features/product-tour/productTourStorage";
 
 export default function TopBar() {
   const { openPalette } = useCodebaseCommandPalette();
@@ -32,6 +33,15 @@ export default function TopBar() {
       <div className="ml-auto flex shrink-0 items-center gap-2">
         <button
           type="button"
+          onClick={() => window.dispatchEvent(new CustomEvent(PRODUCT_TOUR_START_EVENT))}
+          className="hidden size-10 items-center justify-center rounded-lg border border-app-border bg-app-surface text-app-ink-dim transition-colors hover:border-app-ink/12 hover:text-app-ink md:flex"
+          aria-label="Replay product tour"
+          title="Replay product tour"
+        >
+          <IconTour />
+        </button>
+        <button
+          type="button"
           onClick={toggleTheme}
           className="flex size-10 items-center justify-center rounded-lg border border-app-border bg-app-surface text-app-ink-dim transition-colors hover:border-app-ink/12 hover:text-app-ink"
           aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
@@ -55,6 +65,21 @@ export default function TopBar() {
         <NotificationCenter />
       </div>
     </header>
+  );
+}
+
+function IconTour() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.6" />
+      <path
+        d="M9.6 9.3a2.5 2.5 0 0 1 4.86.83c0 1.67-2.46 2.08-2.46 3.37"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+      />
+      <circle cx="12" cy="16.6" r="0.9" fill="currentColor" />
+    </svg>
   );
 }
 

@@ -1,0 +1,106 @@
+/* Product tour popover — matches the app theme (light + dark via app-theme vars). */
+
+.driver-popover.agentos-product-tour {
+  background: rgb(var(--app-surface));
+  color: rgb(var(--app-ink));
+  border: 1px solid rgba(var(--app-border-rgb), var(--app-border-alpha));
+  border-radius: 12px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.22);
+  max-width: 320px;
+  padding: 16px;
+  font-family: inherit;
+}
+
+.driver-popover.agentos-product-tour .driver-popover-title {
+  font-size: 14px;
+  font-weight: 650;
+  color: rgb(var(--app-ink));
+}
+
+.driver-popover.agentos-product-tour .driver-popover-description {
+  margin-top: 4px;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: rgb(var(--app-ink-dim));
+}
+
+.driver-popover.agentos-product-tour .driver-popover-progress-text {
+  font-size: 11px;
+  color: rgb(var(--app-ink-mute));
+}
+
+.driver-popover.agentos-product-tour .driver-popover-footer {
+  margin-top: 12px;
+  gap: 6px;
+}
+
+.driver-popover.agentos-product-tour .driver-popover-footer button {
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 12px;
+  text-shadow: none;
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.driver-popover.agentos-product-tour .driver-popover-prev-btn {
+  background: transparent;
+  color: rgb(var(--app-ink-dim));
+  border: 1px solid rgba(var(--app-border-rgb), var(--app-border-alpha));
+}
+
+.driver-popover.agentos-product-tour .driver-popover-prev-btn:hover {
+  color: rgb(var(--app-ink));
+  background: rgb(var(--app-surface-muted));
+}
+
+.driver-popover.agentos-product-tour .driver-popover-next-btn {
+  background: rgb(var(--app-ink));
+  color: rgb(var(--app-surface));
+  border: 1px solid rgb(var(--app-ink));
+}
+
+.driver-popover.agentos-product-tour .driver-popover-next-btn:hover {
+  opacity: 0.88;
+}
+
+.driver-popover.agentos-product-tour .agentos-tour-skip {
+  margin-right: auto;
+  background: transparent;
+  border: none;
+  color: rgb(var(--app-ink-mute));
+  font-size: 12px;
+  font-weight: 500;
+  padding: 6px 2px;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.driver-popover.agentos-product-tour .agentos-tour-skip:hover {
+  color: rgb(var(--app-ink));
+}
+
+.driver-popover.agentos-product-tour .driver-popover-close-btn {
+  color: rgb(var(--app-ink-mute));
+}
+
+.driver-popover.agentos-product-tour .driver-popover-close-btn:hover {
+  color: rgb(var(--app-ink));
+}
+
+.driver-popover.agentos-product-tour .driver-popover-arrow-side-right.driver-popover-arrow {
+  border-right-color: rgb(var(--app-surface));
+}
+
+.driver-popover.agentos-product-tour .driver-popover-arrow-side-left.driver-popover-arrow {
+  border-left-color: rgb(var(--app-surface));
+}
+
+.driver-popover.agentos-product-tour .driver-popover-arrow-side-top.driver-popover-arrow {
+  border-top-color: rgb(var(--app-surface));
+}
+
+.driver-popover.agentos-product-tour .driver-popover-arrow-side-bottom.driver-popover-arrow {
+  border-bottom-color: rgb(var(--app-surface));
+}

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import Nav from "../agentox/components/Nav";
 import Footer from "../agentox/components/Footer";
+import AmbientOrbs from "../agentox/components/AmbientOrbs";
 import { BRAND } from "../agentox/content";
 import "../agentox/agentoxMarketing.css";
 
@@ -21,6 +22,7 @@ export default function ContactPage() {
 
   return (
     <div className="agentox-marketing">
+      <AmbientOrbs />
       <Nav />
       <main className="ax-contact">
         <div className="ax-container">

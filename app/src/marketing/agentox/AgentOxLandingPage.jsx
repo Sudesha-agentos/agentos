@@ -10,6 +10,7 @@ import PricingSection from "./components/PricingSection";
 import FaqSection from "./components/FaqSection";
 import FinalCta from "./components/FinalCta";
 import Footer from "./components/Footer";
+import AmbientOrbs from "./components/AmbientOrbs";
 import "./agentoxMarketing.css";
 
 export default function AgentOxLandingPage() {
@@ -69,6 +70,7 @@ export default function AgentOxLandingPage() {
 
   return (
     <div ref={rootRef} className="agentox-marketing">
+      <AmbientOrbs />
       <Nav />
       <main>
         <Hero />

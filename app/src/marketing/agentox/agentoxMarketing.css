@@ -7,18 +7,19 @@
    body content still uses another stylesheet (e.g. the docs page). */
 .agentox-marketing,
 .agentox-chrome {
-  --ax-bg: #0a0a0c;
-  --ax-bg-raised: #101014;
-  --ax-bg-card: rgba(255, 255, 255, 0.02);
-  --ax-border: rgba(255, 255, 255, 0.08);
-  --ax-border-strong: rgba(255, 255, 255, 0.14);
-  --ax-text: #ececf1;
-  --ax-text-dim: #a1a1aa;
-  --ax-text-faint: #6b6b74;
+  --ax-bg: #f7f4ee;
+  --ax-bg-raised: #ffffff;
+  --ax-bg-card: rgba(255, 255, 255, 0.78);
+  --ax-border: rgba(36, 28, 20, 0.08);
+  --ax-border-strong: rgba(36, 28, 20, 0.14);
+  --ax-text: #1a1714;
+  --ax-text-dim: #5c564e;
+  --ax-text-faint: #8a8378;
   --ax-accent: #e67e22;
-  --ax-accent-soft: rgba(230, 126, 34, 0.14);
+  --ax-accent-soft: rgba(230, 126, 34, 0.12);
   --ax-accent-grad: linear-gradient(135deg, #e67e22 0%, #f5a623 100%);
-  --ax-green: #34d399;
+  --ax-green: #0f9f6e;
+  --ax-shadow: 0 10px 32px rgba(60, 40, 16, 0.08);
   --ax-font-body: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --ax-font-display: "Space Grotesk", "Inter", sans-serif;
   --ax-radius: 14px;
@@ -30,6 +31,7 @@
   font-family: var(--ax-font-body);
   font-size: 16px;
   line-height: 1.6;
+  color-scheme: light;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -55,18 +57,18 @@
 
 .agentox-marketing::before {
   background:
-    radial-gradient(46% 40% at 18% 8%, rgba(230, 126, 34, 0.16) 0%, transparent 60%),
-    radial-gradient(42% 38% at 85% 4%, rgba(245, 166, 35, 0.12) 0%, transparent 60%),
-    radial-gradient(50% 46% at 78% 62%, rgba(120, 84, 220, 0.14) 0%, transparent 62%),
-    radial-gradient(48% 44% at 10% 78%, rgba(34, 130, 120, 0.12) 0%, transparent 60%);
-  filter: saturate(115%);
-  animation: ax-aurora-drift 26s ease-in-out infinite alternate;
+    radial-gradient(48% 42% at 12% 6%, rgba(255, 176, 86, 0.55) 0%, transparent 62%),
+    radial-gradient(44% 40% at 88% 8%, rgba(255, 122, 168, 0.28) 0%, transparent 60%),
+    radial-gradient(52% 48% at 78% 68%, rgba(140, 168, 255, 0.32) 0%, transparent 64%),
+    radial-gradient(50% 46% at 8% 82%, rgba(92, 214, 180, 0.28) 0%, transparent 62%);
+  filter: saturate(130%);
+  animation: ax-aurora-drift 18s ease-in-out infinite alternate;
 }
 
 .agentox-marketing::after {
   background-image:
-    linear-gradient(rgba(255, 255, 255, 0.028) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.028) 1px, transparent 1px);
+    linear-gradient(rgba(36, 28, 20, 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(36, 28, 20, 0.045) 1px, transparent 1px);
   background-size: 46px 46px;
   mask-image: radial-gradient(ellipse 80% 60% at 50% 30%, #000 0%, transparent 80%);
   -webkit-mask-image: radial-gradient(ellipse 80% 60% at 50% 30%, #000 0%, transparent 80%);
@@ -87,8 +89,86 @@
   }
 }
 
+/* Floating color orbs — extra motion on top of the aurora wash. */
+.ax-orbs {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.ax-orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(48px);
+  opacity: 0.7;
+  will-change: transform;
+}
+
+.ax-orb-a {
+  width: 340px;
+  height: 340px;
+  top: 8%;
+  left: -4%;
+  background: radial-gradient(circle, rgba(255, 168, 64, 0.7) 0%, transparent 70%);
+  animation: ax-orb-float-a 16s ease-in-out infinite;
+}
+
+.ax-orb-b {
+  width: 280px;
+  height: 280px;
+  top: 42%;
+  right: -6%;
+  background: radial-gradient(circle, rgba(168, 140, 255, 0.55) 0%, transparent 70%);
+  animation: ax-orb-float-b 20s ease-in-out infinite;
+}
+
+.ax-orb-c {
+  width: 260px;
+  height: 260px;
+  bottom: 6%;
+  left: 28%;
+  background: radial-gradient(circle, rgba(80, 214, 186, 0.45) 0%, transparent 70%);
+  animation: ax-orb-float-c 22s ease-in-out infinite;
+}
+
+@keyframes ax-orb-float-a {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(8%, 12%, 0) scale(1.12);
+  }
+}
+
+@keyframes ax-orb-float-b {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(-10%, -8%, 0) scale(1.18);
+  }
+}
+
+@keyframes ax-orb-float-c {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(6%, -14%, 0) scale(1.08);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .agentox-marketing::before {
+  .agentox-marketing::before,
+  .ax-orb,
+  .ax-hero::before,
+  .ax-final-cta::before,
+  .ax-hero-badge::before {
     animation: none;
   }
 }
@@ -220,7 +300,7 @@
 
 .ax-btn-primary:hover {
   transform: translateY(-1px);
-  box-shadow: 0 8px 28px rgba(230, 126, 34, 0.35);
+  box-shadow: 0 10px 28px rgba(230, 126, 34, 0.38);
 }
 
 .ax-btn-secondary {
@@ -252,7 +332,7 @@
 }
 
 .ax-nav.ax-nav-scrolled {
-  background: rgba(10, 10, 12, 0.82);
+  background: rgba(247, 244, 238, 0.82);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
   border-bottom-color: var(--ax-border);
@@ -338,7 +418,7 @@
     flex-direction: column;
     gap: 4px;
     padding: 12px 24px 20px;
-    background: rgba(10, 10, 12, 0.97);
+    background: rgba(247, 244, 238, 0.98);
     border-bottom: 1px solid var(--ax-border);
   }
 
@@ -368,10 +448,11 @@
   height: 640px;
   background: radial-gradient(
     ellipse at center,
-    rgba(230, 126, 34, 0.14) 0%,
-    rgba(230, 126, 34, 0.04) 45%,
+    rgba(255, 168, 64, 0.38) 0%,
+    rgba(255, 140, 90, 0.12) 45%,
     transparent 70%
   );
+  animation: ax-hero-glow 10s ease-in-out infinite alternate;
   pointer-events: none;
 }
 
@@ -394,6 +475,31 @@
   height: 6px;
   border-radius: 50%;
   background: var(--ax-green);
+  box-shadow: 0 0 0 0 rgba(15, 159, 110, 0.45);
+  animation: ax-pulse 2.4s ease-out infinite;
+}
+
+@keyframes ax-hero-glow {
+  0% {
+    opacity: 0.75;
+    transform: translateX(-50%) scale(1);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(-50%) scale(1.08);
+  }
+}
+
+@keyframes ax-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(15, 159, 110, 0.45);
+  }
+  70% {
+    box-shadow: 0 0 0 8px rgba(15, 159, 110, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(15, 159, 110, 0);
+  }
 }
 
 .ax-hero-headline {
@@ -443,7 +549,8 @@
   max-width: 980px;
   border: 1px solid var(--ax-border);
   border-radius: var(--ax-radius);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0.01) 100%);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.92) 0%, rgba(255, 255, 255, 0.72) 100%);
+  box-shadow: var(--ax-shadow);
   padding: 36px 28px 28px;
   position: relative;
   overflow: hidden;
@@ -453,8 +560,8 @@
   content: "";
   position: absolute;
   inset: 0;
-  background-image: linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+  background-image: linear-gradient(rgba(36, 28, 20, 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(36, 28, 20, 0.045) 1px, transparent 1px);
   background-size: 32px 32px;
   mask-image: radial-gradient(ellipse at center, black 30%, transparent 78%);
   -webkit-mask-image: radial-gradient(ellipse at center, black 30%, transparent 78%);
@@ -684,14 +791,15 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  opacity: 0.55;
-  filter: grayscale(1) brightness(1.6);
-  transition: opacity 0.2s ease, filter 0.2s ease;
+  opacity: 0.72;
+  filter: grayscale(0.35);
+  transition: opacity 0.2s ease, filter 0.2s ease, transform 0.2s ease;
 }
 
 .ax-integration:hover {
   opacity: 1;
   filter: none;
+  transform: translateY(-2px);
 }
 
 .ax-integration img {
@@ -718,12 +826,14 @@
   border-radius: var(--ax-radius);
   background: var(--ax-bg-card);
   padding: 28px;
-  transition: border-color 0.2s ease, transform 0.2s ease;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.8) inset;
+  transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .ax-step:hover {
-  border-color: var(--ax-border-strong);
+  border-color: rgba(230, 126, 34, 0.35);
   transform: translateY(-3px);
+  box-shadow: var(--ax-shadow);
 }
 
 .ax-step-number {
@@ -761,6 +871,17 @@
   gap: 20px;
 }
 
+.ax-agent-card,
+.ax-feature,
+.ax-plan,
+.ax-faq-item,
+.ax-form-card,
+.ax-aside-card,
+.ax-security-mode {
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
 .ax-agent-card {
   border: 1px solid var(--ax-border);
   border-radius: var(--ax-radius);
@@ -774,9 +895,9 @@
 }
 
 .ax-agent-card:hover {
-  border-color: rgba(230, 126, 34, 0.4);
-  transform: translateY(-3px);
-  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.4);
+  border-color: rgba(230, 126, 34, 0.45);
+  transform: translateY(-4px);
+  box-shadow: 0 16px 40px rgba(230, 126, 34, 0.14);
 }
 
 .ax-agent-avatar {
@@ -990,9 +1111,10 @@
   border-color: rgba(230, 126, 34, 0.5);
   background: linear-gradient(
     180deg,
-    rgba(230, 126, 34, 0.06) 0%,
-    rgba(255, 255, 255, 0.02) 60%
+    rgba(255, 176, 86, 0.18) 0%,
+    rgba(255, 255, 255, 0.88) 55%
   );
+  box-shadow: 0 16px 40px rgba(230, 126, 34, 0.12);
 }
 
 .ax-plan-badge {
@@ -1155,9 +1277,10 @@
   height: 520px;
   background: radial-gradient(
     ellipse at center,
-    rgba(230, 126, 34, 0.16) 0%,
+    rgba(255, 168, 64, 0.42) 0%,
     transparent 70%
   );
+  animation: ax-hero-glow 12s ease-in-out infinite alternate;
   pointer-events: none;
 }
 

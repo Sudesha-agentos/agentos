@@ -114,6 +114,7 @@ export default function Sidebar() {
                       <NavLink
                         to={item.to}
                         end
+                        data-tour="dashboard"
                         title={collapsed ? item.label : undefined}
                         className={({ isActive }) =>
                           navItemClass(isActive, collapsed)
@@ -136,6 +137,7 @@ export default function Sidebar() {
                     {collapsed ? (
                       <NavLink
                         to={orgPath("pipelines")}
+                        data-tour="pipelines"
                         title="Pipelines"
                         className={({ isActive }) =>
                           navItemClass(
@@ -155,6 +157,7 @@ export default function Sidebar() {
                     <button
                       type="button"
                       onClick={() => !collapsed && toggle("pipelines")}
+                      data-tour="pipelines"
                       title={collapsed ? "Pipelines" : undefined}
                       className={navItemClass(
                         pathMatches("pipelines"),
@@ -239,6 +242,7 @@ export default function Sidebar() {
                         <li key={agent.id}>
                           <NavLink
                             to={agent.to}
+                            data-tour={agent.id}
                             title={collapsed ? agent.label : undefined}
                             className={({ isActive }) =>
                               navItemClass(isActive || active, collapsed)
@@ -260,6 +264,7 @@ export default function Sidebar() {
                         <button
                           type="button"
                           onClick={() => !collapsed && toggle(agent.id)}
+                          data-tour={agent.id}
                           title={collapsed ? agent.label : undefined}
                           className={navItemClass(active, collapsed, {
                             isGroupHeader: true,
@@ -285,7 +290,13 @@ export default function Sidebar() {
                               const subActive = subIsActive(sub, agent.id);
                               return (
                                 <li key={sub.to}>
-                                  <NavLink to={sub.to} className={subNavItemClass(subActive)}>
+                                  <NavLink
+                                    to={sub.to}
+                                    data-tour={
+                                      String(sub.to).includes("/codebase") ? "codebase" : undefined
+                                    }
+                                    className={subNavItemClass(subActive)}
+                                  >
                                     <span
                                       className="flex size-5 shrink-0 items-center justify-center"
                                       aria-hidden
@@ -328,6 +339,7 @@ export default function Sidebar() {
                       <li key={item.to}>
                         <NavLink
                           to={item.to}
+                          data-tour={NAV_ICONS[iconKey] ? iconKey : undefined}
                           title={collapsed ? item.label : undefined}
                           className={({ isActive }) => navItemClass(isActive, collapsed)}
                         >
