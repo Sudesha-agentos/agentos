@@ -11,7 +11,9 @@ import {
 } from "../../pipeline/settingsStore";
 import { workspaceBillingStore } from "../../billing/workspaceBillingStore";
 import { ValidationError } from "../../utils/errors";
+import { assertSafeOutboundUrl } from "../../security/assertSafeOutboundUrl";
 import {
+  requireOrganizationRole,
   requireOrganizationUser,
   withOrganizationContext,
 } from "../orgRequestContext";
@@ -36,7 +38,7 @@ router.get("/billing", async (req, res, next) => {
 
 router.put("/billing", async (req, res, next) => {
   try {
-    const user = requireOrganizationUser(req, res);
+    const user = requireOrganizationRole(req, res, ["OWNER"]);
     if (!user?.organizationId) return;
 
     await withOrganizationContext(user.organizationId, async () => {
@@ -70,7 +72,9 @@ router.put("/billing", async (req, res, next) => {
   }
 });
 
-router.get("/", (_req, res) => {
+router.get("/", (req, res) => {
+  const user = requireOrganizationUser(req, res);
+  if (!user) return;
   loadCanarySettingsFromStore();
   loadPipelineSettingsFromStore();
   res.json({
@@ -80,6 +84,8 @@ router.get("/", (_req, res) => {
 });
 
 router.put("/pipeline", (req, res) => {
+  const user = requireOrganizationUser(req, res);
+  if (!user) return;
   const threshold =
     req.body?.systemDesignComplexityThreshold !== undefined
       ? Number(req.body.systemDesignComplexityThreshold)
@@ -91,6 +97,8 @@ router.put("/pipeline", (req, res) => {
 });
 
 router.put("/", (req, res) => {
+  const user = requireOrganizationUser(req, res);
+  if (!user) return;
   const stagingBaseUrl =
     req.body?.canaryStagingBaseUrl !== undefined
       ? String(req.body.canaryStagingBaseUrl)
@@ -103,6 +111,13 @@ router.put("/", (req, res) => {
     req.body?.canaryAuthToken !== undefined
       ? String(req.body.canaryAuthToken)
       : undefined;
+
+  if (stagingBaseUrl) {
+    assertSafeOutboundUrl(stagingBaseUrl);
+  }
+  if (productionBaseUrl) {
+    assertSafeOutboundUrl(productionBaseUrl);
+  }
 
   const canary = saveCanarySettings({
     stagingBaseUrl,

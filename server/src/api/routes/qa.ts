@@ -24,10 +24,18 @@ router.get("/inbox", async (req, res, next) => {
   }
 });
 
-router.get("/pipeline-reports", async (_req, res, next) => {
+router.get("/pipeline-reports", async (req, res, next) => {
   try {
+    const user = requireOrganizationUser(req, res);
+    if (!user?.organizationId) return;
+
+    await withOrganizationContext(user.organizationId, async () => {
     const stages = await prisma.pipelineStageLog.findMany({
-      where: { stage: "QA_AGENT", status: "COMPLETED" },
+      where: {
+        stage: "QA_AGENT",
+        status: "COMPLETED",
+        pipeline: { organizationId: user.organizationId },
+      },
       orderBy: { completedAt: "desc" },
       take: 50,
       include: {
@@ -61,6 +69,7 @@ router.get("/pipeline-reports", async (_req, res, next) => {
         };
       }),
     });
+    });
   } catch (err) {
     next(err);
   }
@@ -68,18 +77,23 @@ router.get("/pipeline-reports", async (_req, res, next) => {
 
 router.get("/pipeline-reports/:pipelineId", async (req, res, next) => {
   try {
+    const user = requireOrganizationUser(req, res);
+    if (!user?.organizationId) return;
+
+    await withOrganizationContext(user.organizationId, async () => {
     const stage = await prisma.pipelineStageLog.findFirst({
       where: {
         pipelineId: req.params.pipelineId,
         stage: "QA_AGENT",
         status: "COMPLETED",
+        pipeline: { organizationId: user.organizationId },
       },
       orderBy: { completedAt: "desc" },
       include: { pipeline: { include: { ticket: true } } },
     });
     if (!stage) {
       const pipeline = await prisma.pipeline.findFirst({
-        where: { id: req.params.pipelineId },
+        where: { id: req.params.pipelineId, organizationId: user.organizationId },
         include: { ticket: true },
       });
       if (!pipeline) {
@@ -230,15 +244,24 @@ router.get("/pipeline-reports/:pipelineId", async (req, res, next) => {
         qa?.locatorHealProposals ?? execReport?.locatorHealProposals ?? [],
       completedAt: stage.completedAt?.toISOString(),
     });
+    });
   } catch (err) {
     next(err);
   }
 });
 
-router.get("/coverage", async (_req, res, next) => {
+router.get("/coverage", async (req, res, next) => {
   try {
+    const user = requireOrganizationUser(req, res);
+    if (!user?.organizationId) return;
+
+    await withOrganizationContext(user.organizationId, async () => {
     const stages = await prisma.pipelineStageLog.findMany({
-      where: { stage: "QA_AGENT", status: "COMPLETED" },
+      where: {
+        stage: "QA_AGENT",
+        status: "COMPLETED",
+        pipeline: { organizationId: user.organizationId },
+      },
       orderBy: { completedAt: "desc" },
       take: 20,
     });
@@ -270,15 +293,24 @@ router.get("/coverage", async (_req, res, next) => {
         branches: v.branches,
       })),
     });
+    });
   } catch (err) {
     next(err);
   }
 });
 
-router.get("/heatmap", async (_req, res, next) => {
+router.get("/heatmap", async (req, res, next) => {
   try {
+    const user = requireOrganizationUser(req, res);
+    if (!user?.organizationId) return;
+
+    await withOrganizationContext(user.organizationId, async () => {
     const stages = await prisma.pipelineStageLog.findMany({
-      where: { stage: "QA_AGENT", status: "COMPLETED" },
+      where: {
+        stage: "QA_AGENT",
+        status: "COMPLETED",
+        pipeline: { organizationId: user.organizationId },
+      },
       orderBy: { completedAt: "desc" },
       take: 10,
       include: { pipeline: { include: { ticket: true } } },
@@ -310,15 +342,24 @@ router.get("/heatmap", async (_req, res, next) => {
     });
 
     res.json({ criteria, features, cells });
+    });
   } catch (err) {
     next(err);
   }
 });
 
-router.get("/failures", async (_req, res, next) => {
+router.get("/failures", async (req, res, next) => {
   try {
+    const user = requireOrganizationUser(req, res);
+    if (!user?.organizationId) return;
+
+    await withOrganizationContext(user.organizationId, async () => {
     const stages = await prisma.pipelineStageLog.findMany({
-      where: { stage: "QA_AGENT", status: "COMPLETED" },
+      where: {
+        stage: "QA_AGENT",
+        status: "COMPLETED",
+        pipeline: { organizationId: user.organizationId },
+      },
       orderBy: { completedAt: "desc" },
       take: 20,
     });
@@ -352,14 +393,19 @@ router.get("/failures", async (_req, res, next) => {
         { id: "low", label: "Low", items: (byType.get("low") ?? []).slice(0, 10) },
       ],
     });
+    });
   } catch (err) {
     next(err);
   }
 });
 
-router.get("/reports", async (_req, res, next) => {
+router.get("/reports", async (req, res, next) => {
   try {
-    const runs = await canaryRunRepo.listRecent(10);
+    const user = requireOrganizationUser(req, res);
+    if (!user?.organizationId) return;
+
+    await withOrganizationContext(user.organizationId, async () => {
+    const runs = await canaryRunRepo.listRecent(10, user.organizationId);
     res.json({
       reports: runs.map((run) => ({
         ticketId: run.jiraKey ?? run.id,
@@ -370,6 +416,7 @@ router.get("/reports", async (_req, res, next) => {
         canaryRunId: run.id,
       })),
     });
+    });
   } catch (err) {
     next(err);
   }
@@ -377,7 +424,11 @@ router.get("/reports", async (_req, res, next) => {
 
 router.get("/reports/:ticketId", async (req, res, next) => {
   try {
-    const runs = await canaryRunRepo.listRecent(50);
+    const user = requireOrganizationUser(req, res);
+    if (!user?.organizationId) return;
+
+    await withOrganizationContext(user.organizationId, async () => {
+    const runs = await canaryRunRepo.listRecent(50, user.organizationId);
     const run =
       runs.find((r) => r.jiraKey === req.params.ticketId) ??
       runs.find((r) => r.id === req.params.ticketId);
@@ -389,6 +440,7 @@ router.get("/reports/:ticketId", async (req, res, next) => {
       ticketId: run.jiraKey ?? run.id,
       summary: run.summary,
       findings: run.findings,
+    });
     });
   } catch (err) {
     next(err);

@@ -3,6 +3,17 @@ function renderInline(text) {
   let remaining = text;
   let key = 0;
 
+  function safeHref(href) {
+    try {
+      const url = new URL(href, "https://invalid.local");
+      if (!["http:", "https:", "mailto:"].includes(url.protocol)) return null;
+      if (url.hostname === "invalid.local") return null;
+      return href;
+    } catch {
+      return null;
+    }
+  }
+
   while (remaining.length > 0) {
     const bold = remaining.match(/^\*\*(.+?)\*\*/);
     if (bold) {
@@ -31,16 +42,21 @@ function renderInline(text) {
 
     const link = remaining.match(/^\[([^\]]+)\]\(([^)]+)\)/);
     if (link) {
+      const href = safeHref(link[2]);
       parts.push(
-        <a
-          key={key++}
-          href={link[2]}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-indigo hover:underline"
-        >
-          {link[1]}
-        </a>
+        href ? (
+          <a
+            key={key++}
+            href={href}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-indigo hover:underline"
+          >
+            {link[1]}
+          </a>
+        ) : (
+          <span key={key++}>{link[1]}</span>
+        )
       );
       remaining = remaining.slice(link[0].length);
       continue;

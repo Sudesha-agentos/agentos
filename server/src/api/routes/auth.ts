@@ -10,10 +10,16 @@ import { displayNameFromEmail } from "./authSession";
 import {
   createAuthSession,
   extractAuthToken,
+  isAnyLoginEnabled,
+  isDemoLoginEnabled,
   revokeAuthToken,
 } from "./authSession";
 import { logger } from "../../utils/logger";
 import authGoogleRouter from "./authGoogle";
+import {
+  authClientKeyFromRequest,
+  checkAuthRateLimit,
+} from "../../security/authRateLimit";
 
 const router = Router();
 
@@ -24,7 +30,21 @@ const INVALID_LOGIN_MESSAGE = "Incorrect email or password.";
 const FORGOT_PASSWORD_MESSAGE =
   "If an account exists for that email, we sent password reset instructions.";
 
+function enforceAuthRateLimit(req: { ip?: string; socket?: { remoteAddress?: string } }, res: import("express").Response): boolean {
+  const result = checkAuthRateLimit(authClientKeyFromRequest(req));
+  if (!result.allowed) {
+    res.setHeader("Retry-After", String(result.retryAfterSec ?? 60));
+    res.status(429).json({
+      error: "rate_limited",
+      message: "Too many attempts. Try again later.",
+    });
+    return false;
+  }
+  return true;
+}
+
 router.post("/signup", async (req, res) => {
+  if (!enforceAuthRateLimit(req, res)) return;
   const email = String(req.body?.email ?? "").trim().toLowerCase();
   const password = String(req.body?.password ?? "");
 
@@ -32,10 +52,10 @@ router.post("/signup", async (req, res) => {
     res.status(400).json({ error: "invalid_email", message: "Valid email required" });
     return;
   }
-  if (password.length < 8) {
+  if (password.length < 8 || password.length > 128) {
     res.status(400).json({
       error: "invalid_password",
-      message: "Password must be at least 8 characters",
+      message: "Password must be between 8 and 128 characters",
     });
     return;
   }
@@ -67,6 +87,7 @@ router.post("/signup", async (req, res) => {
 });
 
 router.post("/login", async (req, res) => {
+  if (!enforceAuthRateLimit(req, res)) return;
   const email = String(req.body?.email ?? "").trim().toLowerCase();
   const password = String(req.body?.password ?? "");
 
@@ -74,7 +95,7 @@ router.post("/login", async (req, res) => {
     res.status(400).json({ error: "invalid_email", message: "Valid email required" });
     return;
   }
-  if (password.length < 8) {
+  if (password.length < 8 || password.length > 128) {
     res.status(401).json({
       error: "invalid_credentials",
       message: INVALID_LOGIN_MESSAGE,
@@ -82,8 +103,9 @@ router.post("/login", async (req, res) => {
     return;
   }
 
-  const demoOk = email === DEMO_EMAIL && password === DEMO_PASSWORD;
-  const anyWorkspaceLogin = process.env.AUTH_ALLOW_ANY_LOGIN === "true";
+  const demoOk =
+    isDemoLoginEnabled() && email === DEMO_EMAIL && password === DEMO_PASSWORD;
+  const anyWorkspaceLogin = isAnyLoginEnabled();
 
   if (demoOk || anyWorkspaceLogin) {
     try {
@@ -101,9 +123,7 @@ router.post("/login", async (req, res) => {
   if (!user?.passwordHash) {
     res.status(401).json({
       error: "invalid_credentials",
-      message: user
-        ? "This account uses Google sign-in. Continue with Google instead."
-        : INVALID_LOGIN_MESSAGE,
+      message: INVALID_LOGIN_MESSAGE,
     });
     return;
   }
@@ -128,6 +148,7 @@ router.post("/login", async (req, res) => {
 });
 
 router.post("/forgot-password", async (req, res) => {
+  if (!enforceAuthRateLimit(req, res)) return;
   const email = String(req.body?.email ?? "").trim().toLowerCase();
 
   if (!email || !email.includes("@")) {
@@ -164,6 +185,7 @@ router.post("/forgot-password", async (req, res) => {
 });
 
 router.post("/reset-password", async (req, res) => {
+  if (!enforceAuthRateLimit(req, res)) return;
   const token = String(req.body?.token ?? "").trim();
   const password = String(req.body?.password ?? "");
 
@@ -171,10 +193,10 @@ router.post("/reset-password", async (req, res) => {
     res.status(400).json({ error: "invalid_token", message: "Reset link is invalid" });
     return;
   }
-  if (password.length < 8) {
+  if (password.length < 8 || password.length > 128) {
     res.status(400).json({
       error: "invalid_password",
-      message: "Password must be at least 8 characters",
+      message: "Password must be between 8 and 128 characters",
     });
     return;
   }

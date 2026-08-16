@@ -37,6 +37,20 @@ export function requireOrganizationUser(
   return user;
 }
 
+export function requireOrganizationRole(
+  req: Request,
+  res: Response,
+  roles: NonNullable<SessionUser["organizationRole"]>[]
+): SessionUser | null {
+  const user = requireOrganizationUser(req, res);
+  if (!user) return null;
+  if (!user.organizationRole || !roles.includes(user.organizationRole)) {
+    res.status(403).json({ error: "forbidden" });
+    return null;
+  }
+  return user;
+}
+
 /** Resolve workspace from Postgres — ignores stale organizationId in JWT after DB migration. */
 export async function requireOrganizationUserFromDb(
   req: Request,

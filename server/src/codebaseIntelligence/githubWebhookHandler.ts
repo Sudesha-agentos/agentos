@@ -44,13 +44,14 @@ type PullRequestPayload = {
   sender?: { login?: string };
 };
 
-async function resolveGithubWebhookOrganization(req: Request): Promise<string | null> {
-  const body = req.body as { installation?: { id?: number } };
-  if (body.installation?.id) {
-    const orgId = await resolveOrganizationByGithubInstallation(String(body.installation.id));
-    if (orgId) return orgId;
-  }
+function hmacEqualsSha256(signatureHeader: string, secret: string, rawBody: string): boolean {
+  const digest = `sha256=${crypto.createHmac("sha256", secret).update(rawBody).digest("hex")}`;
+  const left = crypto.createHash("sha256").update(signatureHeader).digest();
+  const right = crypto.createHash("sha256").update(digest).digest();
+  return crypto.timingSafeEqual(left, right);
+}
 
+async function resolveGithubWebhookOrganization(req: Request): Promise<string | null> {
   const sig = req.header("x-hub-signature-256");
   const rawBody = (req as Request & { rawBody?: string }).rawBody ?? "";
   if (!sig || !rawBody) return null;
@@ -61,40 +62,33 @@ async function resolveGithubWebhookOrganization(req: Request): Promise<string | 
   });
 
   for (const config of configs) {
-    const digest = `sha256=${crypto
-      .createHmac("sha256", config.webhookSecret)
-      .update(rawBody)
-      .digest("hex")}`;
-    try {
-      if (crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(digest))) {
-        return config.organizationId;
-      }
-    } catch {
-      continue;
+    if (hmacEqualsSha256(sig, config.webhookSecret, rawBody)) {
+      return config.organizationId;
     }
   }
 
-  const legacySecret = process.env.GITHUB_WEBHOOK_SECRET?.trim();
-  if (legacySecret) {
-    const digest = `sha256=${crypto
-      .createHmac("sha256", legacySecret)
-      .update(rawBody)
-      .digest("hex")}`;
-    try {
-      if (crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(digest))) {
-        return resolveOrganizationByGitWebhookSecret("github", legacySecret);
-      }
-    } catch {
-      /* ignore */
+  const appOrLegacySecrets = [
+    process.env.GITHUB_APP_WEBHOOK_SECRET?.trim(),
+    process.env.GITHUB_WEBHOOK_SECRET?.trim(),
+  ].filter((value): value is string => Boolean(value));
+
+  let appSignatureValid = false;
+  for (const secret of appOrLegacySecrets) {
+    if (hmacEqualsSha256(sig, secret, rawBody)) {
+      appSignatureValid = true;
+      const fromLegacy = await resolveOrganizationByGitWebhookSecret("github", secret);
+      if (fromLegacy) return fromLegacy;
     }
+  }
+
+  if (!appSignatureValid) return null;
+
+  const body = req.body as { installation?: { id?: number } };
+  if (body.installation?.id) {
+    return resolveOrganizationByGithubInstallation(String(body.installation.id));
   }
 
   return null;
-}
-
-function verifySignature(req: Request, organizationId: string | null): boolean {
-  if (!organizationId) return false;
-  return true;
 }
 
 function parseBranch(ref?: string): string {
@@ -203,7 +197,7 @@ async function processGithubPullRequestMerged(req: Request): Promise<void> {
 
 export async function handleGithubWebhook(req: Request, res: Response): Promise<void> {
   const organizationId = await resolveGithubWebhookOrganization(req);
-  if (!verifySignature(req, organizationId)) {
+  if (!organizationId) {
     res.status(401).json({ error: "invalid_signature" });
     return;
   }

@@ -12,6 +12,7 @@ import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { promisify } from "node:util";
 import { gitClient } from "../integrations/gitProvider";
 import { normalizeRepoPath } from "../integrations/git/normalizePushFiles";
+import { assertSafeGitRef, execFileAsync } from "../integrations/git/safeGitExec";
 import {
   applyAiderReplace,
 } from "../integrations/aider/editblock";
@@ -110,9 +111,11 @@ export async function createEngWorkspace(
 
   // Clone source branch (shallow)
   const repoUrl = await gitClient.cloneUrl();
+  const safeSourceBranch = assertSafeGitRef(sourceBranch);
   try {
-    await execAsync(
-      `git clone --depth 1 --branch ${sourceBranch} ${repoUrl} .`,
+    await execFileAsync(
+      "git",
+      ["clone", "--depth", "1", "--branch", safeSourceBranch, repoUrl, "."],
       { cwd: workspaceDir, timeout: 120_000 }
     );
   } catch (err) {
@@ -124,24 +127,25 @@ export async function createEngWorkspace(
 
   // Set up the per-ticket work branch
   const targetBranch = resolveEngineeringBranchName(jiraKey);
+  const safeTargetBranch = assertSafeGitRef(targetBranch);
   try {
     // Try to fetch existing remote branch and resume from it
-    await execAsync(
-      `git fetch origin ${targetBranch} --depth 1`,
-      { cwd: workspaceDir, timeout: 30_000 }
-    );
-    await execAsync(
-      `git checkout -b ${targetBranch} FETCH_HEAD`,
-      { cwd: workspaceDir, timeout: 10_000 }
-    );
-    logger.info({ pipelineId, targetBranch }, "resuming existing engineering branch");
+    await execFileAsync("git", ["fetch", "origin", safeTargetBranch, "--depth", "1"], {
+      cwd: workspaceDir,
+      timeout: 30_000,
+    });
+    await execFileAsync("git", ["checkout", "-b", safeTargetBranch, "FETCH_HEAD"], {
+      cwd: workspaceDir,
+      timeout: 10_000,
+    });
+    logger.info({ pipelineId, targetBranch: safeTargetBranch }, "resuming existing engineering branch");
   } catch {
     // Branch doesn't exist remotely — create fresh from source HEAD
-    await execAsync(
-      `git checkout -b ${targetBranch}`,
-      { cwd: workspaceDir, timeout: 10_000 }
-    );
-    logger.info({ pipelineId, targetBranch }, "created new engineering branch");
+    await execFileAsync("git", ["checkout", "-b", safeTargetBranch], {
+      cwd: workspaceDir,
+      timeout: 10_000,
+    });
+    logger.info({ pipelineId, targetBranch: safeTargetBranch }, "created new engineering branch");
   }
 
   if (options.skipDependencyInstall) {
@@ -380,8 +384,8 @@ export async function workspaceGitStatus(workspaceDir: string): Promise<string> 
 }
 
 export async function workspaceGitDiff(workspaceDir: string, filePath?: string): Promise<string> {
-  const cmd = filePath ? `git diff HEAD -- ${filePath}` : "git diff HEAD";
-  const { stdout } = await execAsync(cmd, { cwd: workspaceDir, timeout: 15_000 });
+  const args = filePath ? ["diff", "HEAD", "--", filePath] : ["diff", "HEAD"];
+  const { stdout } = await execFileAsync("git", args, { cwd: workspaceDir, timeout: 15_000 });
   return stdout.slice(0, 20_000);
 }
 
@@ -436,7 +440,7 @@ export async function workspaceCommitAndPush(
   await execAsync("git add -A", { cwd: workspaceDir, timeout: 30_000 });
 
   // Commit
-  await execAsync(`git commit -m ${JSON.stringify(commitMessage)}`, {
+  await execFileAsync("git", ["commit", "-m", commitMessage], {
     cwd: workspaceDir,
     timeout: 30_000,
   });
@@ -447,11 +451,11 @@ export async function workspaceCommitAndPush(
     execAsync("git rev-parse --abbrev-ref HEAD", { cwd: workspaceDir, timeout: 10_000 }),
   ]);
 
-  const pushedBranch = branchOut.trim();
+  const pushedBranch = assertSafeGitRef(branchOut.trim());
   const sha = shaOut.trim();
 
   // Push (--set-upstream handles new branches)
-  await execAsync(`git push --set-upstream origin ${pushedBranch}`, {
+  await execFileAsync("git", ["push", "--set-upstream", "origin", pushedBranch], {
     cwd: workspaceDir,
     timeout: 60_000,
   });

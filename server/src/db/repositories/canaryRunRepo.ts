@@ -64,8 +64,9 @@ export const canaryRunRepo = {
     });
   },
 
-  async listRecent(limit = 20) {
+  async listRecent(limit = 20, organizationId?: string) {
     return prisma.canaryRun.findMany({
+      where: organizationId ? { pipeline: { organizationId } } : undefined,
       orderBy: { startedAt: "desc" },
       take: limit,
       include: {
@@ -75,14 +76,19 @@ export const canaryRunRepo = {
     });
   },
 
-  async getById(id: string) {
-    return prisma.canaryRun.findUnique({
+  async getById(id: string, organizationId?: string) {
+    const run = await prisma.canaryRun.findUnique({
       where: { id },
       include: {
         findings: { orderBy: { createdAt: "desc" } },
         pipeline: { include: { ticket: true } },
       },
     });
+    if (!run) return null;
+    if (organizationId && run.pipeline?.organizationId !== organizationId) {
+      return null;
+    }
+    return run;
   },
 
   async markFindingEmbedded(findingId: string) {
@@ -99,9 +105,13 @@ export const canaryRunRepo = {
     });
   },
 
-  async nightlySummary(since: Date) {
+  async nightlySummary(since: Date, organizationId?: string) {
     const runs = await prisma.canaryRun.findMany({
-      where: { startedAt: { gte: since }, status: "COMPLETED" },
+      where: {
+        startedAt: { gte: since },
+        status: "COMPLETED",
+        ...(organizationId ? { pipeline: { organizationId } } : {}),
+      },
       include: { findings: true },
     });
     const findings = runs.flatMap((r) => r.findings);

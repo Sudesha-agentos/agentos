@@ -1,12 +1,11 @@
 import { Router, type Request } from "express";
 import { companyIntelligence } from "../../companyIntelligence";
 import { ValidationError } from "../../utils/errors";
-import { resolveUserFromAuthHeader } from "./authSession";
+import { assertSafeOutboundUrl } from "../../security/assertSafeOutboundUrl";
 import {
-  activateOrganizationJiraContext,
-  warmOrganizationJiraCredentials,
-} from "../../pipeline/jira/credentialsStore";
-import { runInOrganizationContextAsync } from "../../organization/context";
+  requireOrganizationUser,
+  withOrganizationContext as withOrg,
+} from "../orgRequestContext";
 
 const router = Router();
 
@@ -18,6 +17,8 @@ function mapCompanyRouteError(err: unknown): unknown {
       msg.includes("Website URL is required") ||
       msg.includes("Could not fetch readable content") ||
       msg.includes("Only http and https") ||
+      msg.includes("Only https") ||
+      msg.includes("URL host is not allowed") ||
       msg.includes("Enter a valid website URL")
     ) {
       return new ValidationError(msg);
@@ -26,35 +27,19 @@ function mapCompanyRouteError(err: unknown): unknown {
   return err;
 }
 
-function resolveOrganizationId(req: Request): string | undefined {
-  const user = resolveUserFromAuthHeader(req);
-  return user?.organizationId;
-}
-
-async function withOrganizationContext(
+async function withCompanyOrg(
   req: Request,
-  fn: (organizationId?: string) => Promise<void>
+  res: import("express").Response,
+  fn: (organizationId: string) => Promise<void>
 ) {
-  const organizationId = resolveOrganizationId(req);
-  if (!organizationId) {
-    await fn(undefined);
-    return;
-  }
-
-  await runInOrganizationContextAsync(organizationId, async () => {
-    await warmOrganizationJiraCredentials(organizationId);
-    activateOrganizationJiraContext(organizationId);
-    try {
-      await fn(organizationId);
-    } finally {
-      activateOrganizationJiraContext(null);
-    }
-  });
+  const user = requireOrganizationUser(req, res);
+  if (!user?.organizationId) return;
+  await withOrg(user.organizationId, () => fn(user.organizationId!));
 }
 
 router.get("/", async (req, res, next) => {
   try {
-    await withOrganizationContext(req, async (organizationId) => {
+    await withCompanyOrg(req, res, async (organizationId) => {
       const profile = await companyIntelligence.getProfile(organizationId);
       res.json({ profile });
     });
@@ -65,7 +50,7 @@ router.get("/", async (req, res, next) => {
 
 router.put("/", async (req, res, next) => {
   try {
-    await withOrganizationContext(req, async (organizationId) => {
+    await withCompanyOrg(req, res, async (organizationId) => {
       const profile = await companyIntelligence.saveProfile(
         {
           companyName: req.body?.companyName,
@@ -91,7 +76,7 @@ router.put("/", async (req, res, next) => {
 
 router.post("/generate-context", async (req, res, next) => {
   try {
-    await withOrganizationContext(req, async (organizationId) => {
+    await withCompanyOrg(req, res, async (organizationId) => {
       const hasInput =
         req.body?.companyName ||
         req.body?.productSummary ||
@@ -133,11 +118,12 @@ router.post("/generate-context", async (req, res, next) => {
 
 router.post("/fetch-from-web", async (req, res, next) => {
   try {
-    await withOrganizationContext(req, async (organizationId) => {
+    await withCompanyOrg(req, res, async (organizationId) => {
       const website = String(req.body?.website ?? "").trim();
       if (!website) {
         throw new ValidationError("Website URL is required to auto-fetch company details.");
       }
+      assertSafeOutboundUrl(/^https?:\/\//i.test(website) ? website : `https://${website}`);
       const result = await companyIntelligence.fetchFromWeb({
         website,
         companyName: req.body?.companyName,
@@ -162,11 +148,12 @@ router.post("/fetch-from-web", async (req, res, next) => {
 
 router.post("/fetch-competitors", async (req, res, next) => {
   try {
-    await withOrganizationContext(req, async (organizationId) => {
+    await withCompanyOrg(req, res, async (organizationId) => {
       const website = String(req.body?.website ?? "").trim();
       if (!website) {
         throw new ValidationError("Website URL is required to discover competitors.");
       }
+      assertSafeOutboundUrl(/^https?:\/\//i.test(website) ? website : `https://${website}`);
       const result = await companyIntelligence.fetchCompetitors({
         website,
         companyName: req.body?.companyName,

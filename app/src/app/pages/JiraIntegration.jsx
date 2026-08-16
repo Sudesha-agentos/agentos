@@ -792,7 +792,12 @@ function JiraIntegrationContent({ setup, refetchSetup, embedded = false }) {
               After connecting, choose your project and board in <strong>Pipeline settings</strong> below.
             </p>
             <label className="block text-sm md:col-span-2">
-              <span className="type-kicker">Webhook secret (optional)</span>
+              <span className="type-kicker">
+                Webhook secret{" "}
+                {setup?.jira?.webhookSecretConfigured
+                  ? "(stored — enter a new value to rotate)"
+                  : "(optional)"}
+              </span>
               <input
                 className="mt-1.5 w-full rounded-app-sm border border-app-border bg-app-surface px-3 py-2 text-sm"
                 value={webhookSecret}

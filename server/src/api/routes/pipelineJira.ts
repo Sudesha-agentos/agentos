@@ -212,7 +212,11 @@ router.post("/webhook/register", async (req, res) => {
 
   await withOrganizationContext(user.organizationId, async () => {
     const jira = await getPublicOrganizationJiraConfig(user.organizationId!);
-    if (!jira.webhookSecret) {
+    const { loadOrganizationJiraConfig } = await import(
+      "../../organization/jiraConfigStore"
+    );
+    const stored = await loadOrganizationJiraConfig(user.organizationId!);
+    if (!stored?.webhookSecret) {
       res.status(400).json({ error: "Connect pipeline Jira first" });
       return;
     }
@@ -220,7 +224,7 @@ router.post("/webhook/register", async (req, res) => {
       const webhookUrl = pipelineJiraWebhookUrl(req);
       const result = await ensurePipelineJiraWebhook({
         webhookUrl,
-        secret: jira.webhookSecret,
+        secret: stored.webhookSecret,
         projectKey: jira.projectKeys[0] ?? null,
       });
       res.json({ webhookUrl, ...result });

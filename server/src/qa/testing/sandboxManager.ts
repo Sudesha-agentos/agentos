@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
 import { gitClient } from "../../integrations/gitProvider";
+import { assertSafeGitRef, execFileAsync } from "../../integrations/git/safeGitExec";
 import { logger } from "../../utils/logger";
 
 const execAsync = promisify(exec);
@@ -25,8 +26,10 @@ export const sandboxManager = {
 
   async cloneBranch(sandboxDir: string, branchName: string): Promise<void> {
     const repoUrl = await gitClient.cloneUrl();
-    await execAsync(
-      `git clone --depth 1 --branch ${branchName} ${repoUrl} .`,
+    const safeBranch = assertSafeGitRef(branchName);
+    await execFileAsync(
+      "git",
+      ["clone", "--depth", "1", "--branch", safeBranch, repoUrl, "."],
       { cwd: sandboxDir, timeout: 120_000 }
     );
   },
