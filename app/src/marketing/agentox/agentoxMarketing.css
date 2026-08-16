@@ -205,6 +205,7 @@
 .ax-section {
   padding: 96px 0;
   position: relative;
+  scroll-margin-top: 88px;
 }
 
 .ax-section-head {
@@ -359,7 +360,7 @@
 .ax-nav-links {
   display: flex;
   align-items: center;
-  gap: 28px;
+  gap: 22px;
 }
 
 .ax-nav-links a {
@@ -403,7 +404,7 @@
   display: none;
 }
 
-@media (max-width: 860px) {
+@media (max-width: 1080px) {
   .ax-nav-links,
   .ax-nav-signin {
     display: none;
