@@ -26,6 +26,12 @@ export default function MarketingScrollContent() {
         <div className="mx-auto flex max-w-7xl flex-col justify-between gap-3 font-mono text-[11px] uppercase tracking-[0.18em] text-ink-mute sm:flex-row">
           <span>AgentOX · Workflow intelligence layer</span>
           <div className="flex items-center gap-4">
+            <a href="/privacy" className="transition-colors hover:text-ink">
+              Privacy
+            </a>
+            <a href="/terms" className="transition-colors hover:text-ink">
+              Terms
+            </a>
             <a href="/login" className="transition-colors hover:text-ink">
               Sign in
             </a>
