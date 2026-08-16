@@ -12,6 +12,7 @@ import { codebaseQueryService } from "../codebaseIntelligence/queryService";
 import { logger } from "../utils/logger";
 import type { ToolCallInput, ToolCallResult } from "./executor";
 import { executeSharedChatToolCall } from "./sharedChatToolExecutor";
+import { executeCustomerDbTool, isCustomerDbTool } from "../customerDb/toolExecutor";
 
 function stringValue(value: unknown, fallback = ""): string {
   return typeof value === "string" ? value : fallback;
@@ -169,12 +170,21 @@ export async function executeAnantaChatToolCall(
         resultsFound = 1;
         break;
       }
-      default:
+      default: {
+        if (isCustomerDbTool(toolCall.name)) {
+          result = await executeCustomerDbTool(
+            toolCall.name,
+            toolCall.input as Record<string, unknown>
+          );
+          resultsFound = result && typeof result === "object" && "error" in (result as object) ? 0 : 1;
+          break;
+        }
         return {
           toolUseId: toolCall.toolUseId,
           content: formatToolResult(toolCall.name, { error: `Unknown tool: ${toolCall.name}` }),
           isError: true,
         };
+      }
     }
 
     return {

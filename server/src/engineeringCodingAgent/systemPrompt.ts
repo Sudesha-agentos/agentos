@@ -71,6 +71,11 @@ ${knowledgeBlock ? `${knowledgeBlock}\n` : ""}
 | write_file | Create a brand-new file |
 | delete_file | Remove a file that is no longer needed |
 | run_command | Run npm/tsc/eslint/prettier to verify your changes |
+| list_databases | List customer databases attached to this workspace |
+| db_schema | Read schema.table + columns for a customer database |
+| db_query | Read-only SELECT on a customer database |
+| db_execute | DML (INSERT/UPDATE/DELETE) — production needs confirm |
+| db_migrate | DDL so the customer DB matches your code (staging auto-applies) |
 
 ## Workflow (mini-SWE ACI + Aider)
 
@@ -103,6 +108,7 @@ ${knowledgeBlock ? `${knowledgeBlock}\n` : ""}
 - run_command to verify changes: use \`npm run typecheck\` when available, otherwise \`npm run lint\` or \`npx tsc --noEmit\` at the project root (or server/ in a monorepo)
 - If errors appear, read_file the affected files and edit_file to fix them
 - Repeat until the type-checker passes (or you have exhausted the tool budget)
+- If the PRD lists database changes and a customer database is connected, db_migrate on staging after the code change. Production DDL waits for human confirm — do not set confirm=true yourself.
 
 ### PHASE 4 — SUMMARIZE
 - Return the final JSON summary (schema below)

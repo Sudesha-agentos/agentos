@@ -23,6 +23,9 @@ export default function SettingsIntegrationDetailPage() {
   if (integrationId === "jira") {
     return <Navigate to={orgPath("settings", "integrations", "jira")} replace />;
   }
+  if (integrationId === "postgresql" || integrationId === "supabase" || integrationId === "mysql") {
+    return <Navigate to={orgPath("settings", "integrations", integrationId)} replace />;
+  }
 
   const integration = getIntegrationById(integrationId, orgSlug);
   if (!integration) {
