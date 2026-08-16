@@ -8,29 +8,27 @@
     <meta name="theme-color" content="#F5F3F0" media="(prefers-color-scheme: light)" />
     <meta
       name="description"
-      content="AgentOX runs Product, Engineering and QA AI agents on your Jira tickets. Validate requirements, write code, run tests. Reduce sprint rework by 60%."
+      content="AgentOX is a web application that helps software teams turn Jira tickets into reviewed pull requests using AI agents for product, engineering, and QA. Sign in with Google to access your AgentOX workspace."
     />
-    <title>AgentOX — AI SDLC Automation From Jira to Production</title>
+    <title>AgentOX</title>
 
     <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="AgentOX" />
     <meta property="og:url" content="https://agentox.io/" />
-    <meta
-      property="og:title"
-      content="AgentOX — The AI Pipeline That Ships the Right Feature the First Time"
-    />
+    <meta property="og:title" content="AgentOX" />
     <meta
       property="og:description"
-      content="Stop rebuilding features. AgentOX catches requirement gaps before engineering starts, writes production-quality code against your real codebase, and runs exhaustive QA — all from a single Jira ticket."
+      content="AgentOX is a web application whose purpose is to take Jira tickets through requirements, code, and tests, then open a draft pull request for human review."
     />
     <meta property="og:image" content="https://agentox.io/marketing/agentox.png" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta
       name="twitter:title"
-      content="AgentOX — The AI Pipeline That Ships the Right Feature the First Time"
+      content="AgentOX"
     />
     <meta
       name="twitter:description"
-      content="Stop rebuilding features. AgentOX catches requirement gaps before engineering starts, writes production-quality code against your real codebase, and runs exhaustive QA — all from a single Jira ticket."
+      content="AgentOX is a web application that helps software teams turn Jira tickets into reviewed pull requests using AI agents. Sign in with Google to access your workspace."
     />
     <meta name="twitter:image" content="https://agentox.io/marketing/agentox.png" />
 
@@ -39,8 +37,9 @@
         "@context": "https://schema.org",
         "@type": "SoftwareApplication",
         "name": "AgentOX",
+        "alternateName": "AgentOX",
         "applicationCategory": "DeveloperApplication",
-        "description": "AI-powered SDLC automation platform that orchestrates Product, Engineering, and QA agents through a validated pipeline from Jira ticket to production-ready pull request.",
+        "description": "AgentOX is a web application whose purpose is to help software teams turn Jira tickets into reviewed pull requests using AI agents for product analysis, engineering, and QA. Users sign in with Google to access their AgentOX workspace.",
         "offers": [
           {
             "@type": "Offer",
@@ -76,6 +75,17 @@
     <style>
       #root:not(.app-ready) {
         visibility: hidden;
+      }
+      #root.app-ready ~ #agentox-homepage-about {
+        display: none;
+      }
+      #agentox-homepage-about {
+        max-width: 720px;
+        margin: 96px auto;
+        padding: 24px;
+        font-family: Inter, system-ui, sans-serif;
+        color: #1a1a1a;
+        line-height: 1.6;
       }
       #app-initial-loader {
         position: fixed;
@@ -140,6 +150,29 @@
       <div class="loader" role="status" aria-label="Loading AgentOX"></div>
     </div>
     <div id="root"></div>
+    <section id="agentox-homepage-about">
+      <h1>AgentOX</h1>
+      <p>Welcome to AgentOX. From Jira ticket to reviewed PR. Autonomously.</p>
+      <h2>Purpose of AgentOX</h2>
+      <p>
+        AgentOX is a web application for software teams. Its purpose is to take a Jira ticket
+        through requirements, implementation, and QA, then open a draft pull request for human
+        review. Sign in with Google to create or access your AgentOX workspace and connect tools
+        you authorize, such as Jira, GitHub, or Bitbucket.
+      </p>
+    </section>
+    <noscript>
+      <section style="max-width:720px;margin:48px auto;padding:24px;font-family:sans-serif">
+        <h1>AgentOX</h1>
+        <p>Welcome to AgentOX. From Jira ticket to reviewed PR. Autonomously.</p>
+        <h2>Purpose of AgentOX</h2>
+        <p>
+          AgentOX is a web application whose purpose is to help software teams turn Jira tickets
+          into reviewed pull requests using AI agents for product, engineering, and QA. Sign in
+          with Google to access your AgentOX workspace.
+        </p>
+      </section>
+    </noscript>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
