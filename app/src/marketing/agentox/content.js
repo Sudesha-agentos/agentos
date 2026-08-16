@@ -8,7 +8,6 @@ export const BRAND = {
 
 export const NAV = {
   links: [
-    { label: "Welcome to AgentOX", href: "/welcome" },
     { label: "Product", href: "#product" },
     { label: "How it works", href: "#how-it-works" },
     { label: "Agents", href: "#agents" },
@@ -21,6 +20,7 @@ export const NAV = {
 
 export const HERO = {
   badge: "Early access · Works with Jira, GitHub & Bitbucket",
+  welcome: "Welcome to AgentOX.",
   headline: "From Jira ticket to reviewed PR. Autonomously.",
   subhead:
     "Three AI agents: Virin, Ananta, and Neel: analyze your ticket, write the code, and run the tests. You approve at every gate.",
