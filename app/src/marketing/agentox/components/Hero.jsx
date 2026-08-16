@@ -8,7 +8,10 @@ export default function Hero() {
       <div className="ax-container">
         <div className="ax-hero-badge">{HERO.badge}</div>
         <h1 className="ax-hero-headline">
-          From Jira ticket to reviewed PR. <em>Autonomously.</em>
+          <em>{HERO.welcome}</em>
+          <span className="ax-hero-headline-line">
+            From Jira ticket to reviewed PR. <em>Autonomously.</em>
+          </span>
         </h1>
         <p className="ax-hero-subhead">{HERO.subhead}</p>
         <div className="ax-hero-ctas">
