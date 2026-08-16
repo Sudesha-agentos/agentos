@@ -95,6 +95,13 @@ export function createApp(): express.Express {
     next();
   });
 
+  app.get("/googled413b182387f254c.html", (_req, res) => {
+    res
+      .status(200)
+      .type("html")
+      .send("google-site-verification: googled413b182387f254c.html");
+  });
+
   app.use("/", healthRouter);
   app.use("/api", healthRouter);
   app.use("/r", redirectsRouter);
