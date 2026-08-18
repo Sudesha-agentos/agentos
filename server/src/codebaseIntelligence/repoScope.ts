@@ -3,6 +3,7 @@ import {
   getRepoContext,
 } from "../git-integration/gitCredentialsStore";
 import { getActiveOrganizationId } from "../organization/context";
+import { ValidationError } from "../utils/errors";
 
 export type RepoScope = {
   repoOwner: string;
@@ -48,7 +49,7 @@ export function resolveRepoScope(): RepoScope | null {
 export function requireRepoScope(): RepoScope {
   const scope = resolveRepoScope();
   if (!scope?.repoOwner || !scope.repoName || !scope.organizationId) {
-    throw new Error("Repository not configured — connect GitHub and select a repo.");
+    throw new ValidationError("Repository not configured — connect GitHub and select a repo.");
   }
   return scope;
 }

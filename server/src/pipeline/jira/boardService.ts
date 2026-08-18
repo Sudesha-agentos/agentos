@@ -208,7 +208,7 @@ export async function listIntakeColumnTickets(): Promise<{
 }> {
   const statuses = getPipelineIntakeStatuses();
   if (!statuses.length) {
-    throw new Error("Configure the AI Worker intake column first");
+    throw new ValidationError("Configure the AI Worker intake column first");
   }
   return listTicketsByStatuses(statuses);
 }

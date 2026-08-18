@@ -10,6 +10,9 @@ import AgentPipelineLiveStatus from "../../shared/components/AgentPipelineLiveSt
 import { Panel, PanelHeader } from "../../shared/ui/Panel";
 import { AnimatedAppPage } from "../../shared/ui/AnimatedAppPage";
 import { useOrg } from "../../shared/providers/OrgRouteProvider";
+import { useCoreIntegrations } from "../../shared/hooks/useIntegrationsStatus";
+import ConnectIntegrationFirst from "../components/ConnectIntegrationFirst";
+import Spinner from "../components/Spinner";
 
 function resolvePipelineId(jiraKey, pipelineParam, engineeringRuns) {
   if (pipelineParam) return pipelineParam;
@@ -54,6 +57,13 @@ function buildTicketList(pmItems, engineeringRuns) {
 
 export default function AnantaWorkspace() {
   const { orgPath } = useOrg();
+  const {
+    loading: integrationsLoading,
+    gitConnected,
+    jiraConnected,
+    gitNeedsSetup,
+    missing: missingIntegrations,
+  } = useCoreIntegrations();
   const [searchParams, setSearchParams] = useSearchParams();
   const ticketFromUrl = searchParams.get("ticket")?.trim().toUpperCase() || "";
   const pipelineFromUrl = searchParams.get("pipeline")?.trim() || "";
@@ -125,6 +135,33 @@ export default function AnantaWorkspace() {
 
         <AgentPipelineLiveStatus agentKey="ananta" />
 
+        {integrationsLoading ? (
+          <div className="flex justify-center py-16">
+            <Spinner />
+          </div>
+        ) : !gitConnected ? (
+          <ConnectIntegrationFirst
+            integrations={missingIntegrations}
+            title={gitNeedsSetup ? "Finish Git setup first" : "Connect a repository first"}
+            body="Ananta writes code and opens pull requests against your repo. Connect GitHub or Bitbucket and select a repository, then run Virin to hand off a ticket."
+          />
+        ) : (
+        <>
+        {!jiraConnected ? (
+          <Panel className="border-warning/30 bg-warning/5">
+            <PanelHeader kicker="Setup" title="Connect Jira to receive tickets" />
+            <p className="px-5 pb-4 text-sm text-app-ink-dim sm:px-6">
+              A repository is connected. Connect Jira so Virin can hand off tickets for Ananta to
+              implement.{" "}
+              <Link
+                to={orgPath("settings", "integrations", "jira")}
+                className="font-medium text-indigo hover:underline"
+              >
+                Connect Jira →
+              </Link>
+            </p>
+          </Panel>
+        ) : null}
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
           <aside className="w-full shrink-0 lg:w-64">
             <Panel>
@@ -189,6 +226,8 @@ export default function AnantaWorkspace() {
             />
           </div>
         </div>
+        </>
+        )}
       </AgentPageWithChat>
     </AnimatedAppPage>
   );

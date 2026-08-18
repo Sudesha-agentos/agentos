@@ -28,8 +28,11 @@ export default function JiraIntakeOverviewWidget({ embedded = false }) {
         </div>
       ) : error ? (
         <p className="text-[13px] leading-relaxed text-ink-dim">
-          Jira API unreachable. Connect pipeline Jira in Settings and set{" "}
-          <code className="font-mono text-[12px] text-ink">PIPELINE_JIRA_*</code> on the server.
+          Could not load Jira setup. If Jira is not connected yet,{" "}
+          <Link to={orgPath("settings", "integrations", "jira")} className="text-indigo hover:underline">
+            connect it in Settings
+          </Link>
+          .
         </p>
       ) : (
         <>

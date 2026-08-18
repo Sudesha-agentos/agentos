@@ -1,14 +1,17 @@
 import { Link } from "react-router-dom";
 import { useState } from "react";
 import { searchBoard } from "../../entities/jira-intake";
+import ConnectIntegrationFirst from "../components/ConnectIntegrationFirst";
 import EmptyState from "../components/EmptyState";
 import Spinner from "../components/Spinner";
 import { PageIntro, Panel, PanelHeader } from "../../shared/ui/Panel";
 import { AnimatedAppPage } from "../../shared/ui/AnimatedAppPage";
 import { useOrg } from "../../shared/providers/OrgRouteProvider";
+import { useCoreIntegrations } from "../../shared/hooks/useIntegrationsStatus";
 
 export default function JiraSearch() {
   const { orgPath } = useOrg();
+  const { loading: integrationsLoading, jiraConnected } = useCoreIntegrations();
   const [keyword, setKeyword] = useState("");
   const [searchIn, setSearchIn] = useState("both");
   const [result, setResult] = useState(null);
@@ -48,6 +51,18 @@ export default function JiraSearch() {
         }
       />
 
+      {integrationsLoading ? (
+        <div className="flex justify-center py-16">
+          <Spinner />
+        </div>
+      ) : !jiraConnected ? (
+        <ConnectIntegrationFirst
+          integrations={["jira"]}
+          title="Connect Jira first"
+          body="Board search needs a connected Jira workspace. Connect Jira in Settings, then search tickets here."
+        />
+      ) : (
+        <>
       <Panel>
         <PanelHeader kicker="Query" title="Search all sections" />
         <form onSubmit={handleSearch} className="flex flex-col gap-3 p-4 sm:flex-row sm:flex-wrap sm:items-end sm:px-6">
@@ -92,7 +107,7 @@ export default function JiraSearch() {
       {error ? (
         <EmptyState
           title="Search failed"
-          body={error.message || "Ensure AgentOX API is running (npm run dev) and server/.env has JIRA_* credentials."}
+          body={error.message || "Could not search the Jira board. Connect Jira in Settings if it is not already connected."}
         />
       ) : null}
 
@@ -137,6 +152,8 @@ export default function JiraSearch() {
           )}
         </div>
       ) : null}
+        </>
+      )}
     </AnimatedAppPage>
   );
 }

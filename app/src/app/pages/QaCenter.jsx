@@ -21,6 +21,9 @@ import AgentPipelineLiveStatus from "../../shared/components/AgentPipelineLiveSt
 import { AGENT_NAMES } from "../../shared/config/app";
 import { pipelineAdapter } from "../../entities/pipeline";
 import ToolArtifactsPanel from "../../widgets/tool-artifacts/ToolArtifactsPanel";
+import { useCoreIntegrations } from "../../shared/hooks/useIntegrationsStatus";
+import ConnectIntegrationFirst from "../components/ConnectIntegrationFirst";
+import Spinner from "../components/Spinner";
 
 const PAGE_TABS = [
   { id: "workspace", label: "Workspace" },
@@ -1086,6 +1089,12 @@ function CanaryTab({
 
 export default function QaCenter() {
   const orgPath = useOrgPathBuilder();
+  const {
+    loading: integrationsLoading,
+    gitConnected,
+    gitNeedsSetup,
+    missing: missingIntegrations,
+  } = useCoreIntegrations();
   const [searchParams] = useSearchParams();
   const [tab, setTab] = useState("workspace");
   const [queueFilter, setQueueFilter] = useState("all");
@@ -1231,6 +1240,18 @@ export default function QaCenter() {
         <AgentPageHeader domain="neel" />
         <AgentPipelineLiveStatus agentKey="neel" />
 
+        {integrationsLoading ? (
+          <div className="flex justify-center py-16">
+            <Spinner />
+          </div>
+        ) : !gitConnected ? (
+          <ConnectIntegrationFirst
+            integrations={missingIntegrations}
+            title={gitNeedsSetup ? "Finish Git setup first" : "Connect a repository first"}
+            body="Neel runs tests against the code Ananta writes. Connect GitHub or Bitbucket and select a repository before opening QA."
+          />
+        ) : (
+        <>
         <div className="flex flex-wrap gap-2">
           {PAGE_TABS.map((t) => (
             <AppTabButton
@@ -1306,6 +1327,8 @@ export default function QaCenter() {
             onTrigger={handleTriggerCanary}
           />
         ) : null}
+        </>
+        )}
       </AgentPageWithChat>
     </AnimatedAppPage>
   );

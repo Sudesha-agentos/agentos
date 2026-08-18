@@ -12,6 +12,7 @@ import {
   type OrganizationGitCredentials,
 } from "../organization/gitConfigStore";
 import { logger } from "../utils/logger";
+import { ValidationError } from "../utils/errors";
 import type { GitProviderId, GitRepoContext } from "../integrations/git/types";
 
 const prismaAny = prisma as any;
@@ -246,8 +247,8 @@ function getActiveGitCredentialsInternal(): StoredGitCredentials | null {
 export function getGitCredentials(): StoredGitCredentials {
   const creds = getActiveGitCredentialsInternal();
   if (!creds) {
-    throw new Error(
-      "Git provider not configured. Connect GitHub or Bitbucket under Admin → Git integration."
+    throw new ValidationError(
+      "Git provider not configured. Connect GitHub or Bitbucket under Settings → Integrations."
     );
   }
   if (creds.authMethod === "github_app" && creds.installationId) {
@@ -257,7 +258,7 @@ export function getGitCredentials(): StoredGitCredentials {
     return creds;
   }
   if (!creds.token) {
-    throw new Error("Git provider not configured.");
+    throw new ValidationError("Git provider not configured.");
   }
   return creds;
 }
@@ -277,7 +278,7 @@ export async function resolveGithubAccessToken(
     return getInstallationAccessToken(creds.installationId);
   }
   if (!creds.token) {
-    throw new Error("GitHub token is not configured");
+    throw new ValidationError("GitHub token is not configured");
   }
   return creds.token;
 }
@@ -288,7 +289,7 @@ export async function resolveBitbucketAccessToken(
 ): Promise<string> {
   if (creds.authMethod !== "oauth") {
     if (!creds.token) {
-      throw new Error("Bitbucket token is not configured");
+      throw new ValidationError("Bitbucket token is not configured");
     }
     return creds.token;
   }
@@ -301,7 +302,7 @@ export async function resolveBitbucketAccessToken(
   const orgId = getActiveOrganizationId();
   if (!orgId || !creds.refreshToken) {
     if (current) return current;
-    throw new Error("Bitbucket OAuth token expired and cannot be refreshed");
+    throw new ValidationError("Bitbucket OAuth token expired and cannot be refreshed");
   }
 
   const existing = bitbucketRefreshInFlight.get(orgId);
@@ -607,18 +608,18 @@ export function validateGitConfig(): void {
   const creds = getGitCredentials();
   if (creds.authMethod === "github_app") {
     if (!creds.installationId || !creds.workspace || !creds.repoSlug) {
-      throw new Error("GitHub App installation incomplete — select a repository");
+      throw new ValidationError("GitHub App installation incomplete — select a repository");
     }
     return;
   }
   if (creds.authMethod === "oauth") {
     if (!(creds.token || creds.accessToken) || !creds.workspace || !creds.repoSlug) {
-      throw new Error("Bitbucket OAuth incomplete — select a repository");
+      throw new ValidationError("Bitbucket OAuth incomplete — select a repository");
     }
     return;
   }
   if (!creds.token || !creds.workspace || !creds.repoSlug) {
-    throw new Error("Git credentials incomplete");
+    throw new ValidationError("Git credentials incomplete");
   }
 }
 
