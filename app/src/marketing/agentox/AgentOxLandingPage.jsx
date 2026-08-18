@@ -54,7 +54,9 @@ export default function AgentOxLandingPage() {
       (entries) => {
         for (const entry of entries) {
           if (entry.isIntersecting) {
-            entry.target.classList.add("ax-in");
+            // Use a data attribute so React className updates (e.g. FAQ open/close)
+            // cannot wipe the revealed state and hide the section.
+            entry.target.setAttribute("data-ax-in", "");
             observer.unobserve(entry.target);
           }
         }

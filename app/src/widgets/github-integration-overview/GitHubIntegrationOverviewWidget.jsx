@@ -23,11 +23,14 @@ export default function GitHubIntegrationOverviewWidget({ embedded = false }) {
           </div>
         ) : error ? (
           <p className="text-[13px] leading-relaxed text-ink-dim">
-            Git integration API unreachable. Start the server with{" "}
-            <code className="font-mono text-[12px] text-ink">npm run dev</code> in{" "}
-            <code className="font-mono text-[12px] text-ink">server/</code> and configure{" "}
-            <code className="font-mono text-[12px] text-ink">GITHUB_APP_*</code> or connect
-            via PAT.
+            Could not load Git setup. If a repository is not connected yet,{" "}
+            <Link
+              to={orgPath("settings", "integrations", "github")}
+              className="text-indigo hover:underline"
+            >
+              connect GitHub
+            </Link>{" "}
+            or Bitbucket in Settings.
           </p>
         ) : (
           <>

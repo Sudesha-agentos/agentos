@@ -3,6 +3,8 @@ import { usePipelineList } from "../../entities/pipeline";
 import { useCostsDaily } from "../../entities/costs";
 import { useQaReports } from "../../entities/qa";
 import { useOrgPathBuilder } from "../../shared/providers/OrgRouteProvider";
+import { useCoreIntegrations } from "../../shared/hooks/useIntegrationsStatus";
+import ConnectIntegrationFirst from "../../app/components/ConnectIntegrationFirst";
 import {
   derivePipelineCounts,
   deriveRecentCompletions,
@@ -63,6 +65,13 @@ function buildStatusMetrics(orgPath, counts, costToday = "—", passRate = "—"
 
 export default function LandingDashboardWidget() {
   const orgPath = useOrgPathBuilder();
+  const {
+    loading: integrationsLoading,
+    jiraConnected,
+    gitConnected,
+    missing,
+  } = useCoreIntegrations();
+  const needsSetup = !integrationsLoading && (!jiraConnected || !gitConnected);
   const { items: pipelines, loading: pipelinesLoading } = usePipelineList(undefined, {
     pollMs: 10_000,
   });
@@ -89,10 +98,22 @@ export default function LandingDashboardWidget() {
 
   return (
     <div className="space-y-6">
+      {needsSetup ? (
+        <ConnectIntegrationFirst
+          integrations={missing}
+          title="Connect integrations to start this workspace"
+          body="AgentOX runs from Jira tickets through your Git repository. Connect both in Settings, then Virin, Ananta, and pipelines will have something to work on."
+        />
+      ) : null}
+
       <DashboardStatusBar metrics={statusMetrics} loading={metricsLoading} />
 
       <section className="grid items-start gap-6 lg:grid-cols-[1.35fr_1fr]">
-        <ReviewQueuePanel items={reviewItems} loading={pipelinesLoading} />
+        <ReviewQueuePanel
+          items={reviewItems}
+          loading={pipelinesLoading}
+          needsSetup={needsSetup}
+        />
         <DashboardLiveActivity events={eventsData?.events} loading={eventsLoading} />
       </section>
 

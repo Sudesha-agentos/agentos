@@ -1,8 +1,8 @@
-export default function EmptyState({ title, body, action }) {
+export default function EmptyState({ kicker = "Empty", title, body, action }) {
   return (
     <div className="rounded-app border border-dashed border-app-border bg-app-surface-muted/60 px-6 py-10 text-center">
       <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-app-ink-mute">
-        Empty
+        {kicker}
       </p>
       <h3 className="mt-2 text-base font-medium text-app-ink">{title}</h3>
       {body ? (

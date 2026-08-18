@@ -6,6 +6,7 @@ import {
   pipelineJiraWebhookUrl,
 } from "../../pipeline/jira/connectPipelineJira";
 import {
+  isPipelineJiraConfigured,
   validatePipelineJiraConfig,
 } from "../../pipeline/jira/credentialsStore";
 import { ValidationError } from "../../utils/errors";
@@ -386,9 +387,20 @@ router.get("/intake/tickets", async (req, res, next) => {
     if (!user?.organizationId) return;
 
     await withOrganizationContext(user.organizationId, async () => {
-      validatePipelineJiraConfig();
-      const result = await listIntakeColumnTickets();
-      res.json(result);
+      if (!isPipelineJiraConfigured()) {
+        res.json({ items: [], connected: false });
+        return;
+      }
+      try {
+        const result = await listIntakeColumnTickets();
+        res.json({ ...result, connected: true });
+      } catch (err) {
+        if (err instanceof ValidationError) {
+          res.json({ items: [], connected: true });
+          return;
+        }
+        throw err;
+      }
     });
   } catch (err) {
     next(normalizePipelineError(err));

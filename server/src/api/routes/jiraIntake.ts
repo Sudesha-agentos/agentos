@@ -1,5 +1,7 @@
 import { Router } from "express";
 import { searchBoardByKeyword } from "../../jira-intake/boardSearchService";
+import { isPipelineJiraConfigured } from "../../pipeline/jira/credentialsStore";
+import { ValidationError } from "../../utils/errors";
 import {
   requireOrganizationUser,
   withOrganizationContext,
@@ -13,7 +15,7 @@ router.get("/health", (_req, res) => {
   res.json({ ok: true });
 });
 
-router.get("/boards/search", async (req, res) => {
+router.get("/boards/search", async (req, res, next) => {
   const user = requireOrganizationUser(req, res);
   if (!user?.organizationId) return;
 
@@ -34,15 +36,16 @@ router.get("/boards/search", async (req, res) => {
 
   try {
     await withOrganizationContext(user.organizationId, async () => {
+      if (!isPipelineJiraConfigured()) {
+        throw new ValidationError(
+          "Jira is not connected. Connect Jira in Settings → Integrations first."
+        );
+      }
       const result = await searchBoardByKeyword(keyword, searchIn);
       res.json(result);
     });
   } catch (err) {
-    const e = err as Error & { status?: number; body?: unknown };
-    const status = e.status && e.status >= 400 ? e.status : 502;
-    res.status(status).json({
-      error: e.message,
-    });
+    next(err);
   }
 });
 

@@ -43,6 +43,50 @@ function resolveDisplayStatus(integration, live) {
   return "not_connected";
 }
 
+/** Jira + Git only — use this to gate agent/pipeline pages without waiting on logs/DBs. */
+export function useCoreIntegrations() {
+  const { data: git, loading: gitLoading, error: gitError } = useGitIntegrationSummary({
+    pollMs: 12000,
+  });
+  const { data: jira, loading: jiraLoading, error: jiraError } = usePipelineJiraSetup({
+    pollMs: 12000,
+  });
+
+  const jiraConnected = Boolean(jira?.connected);
+  const gitConnected = Boolean(git?.connected);
+  const githubConnected = Boolean(git?.connected && git?.provider !== "bitbucket");
+  const bitbucketConnected = Boolean(
+    git?.connected && (git?.provider === "bitbucket" || git?.authMethod === "oauth")
+  );
+  const gitNeedsSetup = Boolean(
+    !git?.connected && (git?.needsRepoSelection || git?.installationDetected)
+  );
+  const intakeReady = Boolean(jiraConnected && jira?.intake?.aiWorkerColumnName);
+
+  const missing = [];
+  if (!jiraConnected) missing.push("jira");
+  if (!gitConnected) {
+    missing.push(git?.provider === "bitbucket" || git?.authMethod === "oauth" ? "bitbucket" : "github");
+  }
+
+  return {
+    loading: gitLoading || jiraLoading,
+    jiraConnected,
+    gitConnected,
+    githubConnected,
+    bitbucketConnected,
+    gitNeedsSetup,
+    intakeReady,
+    gitProvider: git?.provider ?? null,
+    gitAuthMethod: git?.authMethod ?? null,
+    missing,
+    git,
+    jira,
+    gitError,
+    jiraError,
+  };
+}
+
 export function useIntegrationsStatus() {
   const org = useOrgOptional();
   const orgSlug = org?.orgSlug ?? "workspace";

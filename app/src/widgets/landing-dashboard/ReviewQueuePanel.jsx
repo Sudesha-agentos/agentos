@@ -6,7 +6,7 @@ const BORDER = {
   warning: "border-l-warning",
 };
 
-export default function ReviewQueuePanel({ items, loading }) {
+export default function ReviewQueuePanel({ items, loading, needsSetup = false }) {
   const hasItems = items?.length > 0;
 
   return (
@@ -33,9 +33,19 @@ export default function ReviewQueuePanel({ items, loading }) {
             ))}
           </div>
         ) : !hasItems ? (
-          <div className="rounded-app-sm border border-success/30 bg-success/10 px-5 py-8 text-center">
-            <p className="text-sm font-medium text-success">
-              Nothing needs your attention right now.
+          <div
+            className={`rounded-app-sm px-5 py-8 text-center ${
+              needsSetup
+                ? "border border-dashed border-app-border bg-app-surface-muted/50"
+                : "border border-success/30 bg-success/10"
+            }`}
+          >
+            <p
+              className={`text-sm font-medium ${needsSetup ? "text-app-ink" : "text-success"}`}
+            >
+              {needsSetup
+                ? "Connect Jira and GitHub (or Bitbucket) to start pipelines."
+                : "Nothing needs your attention right now."}
             </p>
           </div>
         ) : (

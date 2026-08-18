@@ -20,6 +20,8 @@ import {
 import { useJiraSyncIssues } from "../../entities/jira-sync";
 import { usePipelineLive } from "../../entities/pipeline";
 import { usePipelineIntakeTickets } from "../../entities/pipeline-jira";
+import { useCoreIntegrations } from "../../shared/hooks/useIntegrationsStatus";
+import ConnectIntegrationFirst from "../components/ConnectIntegrationFirst";
 import { VirinWorkspace } from "../../widgets/pm-analysis/VirinWorkspace";
 import VirinWorkspaceTabs from "../../widgets/pm-analysis/VirinWorkspaceTabs";
 import VirinAwaitingAnantaPanel from "../../widgets/pm-analysis/VirinAwaitingAnantaPanel";
@@ -30,8 +32,10 @@ import VirinPipelineLivePanel from "../../widgets/pm-analysis/VirinPipelineLiveP
 import { PageIntro, Panel, PanelHeader } from "../../shared/ui/Panel";
 import { AnimatedAppPage } from "../../shared/ui/AnimatedAppPage";
 import Spinner from "../components/Spinner";
+import { useOrg } from "../../shared/providers/OrgRouteProvider";
 
 export default function PmAgents() {
+  const { orgPath } = useOrg();
   const [searchParams] = useSearchParams();
   const ticketFromUrl = searchParams.get("ticket")?.trim().toUpperCase() || "";
   const [ticketInput, setTicketInput] = useState(ticketFromUrl || "PLT-1287");
@@ -72,11 +76,22 @@ export default function PmAgents() {
   const companyConfigured =
     Boolean(companyProfile?.businessContext?.trim()) ||
     Boolean(companyProfile?.companyName?.trim() && companyProfile?.revenueModel?.trim());
+  const {
+    loading: integrationsLoading,
+    jiraConnected,
+    gitConnected,
+    gitNeedsSetup,
+    intakeReady,
+    missing: missingIntegrations,
+  } = useCoreIntegrations();
   const { data: analysis, refetch: refetchAnalysis, isValidating } = usePmAnalysis(activeKey, {
     pollMs: analyzing || activeKey ? 2500 : 0,
   });
-  const { data: intake } = usePipelineIntakeTickets(true, { pollMs: 30000 });
-  const { data: syncedIssues } = useJiraSyncIssues({ limit: 20 });
+  const { data: intake } = usePipelineIntakeTickets(intakeReady, { pollMs: 30000 });
+  const { data: syncedIssues } = useJiraSyncIssues(
+    { limit: 20 },
+    { skip: !jiraConnected, pollMs: jiraConnected ? 12000 : undefined }
+  );
   const { active: livePipeline } = usePipelineLive({
     jiraKey: activeKey,
     pollMs: activeKey ? 3000 : undefined,
@@ -264,7 +279,41 @@ export default function PmAgents() {
       <AgentPageWithChat domain="virin" contextKey={activeKey ?? ""}>
       <AgentPageHeader domain="virin" />
 
+      {integrationsLoading ? (
+        <div className="flex justify-center py-16">
+          <Spinner />
+        </div>
+      ) : !jiraConnected ? (
+        <ConnectIntegrationFirst
+          integrations={missingIntegrations}
+          title="Connect Jira first"
+          body="Virin reads Jira tickets to classify work, ask discovery questions, and write PRDs. Connect Jira in Settings, then come back here."
+        />
+      ) : (
+        <>
       <VirinPipelineLivePanel jiraKey={activeKey} />
+
+      {!gitConnected ? (
+        <Panel className="border-warning/30 bg-warning/5">
+          <PanelHeader
+            kicker="Setup"
+            title={gitNeedsSetup ? "Finish Git setup" : "Connect GitHub or Bitbucket"}
+          />
+          <p className="px-5 pb-4 text-sm text-app-ink-dim sm:px-6">
+            Virin can start from a Jira ticket, but codebase analysis needs a connected repository.{" "}
+            <Link
+              to={orgPath(
+                "settings",
+                "integrations",
+                missingIntegrations.includes("bitbucket") ? "bitbucket" : "github"
+              )}
+              className="font-medium text-indigo hover:underline"
+            >
+              {gitNeedsSetup ? "Finish Git setup →" : "Connect GitHub →"}
+            </Link>
+          </p>
+        </Panel>
+      ) : null}
 
       {!companyConfigured && (
         <Panel className="border-warning/30 bg-warning/5">
@@ -456,6 +505,8 @@ export default function PmAgents() {
       )}
         </>
       ) : null}
+        </>
+      )}
       </AgentPageWithChat>
     </AnimatedAppPage>
   );

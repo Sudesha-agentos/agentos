@@ -257,7 +257,7 @@
   transition: opacity 0.6s ease, transform 0.6s ease;
 }
 
-.ax-anim .ax-reveal:not(.ax-in) {
+.ax-anim .ax-reveal:not([data-ax-in]) {
   opacity: 0;
   transform: translateY(18px);
 }
@@ -267,7 +267,7 @@
     transition: none;
   }
 
-  .ax-anim .ax-reveal:not(.ax-in) {
+  .ax-anim .ax-reveal:not([data-ax-in]) {
     opacity: 1;
     transform: none;
   }
