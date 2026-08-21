@@ -67,11 +67,11 @@ export default function LandingDashboardWidget() {
   const orgPath = useOrgPathBuilder();
   const {
     loading: integrationsLoading,
-    jiraConnected,
+    issueTrackingReady,
     gitConnected,
     missing,
   } = useCoreIntegrations();
-  const needsSetup = !integrationsLoading && (!jiraConnected || !gitConnected);
+  const needsSetup = !integrationsLoading && (!issueTrackingReady || !gitConnected);
   const { items: pipelines, loading: pipelinesLoading } = usePipelineList(undefined, {
     pollMs: 10_000,
   });
@@ -102,7 +102,7 @@ export default function LandingDashboardWidget() {
         <ConnectIntegrationFirst
           integrations={missing}
           title="Connect integrations to start this workspace"
-          body="AgentOX runs from Jira tickets through your Git repository. Connect both in Settings, then Virin, Ananta, and pipelines will have something to work on."
+          body="AgentOX runs from Jira tickets or a spreadsheet work board through your Git repository. Connect those in Settings, then Virin, Ananta, and pipelines will have something to work on."
         />
       ) : null}
 

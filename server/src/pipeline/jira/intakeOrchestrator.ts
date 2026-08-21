@@ -19,6 +19,7 @@ import {
   isIssueInAiWorkerIntake,
 } from "./intakeStatusResolver";
 import { shouldEnqueueJiraKey } from "./intakeDedup";
+import type { IntakeSkipReason } from "./intakeDedup";
 import { classifyAiWorkerIntake } from "../../integrations/intentClassifier";
 import { getActiveOrganizationId } from "../../organization/context";
 import { logger } from "../../utils/logger";
@@ -35,7 +36,7 @@ import {
   recordIntakeEvent,
   type IntakeEventSource,
 } from "../../db/repositories/intakeEventRepo";
-import type { IntakeSkipReason } from "./intakeDedup";
+import { findWorkItemIssue, moveWorkItemByKey } from "../../workBoard/service";
 
 export interface IntakeEnqueueResult {
   sourceKey: string;
@@ -109,6 +110,8 @@ async function recordFailure(
 }
 
 async function syncJiraIssueFromFetch(issue: PipelineJiraIssue): Promise<void> {
+  const local = await findWorkItemIssue(issue.key);
+  if (local) return;
   const fetched = mapJiraApiIssue(
     {
       id: issue.id,
@@ -134,40 +137,43 @@ export async function tryIntakeEnqueue(
   pmContext?: PmPipelineContext
 ): Promise<IntakeEnqueueResult> {
   try {
-    const rootIssue = await fetchPipelineIssue(jiraKey);
-    await syncJiraIssueFromFetch(rootIssue);
+    const local = await findWorkItemIssue(jiraKey);
+    const rootIssue = local ? local.issue : await fetchJiraPipelineIssue(jiraKey);
+    if (!local) await syncJiraIssueFromFetch(rootIssue);
 
     const rootStatus =
       (rootIssue.fields as { status?: { name?: string } }).status?.name ?? "";
     const engineeringIntake = Boolean(pmContext);
-    const configuredStatuses = engineeringIntake ? [] : await getAiWorkerIntakeStatusesLive();
-    const liveColumnStatuses = engineeringIntake ? [] : await getLiveAiWorkerColumnStatuses();
+    const configuredStatuses = engineeringIntake || local ? [] : await getAiWorkerIntakeStatusesLive();
+    const liveColumnStatuses = engineeringIntake || local ? [] : await getLiveAiWorkerColumnStatuses();
 
-    if (
-      !engineeringIntake &&
-      !(await isIssueInAiWorkerIntake(rootStatus))
-    ) {
-      await recordSkip(
-        jiraKey,
-        source,
-        "not_in_intake_status",
-        formatIntakeStatusSkipMessage(
+    if (!engineeringIntake) {
+      const inIntake = local ? local.isIntake : await isIssueInAiWorkerIntake(rootStatus);
+      if (!inIntake) {
+        await recordSkip(
           jiraKey,
-          rootStatus,
-          configuredStatuses,
-          liveColumnStatuses
-        )
-      );
-      return {
-        sourceKey: jiraKey,
-        enqueued: 0,
-        skipped: 1,
-        started: false,
-        groups: [],
-      };
+          source,
+          "not_in_intake_status",
+          local
+            ? `${jiraKey} is in "${rootStatus}" — move it to the AI Worker column to start Virin`
+            : formatIntakeStatusSkipMessage(
+                jiraKey,
+                rootStatus,
+                configuredStatuses,
+                liveColumnStatuses
+              )
+        );
+        return {
+          sourceKey: jiraKey,
+          enqueued: 0,
+          skipped: 1,
+          started: false,
+          groups: [],
+        };
+      }
     }
 
-    const decomposed = engineeringIntake
+    const decomposed = engineeringIntake || local
       ? decomposeFromPipelineIssue(rootIssue)
       : await decomposeForPipelineIntake(jiraKey);
     if (decomposed.groups.length === 0) {
@@ -238,10 +244,7 @@ export async function tryIntakeEnqueue(
 
         const issueStatus =
           (issue.fields as { status?: { name?: string } }).status?.name ?? "";
-        if (
-          !engineeringIntake &&
-          !(await isIssueInAiWorkerIntake(issueStatus))
-        ) {
+        if (!engineeringIntake && !local && !(await isIssueInAiWorkerIntake(issueStatus))) {
           skipped += 1;
           await recordSkip(
             taskKey,
@@ -320,6 +323,7 @@ export async function tryIntakeEnqueue(
               { organizationId: getActiveOrganizationId() ?? undefined }
             );
             virinStarted += 1;
+            await moveWorkItemByKey(normalized.jiraKey, "in_progress").catch(() => undefined);
             await recordIntakeEvent({
               organizationId: getActiveOrganizationId()!,
               jiraKey: normalized.jiraKey,
@@ -418,12 +422,18 @@ export async function tryIntakeEnqueue(
   }
 }
 
-async function fetchPipelineIssue(jiraKey: string): Promise<PipelineJiraIssue> {
+async function fetchJiraPipelineIssue(jiraKey: string): Promise<PipelineJiraIssue> {
   const client = getPipelineJiraClient();
   return (await client.getIssueWithFields<PipelineJiraIssue>(
     jiraKey,
     [...JIRA_ISSUE_FETCH_FIELDS]
   )) as PipelineJiraIssue;
+}
+
+async function fetchPipelineIssue(jiraKey: string): Promise<PipelineJiraIssue> {
+  const local = await findWorkItemIssue(jiraKey);
+  if (local) return local.issue;
+  return fetchJiraPipelineIssue(jiraKey);
 }
 
 /** Fast path after Virin handoff — one Jira fetch, no board status checks. */
@@ -494,6 +504,7 @@ export async function tryEngineeringIntakeEnqueue(
         issueType: decomposed.sourceIssueType,
         pipelineStarted: batchResult.started,
       });
+      await moveWorkItemByKey(key, "in_progress").catch(() => undefined);
     }
 
     return {

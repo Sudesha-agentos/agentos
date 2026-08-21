@@ -42,6 +42,23 @@ export async function completeTicketInJira(
   payload: PipelineCompletionPayload,
   fullJsonOutput?: Record<string, unknown>
 ): Promise<JiraCompletionResult> {
+  const { findWorkItemByKey, moveWorkItemByKey } = await import("../../workBoard/service");
+  const local = await findWorkItemByKey(jiraKey);
+  if (local) {
+    await moveWorkItemByKey(jiraKey, "done");
+    return {
+      prdAttached: true,
+      qaAttached: true,
+      engineeringAttached: true,
+      rcaAttached: false,
+      descriptionUpdated: false,
+      jsonAttached: false,
+      transitioned: true,
+      transitionStatus: "Done",
+      errors: [],
+    };
+  }
+
   const settings = getPipelineCompletionSettings();
   const client = getPipelineJiraClient();
   const result: JiraCompletionResult = {

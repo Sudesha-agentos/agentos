@@ -17,6 +17,7 @@ const PmAgents = lazy(() => import("../../app/pages/PmAgents"));
 const Roadmap = lazy(() => import("../../app/pages/Roadmap"));
 const CodebaseIntelligence = lazy(() => import("../../app/pages/CodebaseIntelligence"));
 const LogIntelligence = lazy(() => import("../../app/pages/LogIntelligence"));
+const WorkBoard = lazy(() => import("../../app/pages/WorkBoard"));
 const OrgNotFound = lazy(() => import("../../app/pages/OrgNotFound"));
 
 function RedirectTo({ segments }) {
@@ -51,6 +52,7 @@ export const orgAppRouteElements = (
     <Route path="logs" element={<LogIntelligence />} />
     <Route path="logs/patterns/:patternId" element={<LogIntelligence />} />
     <Route path="roadmap" element={<Roadmap />} />
+    <Route path="board" element={<WorkBoard />} />
     <Route path="org-intelligence" element={<RedirectTo segments={["roadmap"]} />} />
     <Route path="company-intelligence" element={<RedirectTo segments={["settings", "company"]} />} />
     <Route path="costs" element={<CostIntelligence />} />

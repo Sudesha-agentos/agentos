@@ -35,6 +35,7 @@ function sectionLabelClass(collapsed) {
 
 const NAV_ICONS = {
   dashboard: IconDashboard,
+  board: IconBoard,
   pipelines: IconPipeline,
   virin: IconProduct,
   ananta: IconCodebase,
@@ -122,6 +123,25 @@ export default function Sidebar() {
                       >
                         <span className="flex size-5 shrink-0 items-center justify-center text-app-ink-mute group-hover:text-app-ink">
                           <Icon />
+                        </span>
+                        {!collapsed ? <span className="min-w-0 truncate">{item.label}</span> : null}
+                      </NavLink>
+                    </li>
+                  );
+                }
+                if (item.navId === "board") {
+                  return (
+                    <li key={item.to}>
+                      <NavLink
+                        to={item.to}
+                        data-tour="board"
+                        title={collapsed ? item.label : undefined}
+                        className={({ isActive }) =>
+                          navItemClass(isActive || pathMatches("board"), collapsed)
+                        }
+                      >
+                        <span className="flex size-5 shrink-0 items-center justify-center text-app-ink-mute group-hover:text-app-ink">
+                          <IconBoard />
                         </span>
                         {!collapsed ? <span className="min-w-0 truncate">{item.label}</span> : null}
                       </NavLink>
@@ -398,6 +418,15 @@ function IconChevron({ collapsed }) {
   );
 }
 
+function IconBoard() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 14 14" fill="none" aria-hidden>
+      <rect x="1.5" y="2.5" width="3.2" height="9" rx="0.8" stroke="currentColor" />
+      <rect x="5.4" y="2.5" width="3.2" height="6.5" rx="0.8" stroke="currentColor" />
+      <rect x="9.3" y="2.5" width="3.2" height="8" rx="0.8" stroke="currentColor" />
+    </svg>
+  );
+}
 function IconDashboard() {
   return (
     <svg width="16" height="16" viewBox="0 0 14 14" fill="none" aria-hidden>

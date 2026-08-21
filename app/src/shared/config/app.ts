@@ -95,6 +95,7 @@ export function buildAppNav(slug: string) {
   const agentNav = buildAgentNav(slug);
   return [
     { to: orgPath(slug), label: "Dashboard", breadcrumb: "Dashboard", end: true },
+    { to: orgPath(slug, "board"), label: "Board", breadcrumb: "Board" },
     { to: orgPath(slug, "pipelines"), label: "Pipelines", breadcrumb: "Pipelines" },
     ...agentNav.map(({ to, label, breadcrumb }) => ({ to, label, breadcrumb })),
     { to: orgPath(slug, "costs"), label: "Cost & ROI", breadcrumb: "Costs" },
@@ -147,7 +148,10 @@ export function buildAppNavSections(slug: string) {
     {
       id: "workspace",
       label: "Workspace",
-      items: [{ to: orgPath(slug), label: "Dashboard", breadcrumb: "Dashboard", end: true }],
+      items: [
+        { to: orgPath(slug), label: "Dashboard", breadcrumb: "Dashboard", end: true },
+        { to: orgPath(slug, "board"), label: "Board", breadcrumb: "Board", navId: "board" },
+      ],
       pipelineGroup: true,
     },
     {

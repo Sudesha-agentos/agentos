@@ -35,7 +35,7 @@ export default function PipelineExplorerWidget() {
   const query = params.get("q") ?? "";
   const migratedRef = useRef(new Set());
 
-  const { loading: integrationsLoading, jiraConnected, missing } = useCoreIntegrations();
+  const { loading: integrationsLoading, issueTrackingReady, missing } = useCoreIntegrations();
   const { items: pipelineItems, loading: pipelinesLoading } = usePipelineList(undefined, {
     pollMs: 10_000,
   });
@@ -170,11 +170,11 @@ export default function PipelineExplorerWidget() {
         <div className="flex-1 space-y-1.5 overflow-y-auto p-2.5">
           {integrationsLoading || (loading && filtered.length === 0) ? (
             <Spinner label="Loading pipelines" />
-          ) : filtered.length === 0 && !jiraConnected && items.length === 0 ? (
+          ) : filtered.length === 0 && !issueTrackingReady && items.length === 0 ? (
             <ConnectIntegrationFirst
               integrations={missing.length ? missing : ["jira"]}
-              title="Connect Jira to start pipelines"
-              body="Pipelines start from Jira tickets. Connect Jira (and GitHub or Bitbucket) in Settings, then move a ticket into the AI Worker column."
+              title="Connect Jira or upload a spreadsheet"
+              body="Pipelines start from Jira tickets or from the work board. Connect Jira, or upload Excel on Board, then move a ticket into AI Worker."
             />
           ) : filtered.length === 0 ? (
             <EmptyState title="No pipelines" />
