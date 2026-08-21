@@ -3,6 +3,7 @@ import { useGitIntegrationSummary } from "../../entities/git-integration";
 import { listCustomerDatabases } from "../../entities/customer-db";
 import { fetchLogSources } from "../../entities/logIntelligence";
 import { usePipelineJiraSetup } from "../../entities/pipeline-jira";
+import { useWorkBoardStatus } from "../../entities/work-board";
 import {
   buildIntegrationsCatalog,
   groupIntegrationsByCategory,
@@ -25,6 +26,9 @@ function resolveDisplayStatus(integration, live) {
   }
   if (integration.liveStatusKey === "jira") {
     return live.jiraConnected ? "connected" : "not_connected";
+  }
+  if (integration.liveStatusKey === "spreadsheet") {
+    return live.workBoardReady ? "connected" : "not_connected";
   }
   if (
     typeof integration.liveStatusKey === "string" &&
@@ -51,8 +55,11 @@ export function useCoreIntegrations() {
   const { data: jira, loading: jiraLoading, error: jiraError } = usePipelineJiraSetup({
     pollMs: 12000,
   });
+  const { data: boardStatus, loading: boardLoading } = useWorkBoardStatus({ pollMs: 12000 });
 
   const jiraConnected = Boolean(jira?.connected);
+  const workBoardReady = Boolean(boardStatus?.ready);
+  const issueTrackingReady = jiraConnected || workBoardReady;
   const gitConnected = Boolean(git?.connected);
   const githubConnected = Boolean(git?.connected && git?.provider !== "bitbucket");
   const bitbucketConnected = Boolean(
@@ -64,14 +71,16 @@ export function useCoreIntegrations() {
   const intakeReady = Boolean(jiraConnected && jira?.intake?.aiWorkerColumnName);
 
   const missing = [];
-  if (!jiraConnected) missing.push("jira");
+  if (!issueTrackingReady) missing.push("jira");
   if (!gitConnected) {
     missing.push(git?.provider === "bitbucket" || git?.authMethod === "oauth" ? "bitbucket" : "github");
   }
 
   return {
-    loading: gitLoading || jiraLoading,
+    loading: gitLoading || jiraLoading || boardLoading,
     jiraConnected,
+    workBoardReady,
+    issueTrackingReady,
     gitConnected,
     githubConnected,
     bitbucketConnected,
@@ -92,6 +101,7 @@ export function useIntegrationsStatus() {
   const orgSlug = org?.orgSlug ?? "workspace";
   const { data: git, loading: gitLoading } = useGitIntegrationSummary({ pollMs: 12000 });
   const { data: jira, loading: jiraLoading } = usePipelineJiraSetup({ pollMs: 12000 });
+  const { data: boardStatus, loading: boardLoading } = useWorkBoardStatus({ pollMs: 12000 });
   const [logTypes, setLogTypes] = useState(() => new Set());
   const [logsLoading, setLogsLoading] = useState(true);
   const [databaseProviders, setDatabaseProviders] = useState(() => new Set());
@@ -166,6 +176,7 @@ export function useIntegrationsStatus() {
           git?.needsRepoSelection
       ),
       jiraConnected: Boolean(jira?.connected),
+      workBoardReady: Boolean(boardStatus?.ready),
       logConnectedTypes: logTypes,
       databaseProviders,
     }),
@@ -176,6 +187,7 @@ export function useIntegrationsStatus() {
       git?.needsRepoSelection,
       git?.installationDetected,
       jira?.connected,
+      boardStatus?.ready,
       logTypes,
       databaseProviders,
     ]
@@ -195,6 +207,6 @@ export function useIntegrationsStatus() {
   return {
     integrations,
     grouped,
-    loading: gitLoading || jiraLoading || logsLoading || databasesLoading,
+    loading: gitLoading || jiraLoading || boardLoading || logsLoading || databasesLoading,
   };
 }

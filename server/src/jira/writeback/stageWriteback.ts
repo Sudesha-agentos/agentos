@@ -152,6 +152,9 @@ export async function writeEngineeringToTicket(
   jiraKey: string,
   implementation: ImplementationOutput
 ): Promise<boolean> {
+  const { findWorkItemByKey } = await import("../../workBoard/service");
+  if (await findWorkItemByKey(jiraKey)) return true;
+
   const settings = getPipelineCompletionSettings();
   if (!settings.attachEngineeringComment) return false;
 

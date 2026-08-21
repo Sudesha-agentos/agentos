@@ -75,6 +75,28 @@ export async function lookupJiraTicketForChat(
     : undefined;
 
   try {
+    const { findWorkItemByKey } = await import("../workBoard/service");
+    const local = await findWorkItemByKey(jiraKey);
+    if (local) {
+      return {
+        jiraKey,
+        found: true,
+        source: "synced",
+        summary: local.summary,
+        description: local.description,
+        issueType: local.issueType,
+        status: local.column.name,
+        priority: local.priority,
+        labels: local.labels,
+        components: [],
+        analysis,
+      };
+    }
+  } catch {
+    /* try Jira */
+  }
+
+  try {
     const synced = await getJiraIssueByKey(jiraKey);
     if (synced) {
       const labels = Array.isArray(synced.labels) ? (synced.labels as string[]) : [];

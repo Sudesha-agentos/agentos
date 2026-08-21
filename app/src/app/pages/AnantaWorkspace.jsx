@@ -61,6 +61,7 @@ export default function AnantaWorkspace() {
     loading: integrationsLoading,
     gitConnected,
     jiraConnected,
+    workBoardReady,
     gitNeedsSetup,
     missing: missingIntegrations,
   } = useCoreIntegrations();
@@ -147,17 +148,17 @@ export default function AnantaWorkspace() {
           />
         ) : (
         <>
-        {!jiraConnected ? (
+        {!jiraConnected && !workBoardReady ? (
           <Panel className="border-warning/30 bg-warning/5">
-            <PanelHeader kicker="Setup" title="Connect Jira to receive tickets" />
+            <PanelHeader kicker="Setup" title="Connect Jira or upload a spreadsheet" />
             <p className="px-5 pb-4 text-sm text-app-ink-dim sm:px-6">
-              A repository is connected. Connect Jira so Virin can hand off tickets for Ananta to
-              implement.{" "}
+              A repository is connected. Add tickets via Jira or the work board so Virin can hand
+              off work to Ananta.{" "}
               <Link
-                to={orgPath("settings", "integrations", "jira")}
+                to={orgPath("board")}
                 className="font-medium text-indigo hover:underline"
               >
-                Connect Jira →
+                Open work board →
               </Link>
             </p>
           </Panel>

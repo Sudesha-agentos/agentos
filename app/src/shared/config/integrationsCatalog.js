@@ -52,6 +52,18 @@ const INTEGRATION_DEFS = [
     liveStatusKey: "jira",
   },
   {
+    id: "spreadsheet",
+    name: "Spreadsheet",
+    category: "issue_tracking",
+    description:
+      "Upload Excel or CSV to a Kanban board. Drag tickets into AI Worker to run Virin without Jira.",
+    catalogStatus: "available",
+    connectKind: "native",
+    routeParts: ["settings", "integrations", "spreadsheet"],
+    icon: null,
+    liveStatusKey: "spreadsheet",
+  },
+  {
     id: "postgresql",
     name: "PostgreSQL",
     category: "data_storage",

@@ -382,6 +382,8 @@ model Organization {
   logIntelligenceConfig   LogIntelligenceConfig?
   canaryHypothesisLibrary CanaryHypothesisLibrary[]
   databases               OrganizationDatabase[]
+  workBoard               WorkBoard?
+  workItems               WorkItem[]
 
   @@index([domain])
 }
@@ -431,6 +433,58 @@ model RoadmapItem {
   @@unique([roadmapId, slug])
   @@index([organizationId])
   @@index([roadmapId, stageId])
+}
+
+/// Org-scoped Kanban for teams that do not use Jira. Keys are WB-n.
+model WorkBoard {
+  id             String            @id @default(cuid())
+  organizationId String            @unique
+  organization   Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  title          String            @default("Work board")
+  nextKeyNumber  Int               @default(1)
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  columns        WorkBoardColumn[]
+  items          WorkItem[]
+}
+
+model WorkBoardColumn {
+  id        String     @id @default(cuid())
+  boardId   String
+  board     WorkBoard  @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  name      String
+  slug      String
+  sortOrder Int
+  isIntake  Boolean    @default(false)
+  items     WorkItem[]
+
+  @@unique([boardId, slug])
+  @@index([boardId, sortOrder])
+}
+
+model WorkItem {
+  id             String          @id @default(cuid())
+  organizationId String
+  boardId        String
+  columnId       String
+  key            String
+  summary        String
+  description    String          @default("") @db.Text
+  issueType      String          @default("Task")
+  priority       String          @default("Medium")
+  assignee       String?
+  labels         Json            @default("[]")
+  sortOrder      Int             @default(0)
+  source         String          @default("manual")
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  board          WorkBoard       @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  column         WorkBoardColumn @relation(fields: [columnId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, key])
+  @@index([organizationId])
+  @@index([boardId, columnId, sortOrder])
 }
 
 model OrganizationMember {

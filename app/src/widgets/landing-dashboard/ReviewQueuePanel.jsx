@@ -44,7 +44,7 @@ export default function ReviewQueuePanel({ items, loading, needsSetup = false })
               className={`text-sm font-medium ${needsSetup ? "text-app-ink" : "text-success"}`}
             >
               {needsSetup
-                ? "Connect Jira and GitHub (or Bitbucket) to start pipelines."
+                ? "Connect Jira or a spreadsheet, plus GitHub or Bitbucket, to start pipelines."
                 : "Nothing needs your attention right now."}
             </p>
           </div>

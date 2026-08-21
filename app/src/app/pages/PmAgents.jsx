@@ -79,6 +79,7 @@ export default function PmAgents() {
   const {
     loading: integrationsLoading,
     jiraConnected,
+    issueTrackingReady,
     gitConnected,
     gitNeedsSetup,
     intakeReady,
@@ -283,11 +284,11 @@ export default function PmAgents() {
         <div className="flex justify-center py-16">
           <Spinner />
         </div>
-      ) : !jiraConnected ? (
+      ) : !issueTrackingReady ? (
         <ConnectIntegrationFirst
           integrations={missingIntegrations}
-          title="Connect Jira first"
-          body="Virin reads Jira tickets to classify work, ask discovery questions, and write PRDs. Connect Jira in Settings, then come back here."
+          title="Connect Jira or upload a spreadsheet"
+          body="Virin reads tickets from Jira or from the work board. Connect Jira, or upload an Excel sheet on Board, then come back here."
         />
       ) : (
         <>

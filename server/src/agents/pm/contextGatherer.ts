@@ -490,6 +490,26 @@ export async function resolveTicketInput(
   jiraKey: string,
   raw?: Partial<PmTicketInput>
 ): Promise<PmTicketInput> {
+  const { findWorkItemByKey } = await import("../../workBoard/service");
+  const local = await findWorkItemByKey(jiraKey);
+  if (local) {
+    return {
+      jiraKey: local.key,
+      summary: raw?.summary?.trim() ? raw.summary : local.summary,
+      description: raw?.description?.trim() ? raw.description : local.description,
+      issueType: raw?.issueType ?? local.issueType,
+      reporter: raw?.reporter ?? local.assignee ?? "Work board",
+      labels: raw?.labels?.length ? raw.labels : local.labels,
+      components: raw?.components ?? [],
+      createdDate: raw?.createdDate ?? local.createdAt.toISOString(),
+      priority: raw?.priority ?? local.priority,
+      commentsText: raw?.commentsText ?? "No comments on this work-board ticket.",
+      attachmentsText: raw?.attachmentsText ?? "No file attachments on this work-board ticket.",
+      status: raw?.status ?? local.column.name,
+      assignee: raw?.assignee ?? local.assignee ?? undefined,
+    };
+  }
+
   const fromJira = await enrichTicketFromJira(jiraKey);
   if (fromJira) {
     return {

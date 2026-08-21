@@ -15,12 +15,17 @@ const INTEGRATION_META = {
     name: "Bitbucket",
     segment: "bitbucket",
   },
+  spreadsheet: {
+    name: "Spreadsheet",
+    href: "board",
+    cta: "Upload a spreadsheet",
+  },
 };
 
 const DEFAULT_COPY = {
   jira: {
-    title: "Connect Jira first",
-    body: "This page needs a Jira workspace so AgentOX can load tickets and run the AI Worker intake.",
+    title: "Connect issue tracking first",
+    body: "Connect Jira, or upload an Excel/CSV to the work board, so AgentOX has tickets to run.",
   },
   git: {
     title: "Connect a repository first",
@@ -28,7 +33,7 @@ const DEFAULT_COPY = {
   },
   both: {
     title: "Connect integrations first",
-    body: "Connect Jira and a Git provider in Settings before running agents, pipelines, or search.",
+    body: "Connect Jira or upload a spreadsheet, plus a Git provider, before running agents and pipelines.",
   },
 };
 
@@ -38,11 +43,11 @@ export default function ConnectIntegrationFirst({
   body,
 }) {
   const { orgPath } = useOrg();
-  const items = integrations
-    .map((id) => ({ id, ...INTEGRATION_META[id] }))
-    .filter((item) => item.name);
+  const ids = [...integrations];
+  if (ids.includes("jira") && !ids.includes("spreadsheet")) ids.push("spreadsheet");
+  const items = ids.map((id) => ({ id, ...INTEGRATION_META[id] })).filter((item) => item.name);
 
-  const hasJira = items.some((item) => item.id === "jira");
+  const hasJira = items.some((item) => item.id === "jira" || item.id === "spreadsheet");
   const hasGit = items.some((item) => item.id === "github" || item.id === "bitbucket");
   const copy = hasJira && hasGit ? DEFAULT_COPY.both : hasJira ? DEFAULT_COPY.jira : DEFAULT_COPY.git;
 
@@ -56,10 +61,10 @@ export default function ConnectIntegrationFirst({
           {items.map((item) => (
             <Link
               key={item.id}
-              to={orgPath("settings", "integrations", item.segment)}
+              to={item.href === "board" ? orgPath("board") : orgPath("settings", "integrations", item.segment)}
               className="app-btn-primary"
             >
-              Connect {item.name}
+              {item.cta ?? `Connect ${item.name}`}
             </Link>
           ))}
           {items.length > 1 ? (
@@ -76,9 +81,15 @@ export default function ConnectIntegrationFirst({
   );
 }
 
-export function missingCoreIntegrations({ jiraConnected, gitConnected, gitProvider, gitAuthMethod }) {
+export function missingCoreIntegrations({
+  jiraConnected,
+  workBoardReady,
+  gitConnected,
+  gitProvider,
+  gitAuthMethod,
+}) {
   const missing = [];
-  if (!jiraConnected) missing.push("jira");
+  if (!jiraConnected && !workBoardReady) missing.push("jira");
   if (!gitConnected) {
     missing.push(gitProvider === "bitbucket" || gitAuthMethod === "oauth" ? "bitbucket" : "github");
   }

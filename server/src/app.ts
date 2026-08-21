@@ -35,6 +35,7 @@ import searchRouter from "./api/routes/search";
 import webhooksRouter from "./api/routes/webhooks";
 import logIntelligenceRouter from "./logIntelligence/api/routes";
 import customerDbRouter from "./api/routes/customerDb";
+import workBoardRouter from "./api/routes/workBoard";
 import { isAppError } from "./utils/errors";
 import { logger } from "./utils/logger";
 
@@ -140,6 +141,7 @@ export function createApp(): express.Express {
   app.use("/api/search", searchRouter);
   app.use("/api/log-intelligence", logIntelligenceRouter);
   app.use("/api/customer-db", customerDbRouter);
+  app.use("/api/work-board", workBoardRouter);
 
   app.use((_req, res) => {
     res.status(404).json({ error: "not_found" });
