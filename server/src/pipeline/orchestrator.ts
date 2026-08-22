@@ -1,4 +1,4 @@
-import type { Prisma, PipelineStage } from "../db/prisma";
+import type { Prisma } from "../db/prisma";
 import { EngineeringAgent } from "../agents/engineeringAgent";
 import { buildEngineeringAgentSystemPrompt } from "../agents/engineeringAgentPrompt";
 import { normalizeImplementationOutput } from "../agents/normalizeImplementationOutput";
@@ -30,7 +30,9 @@ import {
   sanitizeGitShellError,
   shouldSkipEngineeringDependencyInstall,
   workspaceCommitAndPush,
+  workspaceCommittedDiff,
   workspaceGetChangedFiles,
+  workspaceGitDiff,
 } from "../engineering/engineeringWorkspace";
 import { normalizeRepoPath } from "../integrations/git/normalizePushFiles";
 import { runWorkspaceSafetyCompile } from "../engineering/workspaceCompile";
@@ -76,15 +78,9 @@ import type {
   QaOutput,
 } from "../types/agents";
 import type { NormalizedTicket } from "../types/ticket";
-import type { ValidationResult } from "../types/pipeline";
+import type { GateResult, ValidationResult } from "../types/pipeline";
 import { logger } from "../utils/logger";
-import { validateImplementation } from "../validators/implementationValidator";
-import { validatePrd } from "../validators/prdValidator";
-import { validateQa } from "../validators/qaValidator";
-import {
-  evaluateSecurityGate,
-  mergeSecurityGateIntoValidation,
-} from "../validators/securityGate";
+import { applyGateDecision, asGateResult, extractOriginalTicket, runGate, stampOriginalTicket } from "../gates";
 import { buildEngineeringAgentContext } from "./contextBuilder";
 import { stateManager } from "./stateManager";
 
@@ -239,7 +235,8 @@ export class PipelineOrchestrator {
       const prdValidation = await this.validatePrdStage(
         pipeline.id,
         productStage.agentOutput,
-        normalizedTicket.pmContext ? { source: "pm_agents" } : undefined
+        normalizedTicket,
+        productStage.enrichedPrdDocument
       );
       await orgIntelligence.captureValidation({
         pipelineId: pipeline.id,
@@ -248,7 +245,7 @@ export class PipelineOrchestrator {
         validation: prdValidation,
         components: normalizedTicket.components ?? [],
       });
-      if (!(await this.continueOrPause(pipeline.id, "PRD_VALIDATION", prdValidation))) {
+      if (!(await applyGateDecision(pipeline.id, "prd", prdValidation))) {
         await ticketRepo.setStatus(ticket.id, "AWAITING_HUMAN");
         return;
       }
@@ -307,9 +304,9 @@ export class PipelineOrchestrator {
         implementation: implementationOutput.parsed,
       });
       if (
-        !(await this.continueOrPause(
+        !(await applyGateDecision(
           pipeline.id,
-          "IMPLEMENTATION_VALIDATION",
+          "implementation",
           implementationValidation
         ))
       ) {
@@ -350,19 +347,12 @@ export class PipelineOrchestrator {
         },
       });
 
-      const qaValidation = this.applySecurityGate(
-        await this.validateQaStage(
-          pipeline.id,
-          qaOutput,
-          productStage.agentOutput.parsed
-        ),
+      const qaValidation = await this.validateQaStage(
+        pipeline.id,
+        qaOutput,
+        productStage.agentOutput.parsed,
         qaStage,
-        qaOutput.parsed,
-        [
-          normalizedTicket.summary,
-          normalizedTicket.description,
-          productStage.agentOutput.parsed.title,
-        ].join(" "),
+        normalizedTicket,
         canaryResult
       );
       await orgIntelligence.captureValidation({
@@ -373,7 +363,7 @@ export class PipelineOrchestrator {
         components: normalizedTicket.components ?? [],
         qa: qaOutput.parsed,
       });
-      if (!(await this.continueOrPause(pipeline.id, "QA_VALIDATION", qaValidation))) {
+      if (!(await applyGateDecision(pipeline.id, "qa", qaValidation))) {
         await ticketRepo.setStatus(ticket.id, "AWAITING_HUMAN");
         return;
       }
@@ -501,18 +491,22 @@ export class PipelineOrchestrator {
         );
       }
 
-      let prdValidation: ValidationResult;
+      let prdValidation: GateResult;
       const prdValLog = await pipelineRepo.getStageOutput(pipelineId, "PRD_VALIDATION");
       if (prdValLog?.validationResult) {
-        prdValidation = prdValLog.validationResult as unknown as ValidationResult;
+        prdValidation = asGateResult(
+          "prd",
+          prdValLog.validationResult as unknown as ValidationResult
+        );
       } else {
         prdValidation = await this.validatePrdStage(
           pipelineId,
           productStage.agentOutput,
-          normalizedTicket.pmContext ? { source: "pm_agents" } : undefined
+          normalizedTicket,
+          productStage.enrichedPrdDocument
         );
       }
-      if (!(await this.continueOrPause(pipelineId, "PRD_VALIDATION", prdValidation))) {
+      if (!(await applyGateDecision(pipelineId, "prd", prdValidation))) {
         await ticketRepo.setStatus(ticket.id, "AWAITING_HUMAN");
         return;
       }
@@ -604,10 +598,13 @@ export class PipelineOrchestrator {
         }
       }
 
-      let implementationValidation: ValidationResult;
+      let implementationValidation: GateResult;
       const implValLog = await pipelineRepo.getStageOutput(pipelineId, "IMPLEMENTATION_VALIDATION");
       if (implValLog?.validationResult) {
-        implementationValidation = implValLog.validationResult as unknown as ValidationResult;
+        implementationValidation = asGateResult(
+          "implementation",
+          implValLog.validationResult as unknown as ValidationResult
+        );
       } else {
         implementationValidation = await this.validateImplementationStage(
           pipelineId,
@@ -618,7 +615,7 @@ export class PipelineOrchestrator {
         );
       }
       if (
-        !(await this.continueOrPause(pipelineId, "IMPLEMENTATION_VALIDATION", implementationValidation))
+        !(await applyGateDecision(pipelineId, "implementation", implementationValidation))
       ) {
         await ticketRepo.setStatus(ticket.id, "AWAITING_HUMAN");
         return;
@@ -680,24 +677,24 @@ export class PipelineOrchestrator {
         },
       });
 
-      let qaValidation: ValidationResult;
+      let qaValidation: GateResult;
       const qaValLog = await pipelineRepo.getStageOutput(pipelineId, "QA_VALIDATION");
       if (qaValLog?.validationResult) {
-        qaValidation = qaValLog.validationResult as unknown as ValidationResult;
+        qaValidation = asGateResult(
+          "qa",
+          qaValLog.validationResult as unknown as ValidationResult
+        );
       } else {
-        qaValidation = this.applySecurityGate(
-          await this.validateQaStage(pipelineId, qaOutput, productStage.agentOutput.parsed),
+        qaValidation = await this.validateQaStage(
+          pipelineId,
+          qaOutput,
+          productStage.agentOutput.parsed,
           qaStage,
-          qaOutput.parsed,
-          [
-            normalizedTicket.summary,
-            normalizedTicket.description,
-            productStage.agentOutput.parsed.title,
-          ].join(" "),
+          normalizedTicket,
           canaryResult
         );
       }
-      if (!(await this.continueOrPause(pipelineId, "QA_VALIDATION", qaValidation))) {
+      if (!(await applyGateDecision(pipelineId, "qa", qaValidation))) {
         await ticketRepo.setStatus(ticket.id, "AWAITING_HUMAN");
         return;
       }
@@ -849,6 +846,14 @@ export class PipelineOrchestrator {
     pipelineId: string,
     ticket: NormalizedTicket
   ): Promise<void> {
+    const stamped = stampOriginalTicket(ticket);
+    Object.assign(ticket, stamped);
+    const pipeline = await pipelineRepo.findById(pipelineId);
+    if (pipeline?.ticketId) {
+      await ticketRepo.patchNormalizedData(pipeline.ticketId, {
+        originalTicket: ticket.originalTicket,
+      });
+    }
     const log = await pipelineRepo.startStage({
       pipelineId,
       stage: "INGESTION",
@@ -1007,21 +1012,28 @@ export class PipelineOrchestrator {
   private async validatePrdStage(
     pipelineId: string,
     output: AgentOutput<PrdOutput>,
-    options?: { source?: "discovery" | "pm_agents" }
-  ): Promise<ValidationResult> {
+    ticket: NormalizedTicket,
+    enrichedPrdDocument: Record<string, unknown>
+  ): Promise<GateResult> {
     const stageLog = await pipelineRepo.startStage({
       pipelineId,
       stage: "PRD_VALIDATION",
       inputJson: output.parsed as unknown as Prisma.InputJsonValue,
     });
-    const result = validatePrd(output.parsed, options);
+    const generatedPrd = this.extractGeneratedPrd(enrichedPrdDocument, output);
+    const result = await runGate("prd", {
+      prd: output.parsed,
+      generatedPrd,
+      normalizedTicket: ticket,
+      ticket: extractOriginalTicket(ticket),
+      prdSource: ticket.pmContext ? "pm_agents" : "discovery",
+    });
     await pipelineRepo.completeStage({
       stageLogId: stageLog.id,
       output: result as unknown as Prisma.InputJsonValue,
       validationResult: result as unknown as Prisma.InputJsonValue,
       status: result.passed ? "COMPLETED" : "AWAITING_HUMAN",
     });
-    if (result.passed) await stateManager.advance(pipelineId, "ENGINEERING_AGENT");
     return result;
   }
 
@@ -1208,6 +1220,7 @@ export class PipelineOrchestrator {
     let codingResult: Awaited<ReturnType<typeof runEngineeringCodingAgentic>> | null = null;
     let implementationBranch: string | null = null;
     let compileFailed = false;
+    let compileSkipped = false;
 
     try {
       // Run the agentic loop (one attempt — agent handles its own verify/fix loop in Phase 2)
@@ -1294,6 +1307,7 @@ export class PipelineOrchestrator {
           const compileResult = await runWorkspaceSafetyCompile(workspace.workspaceDir);
           compileFailed =
             !compileResult.skipped && compileResult.exitCode !== 0;
+          compileSkipped = Boolean(compileResult.skipped);
           await auditRepo.log(pipelineId, "ENGINEERING_SAFETY_COMPILE", {
             jiraKey: ticket.jiraKey,
             exitCode: compileResult.exitCode,
@@ -1316,6 +1330,7 @@ export class PipelineOrchestrator {
           }
         } catch (compileErr) {
           logger.warn({ pipelineId, compileErr }, "safety compile skipped");
+          compileSkipped = true;
         }
       }
 
@@ -1513,6 +1528,7 @@ export class PipelineOrchestrator {
       // Surface the safety-compile result so the implementation gate can
       // block QA from running against code that does not build.
       compileFailed,
+      compileSkipped,
     };
 
     const output: AgentOutput<ImplementationOutput> = {
@@ -1689,21 +1705,38 @@ export class PipelineOrchestrator {
     prd: PrdOutput,
     ticket: NormalizedTicket,
     enrichedPrdDocument: Record<string, unknown>
-  ): Promise<ValidationResult> {
-    const { implementationMode, targetFilePaths } = this.resolveImplementationContext(
-      ticket,
-      enrichedPrdDocument
-    );
+  ): Promise<GateResult> {
+    const { implementationMode, targetFilePaths, generatedPrd } =
+      this.resolveImplementationContext(ticket, enrichedPrdDocument);
     const stageLog = await pipelineRepo.startStage({
       pipelineId,
       stage: "IMPLEMENTATION_VALIDATION",
       inputJson: output.parsed as unknown as Prisma.InputJsonValue,
     });
-    const result = validateImplementation(output.parsed, prd, {
+    const diffEvidence = await this.collectImplementationDiff(pipelineId, output.parsed);
+    const result = await runGate("implementation", {
+      prd,
+      generatedPrd,
+      implementation: output.parsed,
+      normalizedTicket: ticket,
+      ticket: extractOriginalTicket(ticket),
       implementationMode,
       targetFiles: output.parsed.targetFiles?.length
         ? output.parsed.targetFiles
         : targetFilePaths,
+      workspaceDiff: diffEvidence.diffText,
+      changedFiles: diffEvidence.changedFiles,
+      pmRecord: ticket.pmContext
+        ? ({
+            generatedPrd: ticket.pmContext.generatedPrd,
+            codebaseAnalysis: ticket.pmContext.enrichedPrdDocument.pmCodebaseAnalysis,
+            ticketInput: {
+              summary: ticket.summary,
+              description: ticket.description,
+              commentsText: ticket.originalTicket?.comments ?? "",
+            },
+          } as never)
+        : undefined,
     });
     await pipelineRepo.completeStage({
       stageLogId: stageLog.id,
@@ -1711,8 +1744,40 @@ export class PipelineOrchestrator {
       validationResult: result as unknown as Prisma.InputJsonValue,
       status: result.passed ? "COMPLETED" : "AWAITING_HUMAN",
     });
-    if (result.passed) await stateManager.advance(pipelineId, "QA_AGENT");
     return result;
+  }
+
+  private async collectImplementationDiff(
+    pipelineId: string,
+    implementation: ImplementationOutput
+  ): Promise<{
+    diffText: string;
+    changedFiles: Array<{ path: string; status?: string }>;
+  }> {
+    const fromOutput = (implementation.codeChanges ?? []).map((c) => ({
+      path: c.filePath,
+      status: c.action,
+    }));
+    const workspace = getEngWorkspace(pipelineId);
+    if (!workspace) {
+      return { diffText: "", changedFiles: fromOutput };
+    }
+    try {
+      let diffText = await workspaceGitDiff(workspace.workspaceDir);
+      if (!diffText.trim()) {
+        diffText = await workspaceCommittedDiff(workspace.workspaceDir);
+      }
+      const files = await workspaceGetChangedFiles(workspace.workspaceDir);
+      return {
+        diffText,
+        changedFiles: files.length
+          ? files.map((f) => ({ path: f.path, status: f.status }))
+          : fromOutput,
+      };
+    } catch (err) {
+      logger.warn({ err, pipelineId }, "implementation diff collection failed");
+      return { diffText: "", changedFiles: fromOutput };
+    }
   }
 
   private async runQaAgent(
@@ -1782,108 +1847,43 @@ export class PipelineOrchestrator {
     return result;
   }
 
-  private applySecurityGate(
-    validation: ValidationResult,
-    qaStage: { executionReport?: QaExecutionReport },
-    qaOutput: QaOutput,
-    ticketText: string,
-    canaryResult: Awaited<ReturnType<typeof runCanaryCycle>>
-  ): ValidationResult {
-    const canaryCriticals =
-      canaryResult?.findings
-        .filter((f) => f.severity === "critical")
-        .map((f) => ({ title: f.title, description: f.description })) ?? [];
-
-    const gate = evaluateSecurityGate({
-      securityScan: qaStage.executionReport?.securityScan ?? null,
-      canaryCriticals,
-      canarySkipped: !canaryResult,
-      canarySkipReason: !canaryResult
-        ? "Canary cycle did not run (disabled or missing staging URL)."
-        : undefined,
-      qaOutput,
-      ticketText,
-    });
-
-    if (gate.blocked) {
-      logger.warn({ reasons: gate.reasons }, "QA security gate blocked pipeline");
-    }
-
-    const merged = mergeSecurityGateIntoValidation(validation, gate);
-
-    // Enforce the execution gate from the sandbox report itself. The QA
-    // validator only sees the agent's self-reported confidenceBreakdown; if
-    // the agent omits it, plan-only confidence would slip through unchecked.
-    const executionStatus = qaStage.executionReport?.executionStatus ?? null;
-    if (
-      executionStatus !== "ran" &&
-      !merged.issues.some((i) => i.code === "TESTS_NOT_EXECUTED")
-    ) {
-      return {
-        ...merged,
-        passed: false,
-        issues: [
-          ...merged.issues,
-          {
-            code: "TESTS_NOT_EXECUTED",
-            severity: "error" as const,
-            message: executionStatus
-              ? `Sandbox tests were not executed (status: ${executionStatus}) — cannot approve on plan-only confidence.`
-              : "QA execution report missing — cannot verify tests ran; human review required.",
-          },
-        ],
-      };
-    }
-    return merged;
-  }
-
   private async validateQaStage(
     pipelineId: string,
     output: AgentOutput<QaOutput>,
-    prd: PrdOutput
-  ): Promise<ValidationResult> {
+    prd: PrdOutput,
+    qaStage: { executionReport?: QaExecutionReport },
+    ticket: NormalizedTicket,
+    canaryResult: Awaited<ReturnType<typeof runCanaryCycle>>
+  ): Promise<GateResult> {
     const stageLog = await pipelineRepo.startStage({
       pipelineId,
       stage: "QA_VALIDATION",
       inputJson: output.parsed as unknown as Prisma.InputJsonValue,
     });
-    const result = validateQa(output.parsed, prd);
+    const canaryCriticals =
+      canaryResult?.findings
+        .filter((f) => f.severity === "critical")
+        .map((f) => ({ title: f.title, description: f.description })) ?? [];
+    const result = await runGate("qa", {
+      prd,
+      qa: output.parsed,
+      qaExecutionReport: qaStage.executionReport,
+      normalizedTicket: ticket,
+      ticket: extractOriginalTicket(ticket),
+      canaryCriticals,
+      canarySkipped: !canaryResult,
+      canarySkipReason: !canaryResult
+        ? "Canary cycle did not run (disabled or missing staging URL)."
+        : undefined,
+      ticketText: [ticket.summary, ticket.description, prd.title].join(" "),
+    });
     await pipelineRepo.completeStage({
       stageLogId: stageLog.id,
       output: result as unknown as Prisma.InputJsonValue,
       validationResult: result as unknown as Prisma.InputJsonValue,
       status: result.passed ? "COMPLETED" : "AWAITING_HUMAN",
     });
-    if (result.passed) await stateManager.advance(pipelineId, "OUTPUT");
     return result;
-  }
-
-  private async continueOrPause(
-    pipelineId: string,
-    stage: PipelineStage,
-    validation: ValidationResult
-  ): Promise<boolean> {
-    assertPipelineNotCancelled(pipelineId);
-    if (validation.passed) return true;
-    // A recorded human override for this gate means a reviewer explicitly
-    // approved continuing despite the failed validation. Without this check,
-    // resume re-validates the same output and pauses forever.
-    const override = await pipelineRepo.getLatestOverride(pipelineId, stage);
-    if (override) {
-      await auditRepo.log(pipelineId, "HUMAN_OVERRIDE_APPLIED", {
-        stage,
-        overriddenBy: override.overriddenBy,
-        overriddenAt: override.overriddenAt.toISOString(),
-        bypassedIssues: validation.issues.map((i) => i.message),
-      });
-      return true;
-    }
-    await stateManager.pauseForHuman(
-      pipelineId,
-      stage,
-      validation.issues.map((i) => i.message).join("; ")
-    );
-    return false;
   }
 
   /** Call between expensive stages so Stop session takes effect promptly. */

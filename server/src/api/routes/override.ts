@@ -15,14 +15,9 @@ const router = Router();
 
 const overrideSchema = z.object({
   stage: z.enum([
-    "INGESTION",
-    "PRODUCT_AGENT",
     "PRD_VALIDATION",
-    "ENGINEERING_AGENT",
     "IMPLEMENTATION_VALIDATION",
-    "QA_AGENT",
     "QA_VALIDATION",
-    "OUTPUT",
   ]),
   correctedOutput: z.record(z.unknown()),
   overriddenBy: z.string().min(1),
@@ -83,16 +78,11 @@ router.post("/:pipelineId/override", async (req, res, next) => {
 
 function nextStageAfter(
   stage: z.infer<typeof overrideSchema>["stage"]
-): "PRODUCT_AGENT" | "PRD_VALIDATION" | "ENGINEERING_AGENT" | "IMPLEMENTATION_VALIDATION" | "QA_AGENT" | "QA_VALIDATION" | "OUTPUT" {
+): "ENGINEERING_AGENT" | "QA_AGENT" | "OUTPUT" {
   const map = {
-    INGESTION: "PRODUCT_AGENT",
-    PRODUCT_AGENT: "PRD_VALIDATION",
     PRD_VALIDATION: "ENGINEERING_AGENT",
-    ENGINEERING_AGENT: "IMPLEMENTATION_VALIDATION",
     IMPLEMENTATION_VALIDATION: "QA_AGENT",
-    QA_AGENT: "QA_VALIDATION",
     QA_VALIDATION: "OUTPUT",
-    OUTPUT: "OUTPUT",
   } as const;
   return map[stage];
 }

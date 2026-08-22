@@ -49,4 +49,24 @@ export const ticketRepo = {
     const org = activeOrganizationFilter();
     await prisma.ticket.updateMany({ where: { id, ...org }, data: { status } });
   },
+
+  async patchNormalizedData(
+    id: string,
+    patch: Record<string, unknown>
+  ): Promise<void> {
+    const org = activeOrganizationFilter();
+    const existing = await prisma.ticket.findFirst({
+      where: { id, ...org },
+      select: { normalizedData: true },
+    });
+    if (!existing) return;
+    const current =
+      existing.normalizedData && typeof existing.normalizedData === "object"
+        ? (existing.normalizedData as Record<string, unknown>)
+        : {};
+    await prisma.ticket.updateMany({
+      where: { id, ...org },
+      data: { normalizedData: { ...current, ...patch } as Prisma.InputJsonValue },
+    });
+  },
 };

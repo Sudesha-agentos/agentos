@@ -117,7 +117,11 @@ export const pipelineRepo = {
     stage: PipelineStage
   ): Promise<PipelineStageLog | null> {
     return prisma.pipelineStageLog.findFirst({
-      where: { pipelineId, stage, status: "COMPLETED" },
+      where: {
+        pipelineId,
+        stage,
+        status: { in: ["COMPLETED", "AWAITING_HUMAN"] },
+      },
       orderBy: { completedAt: "desc" },
     });
   },

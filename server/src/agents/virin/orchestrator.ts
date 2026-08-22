@@ -63,6 +63,7 @@ import type {
 import { VIRIN_STAGE_ORDER } from "./types";
 import { normalizeDiscoverySummary } from "./normalizeDiscoverySummary";
 import { getPipelineSettings } from "../../pipeline/settingsStore";
+import { extractOriginalTicket, runGate } from "../../gates";
 
 export type { VirinRunMode };
 
@@ -588,8 +589,30 @@ async function runVirinStageHandler(
   switch (stage) {
     case "INTAKE":
       return runIntake(jiraKey, ticket, ctx, record, mode);
-    case "QUESTION_MODE":
-      return runQuestionMode(jiraKey, ticket, ctx, record, mode);
+    case "QUESTION_MODE": {
+      const pause = await runQuestionMode(jiraKey, ticket, ctx, record, mode);
+      if (pause) return true;
+      const latest = pmAnalysisStore.get(jiraKey) ?? record;
+      const discoveryGate = await runGate("virin_discovery", {
+        pmRecord: latest,
+        virinMode: mode,
+        ticket: extractOriginalTicket(undefined, latest),
+      });
+      pmAnalysisStore.update(jiraKey, {
+        gateResults: { ...latest.gateResults, virin_discovery: discoveryGate },
+      });
+      if (!discoveryGate.passed && !latest.gateOverrides?.virin_discovery) {
+        pmAnalysisStore.update(jiraKey, {
+          status: "AWAITING_INPUT",
+          pendingQuestion:
+            "Discovery gate failed: " +
+            discoveryGate.issues.map((i) => i.message).join("; "),
+          pendingQuestionStage: "QUESTION_MODE",
+        });
+        return true;
+      }
+      return false;
+    }
     case "COMPETITOR_ANALYSIS":
       return runCompetitorAnalysis(jiraKey, ticket, ctx, record, mode);
     case "CODEBASE_ANALYSIS":
@@ -603,9 +626,27 @@ async function runVirinStageHandler(
       return false;
     case "SOLUTIONING":
       return runSolutioning(jiraKey, ctx, record, mode);
-    case "PRD":
+    case "PRD": {
       await runPrdGeneration(jiraKey, ticket, ctx, record);
+      const latest = pmAnalysisStore.get(jiraKey) ?? record;
+      const prdGate = await runGate("virin_prd", {
+        pmRecord: latest,
+        generatedPrd: latest.generatedPrd,
+        virinMode: mode,
+        ticket: extractOriginalTicket(undefined, latest),
+      });
+      pmAnalysisStore.update(jiraKey, {
+        gateResults: { ...latest.gateResults, virin_prd: prdGate },
+      });
+      if (!prdGate.passed && !latest.gateOverrides?.virin_prd) {
+        pmAnalysisStore.update(jiraKey, {
+          status: "AWAITING_CONFIRMATION",
+          pendingPrdGate: true,
+        });
+        return true;
+      }
       return false;
+    }
     case "HANDOFF":
       await runHandoff(jiraKey, record);
       return false;
@@ -1216,6 +1257,37 @@ export async function confirmVirinSolution(
   if (!record) throw new Error(`No Virin analysis for ${key}`);
   if (record.status !== "AWAITING_CONFIRMATION") {
     throw new Error("Analysis is not waiting for direction confirmation");
+  }
+
+  if (record.pendingPrdGate) {
+    if (!confirmed) {
+      pmAnalysisStore.update(key, {
+        pendingPrdGate: false,
+        status: "RUNNING",
+      });
+      return runVirinPipeline({
+        jiraKey: key,
+        resumeFrom: "PRD",
+        mode: (record.neelMode ?? "interactive") as VirinRunMode,
+      });
+    }
+    pmAnalysisStore.update(key, {
+      pendingPrdGate: false,
+      status: "RUNNING",
+      gateOverrides: {
+        ...record.gateOverrides,
+        virin_prd: {
+          overriddenBy: "human",
+          reason: feedback ?? "PRD gate override",
+          at: new Date().toISOString(),
+        },
+      },
+    });
+    return runVirinPipeline({
+      jiraKey: key,
+      resumeFrom: "HANDOFF",
+      mode: (record.neelMode ?? "interactive") as VirinRunMode,
+    });
   }
 
   if (!confirmed) {

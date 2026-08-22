@@ -48,9 +48,21 @@ router.get("/", async (req, res) => {
       },
       orderBy: { startedAt: "desc" },
       take: 50,
-      include: { ticket: true },
+      include: {
+        ticket: true,
+        stages: {
+          where: { status: "AWAITING_HUMAN" },
+          orderBy: { completedAt: "desc" },
+          take: 1,
+        },
+      },
     });
-    res.json({ items });
+    res.json({
+      items: items.map(({ stages, ...pipeline }) => ({
+        ...pipeline,
+        latestValidation: stages[0]?.validationResult ?? null,
+      })),
+    });
   });
 });
 

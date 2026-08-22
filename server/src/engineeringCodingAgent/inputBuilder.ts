@@ -225,6 +225,7 @@ ${input.databaseCatalogBlock ? input.databaseCatalogBlock : "CUSTOMER DATABASES:
 CRITICAL IMPLEMENTATION RULES:
 - The PRD + acceptance criteria above are the source of truth. Implement every criterion and user story unless it is explicitly out of scope.
 - criteriaMapping entries must each be realized in code (or content deliverables). Do not ship a partial subset.
+- Each criteriaMapping entry should cite files[] that exist in your codeChanges.
 - Prefer editing the files named in the plan / task breakdown / verified paths over inventing unrelated files.
 - In codingSummary, list which acceptance criteria each change satisfies.
 

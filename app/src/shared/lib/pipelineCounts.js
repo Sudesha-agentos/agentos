@@ -31,18 +31,29 @@ export function deriveReviewQueueItems(pipelines = [], orgPath = (...segments) =
       const isPrd = stage === "PRD_VALIDATION" || stage === "PRODUCT_AGENT";
       const isEng =
         stage === "ENGINEERING_AGENT" || stage === "IMPLEMENTATION_VALIDATION";
-      const severity = isPrd ? "critical" : isEng ? "warning" : "warning";
-      const reason = isPrd
-        ? "PRD Gate Failed: Confidence 61%"
-        : isEng
-          ? "Engineering check: 2 criteria unmapped"
-          : "Validation gate: human review required";
-      const actionLabel = isPrd ? "Review PRD" : isEng ? "Review Plan" : "Review";
+      const issues = (p.latestValidation?.issues ?? []).filter(
+        (issue) => issue.severity === "error"
+      );
+      const reason =
+        issues[0]?.message ??
+        (isPrd
+          ? "PRD gate requires human review"
+          : isEng
+            ? "Implementation gate requires human review"
+            : "QA gate requires human review");
+      const severity = issues.some((issue) =>
+        ["INTENT_DRIFT", "COMPILE_FAILED", "TESTS_FAILED", "SECURITY_GATE"].includes(
+          issue.code
+        )
+      )
+        ? "critical"
+        : isPrd
+          ? "critical"
+          : "warning";
+      const actionLabel = isPrd ? "Review PRD" : isEng ? "Review plan" : "Review";
       const actionTo = isPrd
         ? orgPath("pipelines", p.id, "prd")
-        : isEng
-          ? `${orgPath("ananta")}?pipeline=${encodeURIComponent(p.id)}`
-          : orgPath("pipelines", p.id, "override");
+        : orgPath("pipelines", p.id, "override");
       const started = p.startedAt ? new Date(p.startedAt).getTime() : Date.now();
       const waitingMinutes = Math.max(1, Math.round((Date.now() - started) / 60_000));
 

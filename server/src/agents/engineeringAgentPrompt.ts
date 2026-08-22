@@ -46,7 +46,9 @@ Output valid JSON matching this structure:
   "criteriaMapping": [
     {
       "criterion": "string — exact acceptance criterion from PRD",
-      "implementation": "string — how this criterion will be met technically"
+      "implementation": "string — how this criterion will be met technically",
+      "files": ["path/to/file.ts"],
+      "symbols": ["functionOrClassName"]
     }
   ],
   "blockers": ["string — anything that must be resolved before starting"],
@@ -61,6 +63,7 @@ Note: implementationMode must be the string "content" or "code". targetFiles is 
 Rules:
 - Every acceptance criterion in the PRD must appear in criteriaMapping.
   If you cannot map a criterion, flag it as a blocker.
+- criteriaMapping files/symbols must name the real files and functions you will change — not prose alone.
 - Do not assume any technology stack. Work with what is provided.
 - Treat codebaseIntelligence as source-of-truth repository context. Prefer it
   over guesses, and explicitly call out uncertainty when the snapshot is empty.

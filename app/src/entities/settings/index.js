@@ -68,6 +68,9 @@ async function saveServerSettings(settings) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         systemDesignComplexityThreshold: settings.systemDesignComplexityThreshold,
+        prdConfidenceThreshold: settings.prdConfidenceThreshold,
+        implementationConfidenceThreshold: settings.implementationConfidenceThreshold,
+        qaCoverageThreshold: settings.qaCoverageThreshold,
       }),
     });
   }
@@ -81,11 +84,13 @@ const settingsAdapter = {
     if (!serverCanary) return local;
 
     let pipelineThreshold = local.systemDesignComplexityThreshold;
+    let serverPipeline = null;
     try {
       const serverSettings = await fetchJson(apiPath("/api/settings"));
       if (serverSettings?.pipeline?.systemDesignComplexityThreshold != null) {
         pipelineThreshold = serverSettings.pipeline.systemDesignComplexityThreshold;
       }
+      serverPipeline = serverSettings?.pipeline ?? null;
     } catch {
       /* optional */
     }
@@ -97,6 +102,13 @@ const settingsAdapter = {
         serverCanary.productionBaseUrl ?? local.canaryProductionBaseUrl,
       canaryAuthToken: local.canaryAuthToken,
       systemDesignComplexityThreshold: pipelineThreshold,
+      prdConfidenceThreshold:
+        serverPipeline?.prdConfidenceThreshold ?? local.prdConfidenceThreshold,
+      implementationConfidenceThreshold:
+        serverPipeline?.implementationConfidenceThreshold ??
+        local.implementationConfidenceThreshold,
+      qaCoverageThreshold:
+        serverPipeline?.qaCoverageThreshold ?? local.qaCoverageThreshold,
     });
   },
   async save(settings) {

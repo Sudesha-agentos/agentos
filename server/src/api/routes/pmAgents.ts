@@ -362,7 +362,22 @@ router.post("/handoff/:ticketId/start-pipeline", async (req, res, next) => {
         );
       }
 
-      const result = await startEngineeringHandoff(jiraKey, user.organizationId!);
+      const result = await startEngineeringHandoff(jiraKey, user.organizationId!, {
+        override: Boolean(req.body?.override),
+        overriddenBy: typeof req.body?.overriddenBy === "string" ? req.body.overriddenBy : user.email,
+        reason: typeof req.body?.reason === "string" ? req.body.reason : undefined,
+      });
+
+      if (result.gateBlocked) {
+        res.status(422).json({
+          jiraKey,
+          status: "blocked",
+          message: result.message,
+          gateIssues: result.gateIssues ?? [],
+          engineeringHandoff: pmAnalysisStore.get(jiraKey)?.engineeringHandoff ?? null,
+        });
+        return;
+      }
 
       res.status(202).json({
         jiraKey,

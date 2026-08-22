@@ -176,6 +176,7 @@ function EngineeringProgress({ jiraKey }) {
 }
 
 function gateStageForAnalysis(analysis) {
+  if (analysis?.pendingPrdGate) return "PRD";
   if (analysis?.status === "AWAITING_CONFIRMATION") return "SOLUTIONING";
   if (analysis?.status === "AWAITING_INPUT") {
     return analysis.pendingQuestionStage ?? analysis.currentStage ?? "QUESTION_MODE";
@@ -334,6 +335,21 @@ function renderStageContent(stageId, analysis, handlers) {
         <StagePanel stageId={stageId} analysis={analysis} pendingLabel="PRD not generated yet.">
           {analysis.generatedPrd ? (
             <div className="space-y-4">
+              {analysis.gateResults?.virin_prd && !analysis.gateResults.virin_prd.passed ? (
+                <Panel className="border-warning/30">
+                  <PanelHeader kicker="PRD gate" title="Blocking issues" />
+                  <ul className="space-y-2 px-5 py-4 text-[13px] sm:px-6">
+                    {(analysis.gateResults.virin_prd.issues ?? []).map((issue, i) => (
+                      <li key={`${issue.code}-${i}`}>
+                        <span className="mr-2 font-mono text-[11px] text-app-ink-mute">
+                          [{issue.code}]
+                        </span>
+                        {issue.message}
+                      </li>
+                    ))}
+                  </ul>
+                </Panel>
+              ) : null}
               {orgIntel ? <VirinOrgIntelligenceSection summary={orgIntel} /> : null}
               <VirinSynthesisSection
                 synthesisSummary={analysis.synthesisSummary}

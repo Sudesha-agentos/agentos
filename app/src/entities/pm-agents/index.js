@@ -132,11 +132,11 @@ const restPmAdapter = {
       headers: pmHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify({}),
     }),
-  startPipeline: (ticketId) =>
+  startPipeline: (ticketId, body = {}) =>
     fetchJson(pm(`/handoff/${encodeURIComponent(ticketId)}/start-pipeline`), {
       method: "POST",
       headers: pmHeaders({ "Content-Type": "application/json" }),
-      body: JSON.stringify({}),
+      body: JSON.stringify(body),
     }),
   cancelAnalysis: (ticketId) =>
     fetchJson(pm(`/analyze/${encodeURIComponent(ticketId)}/cancel`), {
@@ -158,7 +158,7 @@ const mockPmAdapter = {
   exportPackage: (ticketId) => mockApi.getPmAnalysis(ticketId),
   getHandoff: (ticketId) => mockApi.getPmHandoff(ticketId),
   runHandoff: (ticketId) => mockApi.runPmHandoff(ticketId),
-  startPipeline: (ticketId) => mockApi.startPmPipeline(ticketId),
+  startPipeline: (ticketId, body) => mockApi.startPmPipeline(ticketId, body),
   cancelAnalysis: (ticketId) => mockApi.cancelPmAnalysis?.(ticketId) ?? Promise.resolve({ status: "CANCELLED" }),
 };
 
@@ -245,8 +245,8 @@ export function runPmHandoff(ticketId) {
   return adapter.runHandoff(ticketId);
 }
 
-export function startPmCodingPipeline(ticketId) {
-  return adapter.startPipeline(ticketId);
+export function startPmCodingPipeline(ticketId, body) {
+  return adapter.startPipeline(ticketId, body);
 }
 
 export function cancelPmAnalysis(ticketId) {

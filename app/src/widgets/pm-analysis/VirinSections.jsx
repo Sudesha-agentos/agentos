@@ -289,6 +289,63 @@ export function VirinConversationPanel({ analysis, onAnswer, onConfirm, busy, pr
     );
   }
 
+  if (status === "AWAITING_CONFIRMATION" && analysis?.pendingPrdGate) {
+    const issues = analysis.gateResults?.virin_prd?.issues ?? [];
+    const findings = analysis.gateResults?.virin_prd?.findings ?? [];
+    return (
+      <Panel className={prominent ? "border-warning/25 shadow-lg" : ""}>
+        <PanelHeader
+          kicker="Gate · PRD"
+          title="PRD validation failed"
+          subtitle={`${VIRIN_NAME} will not hand off to engineering until this gate passes or you override.`}
+        />
+        <div className="space-y-4 px-5 py-5 sm:px-6">
+          <ul className="space-y-2">
+            {issues.map((issue, i) => (
+              <li
+                key={`${issue.code}-${i}`}
+                className="rounded-app-sm border border-app-border p-3 text-[13px] text-app-ink"
+              >
+                <span className="mr-2 font-mono text-[11px] text-app-ink-mute">[{issue.code}]</span>
+                {issue.message}
+              </li>
+            ))}
+          </ul>
+          {findings.length > 0 ? (
+            <ul className="space-y-1 text-[12px] text-app-ink-dim">
+              {findings.slice(0, 8).map((finding, i) => (
+                <li key={i}>
+                  {finding.path ? `${finding.path}: ` : ""}
+                  {finding.message}
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          <div className="flex flex-wrap gap-3 border-t border-app-border pt-4">
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => onConfirm({ confirmed: true, feedback: "Override PRD gate" })}
+              className="app-btn-primary disabled:opacity-50"
+            >
+              {busy ? "Overriding…" : "Override and continue to handoff"}
+            </button>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() =>
+                onConfirm({ confirmed: false, feedback: "Revise the PRD" })
+              }
+              className="rounded-full border border-app-border px-4 py-2 text-[13px] disabled:opacity-50"
+            >
+              Request PRD revisions
+            </button>
+          </div>
+        </div>
+      </Panel>
+    );
+  }
+
   if (status === "AWAITING_CONFIRMATION" && analysis?.solutioning) {
     const sol = analysis.solutioning;
     const orgIntel =

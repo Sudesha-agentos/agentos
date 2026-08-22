@@ -1,6 +1,8 @@
 import { z } from "zod";
 import type { PrdOutput, QaOutput } from "../types/agents";
 import type { ValidationIssue, ValidationResult } from "../types/pipeline";
+import { getPipelineSettings } from "../pipeline/settingsStore";
+import type { QaExecutionReport } from "../qa/report/reportGenerator";
 
 const qaSchema = z.object({
   testSummary: z.string().min(20),
@@ -60,13 +62,15 @@ const qaSchema = z.object({
   locatorHealProposals: z.array(z.any()).optional(),
 });
 
-const MIN_COVERAGE_PERCENT = 95;
-
 /**
  * The QA gate enforces that every acceptance criterion is actually covered
  * by at least one test case and that the reported coverage matches reality.
  */
-export function validateQa(qa: unknown, prd: PrdOutput): ValidationResult {
+export function validateQa(
+  qa: unknown,
+  prd: PrdOutput,
+  options?: { executionReport?: QaExecutionReport; coverageThreshold?: number }
+): ValidationResult {
   const issues: ValidationIssue[] = [];
   const amberFlags: string[] = [];
 
@@ -119,11 +123,13 @@ export function validateQa(qa: unknown, prd: PrdOutput): ValidationResult {
       ? 100
       : (trulyCovered.length / prd.acceptanceCriteria.length) * 100;
 
-  if (actualPercent < MIN_COVERAGE_PERCENT) {
+  const coverageFloor =
+    options?.coverageThreshold ?? getPipelineSettings().qaCoverageThreshold;
+  if (actualPercent < coverageFloor) {
     issues.push({
       code: "COVERAGE_BELOW_THRESHOLD",
       severity: "error",
-      message: `Coverage ${actualPercent.toFixed(1)}% below ${MIN_COVERAGE_PERCENT}% threshold. Uncovered: ${trulyUncovered
+      message: `Coverage ${actualPercent.toFixed(1)}% below ${coverageFloor}% threshold. Uncovered: ${trulyUncovered
         .map((c) => `"${c.slice(0, 60)}..."`)
         .join("; ")}`,
     });
@@ -175,6 +181,23 @@ export function validateQa(qa: unknown, prd: PrdOutput): ValidationResult {
       code: "LOW_CONFIDENCE",
       severity: "error",
       message: `QA confidence ${effectiveConfidence} below 0.7 threshold.`,
+    });
+  }
+
+  const failedTests = options?.executionReport?.testRun?.failed ?? 0;
+  if (failedTests > 0) {
+    issues.push({
+      code: "TESTS_FAILED",
+      severity: "error",
+      message: `${failedTests} sandbox test(s) failed — QA gate cannot pass.`,
+    });
+  }
+  const recommendation = options?.executionReport?.overallRecommendation;
+  if (recommendation === "block" || recommendation === "request_changes") {
+    issues.push({
+      code: "QA_RECOMMENDATION",
+      severity: "error",
+      message: `QA recommendation is "${recommendation}" — human review required.`,
     });
   }
 

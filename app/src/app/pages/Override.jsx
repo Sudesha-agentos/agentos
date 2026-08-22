@@ -8,28 +8,38 @@ import { formatStageLabel } from "../../shared/lib/format";
 import { PageIntro } from "../../shared/ui/Panel";
 import { AnimatedAppPage } from "../../shared/ui/AnimatedAppPage";
 import OverrideEditorWidget from "../../widgets/override-editor/OverrideEditorWidget";
+import ValidationPanelWidget from "../../widgets/validation-panel/ValidationPanelWidget";
+import { useOrg } from "../../shared/providers/OrgRouteProvider";
+
+const GATE_STAGES = new Set([
+  "PRD_VALIDATION",
+  "IMPLEMENTATION_VALIDATION",
+  "QA_VALIDATION",
+]);
 
 export default function Override() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { orgPath } = useOrg();
   const { item, loading } = usePipelineDetail(id);
   const { submit, pending } = useSubmitOverride();
 
-  const pausedStage = useMemo(
-    () =>
-      item?.stages?.find(
-        (s) => s.status === "AWAITING_HUMAN" || s.status === "RUNNING"
-      ) ?? item?.stages?.[0],
-    [item]
-  );
+  const pausedStage = useMemo(() => {
+    const awaiting = item?.stages?.find((s) => s.status === "AWAITING_HUMAN");
+    if (awaiting && GATE_STAGES.has(awaiting.stage)) return awaiting;
+    const current = item?.stages?.find((s) => s.stage === item.currentStage);
+    if (current && GATE_STAGES.has(current.stage)) return current;
+    return item?.stages?.find((s) => GATE_STAGES.has(s.stage)) ?? null;
+  }, [item]);
 
-  // Find the agent stage right before the failed gate so we can show its
-  // output as the "original" to be corrected.
-  const correctingStage = useMemo(() => {
+  const originalStage = useMemo(() => {
     if (!item || !pausedStage) return null;
-    const order = item.stages.map((s) => s.stage);
-    const idx = order.indexOf(pausedStage.stage);
-    return item.stages[Math.max(idx - 1, 0)];
+    const prior = {
+      PRD_VALIDATION: "PRODUCT_AGENT",
+      IMPLEMENTATION_VALIDATION: "ENGINEERING_AGENT",
+      QA_VALIDATION: "QA_AGENT",
+    }[pausedStage.stage];
+    return item.stages.find((s) => s.stage === prior) ?? pausedStage;
   }, [item, pausedStage]);
 
   const [draft, setDraft] = useState("");
@@ -38,14 +48,11 @@ export default function Override() {
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState(null);
 
-  // Seed the editor with the prior output the first time we see this stage.
-  // React 19 explicitly supports setState-during-render for this "store
-  // information from a previous render" pattern.
   const [seededStageId, setSeededStageId] = useState(null);
-  if (correctingStage && correctingStage.id !== seededStageId) {
-    setSeededStageId(correctingStage.id);
-    if (correctingStage.output && !draft) {
-      setDraft(JSON.stringify(correctingStage.output, null, 2));
+  if (originalStage && originalStage.id !== seededStageId) {
+    setSeededStageId(originalStage.id);
+    if (originalStage.output && !draft) {
+      setDraft(JSON.stringify(originalStage.output, null, 2));
     }
   }
 
@@ -60,6 +67,10 @@ export default function Override() {
   async function onSubmit(event) {
     event.preventDefault();
     setError(null);
+    if (!pausedStage || !GATE_STAGES.has(pausedStage.stage)) {
+      setError("Override can only be recorded on PRD, implementation, or QA gates.");
+      return;
+    }
     let parsed;
     try {
       parsed = JSON.parse(draft);
@@ -73,13 +84,13 @@ export default function Override() {
     }
     try {
       await submit(id, {
-        stage: correctingStage.stage,
+        stage: pausedStage.stage,
         correctedOutput: parsed,
         overriddenBy: reviewer.trim(),
         reason: reason.trim() || undefined,
       });
       setSubmitted(true);
-      window.setTimeout(() => navigate(`/app/pipelines/${id}`), 1400);
+      window.setTimeout(() => navigate(orgPath("pipelines", id)), 1400);
     } catch (e) {
       setError(e?.message ?? "Override submission failed.");
     }
@@ -89,25 +100,29 @@ export default function Override() {
     <AnimatedAppPage wide>
       <header className="flex flex-col gap-2">
         <Link
-          to={`/app/pipelines/${id}`}
+          to={orgPath("pipelines", id)}
           className="type-kicker transition-colors hover:text-app-ink"
         >
           ← pipeline
         </Link>
         <PageIntro
           kicker="Override"
-          title="Correct the agent output and resume the pipeline."
+          title={`Resume ${pausedStage ? formatStageLabel(pausedStage.stage) : "the paused gate"}.`}
           right={<StatusPill status={item?.status} />}
         />
       </header>
 
+      {pausedStage?.validationResult ? (
+        <ValidationPanelWidget validation={pausedStage.validationResult} />
+      ) : null}
+
       <OverrideEditorWidget
         originalStageLabel={
-          correctingStage ? formatStageLabel(correctingStage.stage) : "Agent output"
+          originalStage ? formatStageLabel(originalStage.stage) : "Agent output"
         }
         originalOutput={
-          correctingStage?.output
-            ? JSON.stringify(correctingStage.output, null, 2)
+          originalStage?.output
+            ? JSON.stringify(originalStage.output, null, 2)
             : ""
         }
         draft={draft}
