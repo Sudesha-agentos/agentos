@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { PrdOutput } from "../types/agents";
 import type { ValidationIssue, ValidationResult } from "../types/pipeline";
+import { getPipelineSettings } from "../pipeline/settingsStore";
 
 const prdSchema = z.object({
   title: z.string().min(3),
@@ -80,7 +81,11 @@ export function validatePrd(prd: unknown, options?: ValidatePrdOptions): Validat
   }
 
   if (data.edgeCases.length === 0) {
-    amberFlags.push("No edge cases captured — engineering will have to guess.");
+    issues.push({
+      code: "MISSING_EDGE_CASES",
+      severity: "error",
+      message: "PRD has no edge cases — engineering will have to guess failure modes.",
+    });
   }
   if (data.outOfScope.length === 0) {
     amberFlags.push("No out-of-scope items declared — scope creep risk is high.");
@@ -90,11 +95,12 @@ export function validatePrd(prd: unknown, options?: ValidatePrdOptions): Validat
       "Open questions present but confidence is high. Verify reviewer expectation."
     );
   }
-  if (data.confidenceScore < 0.7 && options?.source !== "pm_agents") {
+  const confidenceFloor = getPipelineSettings().prdConfidenceThreshold;
+  if (data.confidenceScore < confidenceFloor && options?.source !== "pm_agents") {
     issues.push({
       code: "LOW_CONFIDENCE",
       severity: "error",
-      message: `PRD quality score ${data.confidenceScore} below 0.7 threshold — human clarification required.`,
+      message: `PRD quality score ${data.confidenceScore} below ${confidenceFloor} threshold — human clarification required.`,
     });
   }
   // PM-agent PRDs already passed product review, so they skip the standard

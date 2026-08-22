@@ -1,10 +1,13 @@
 import { useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { usePipelineDetail } from "../../entities/pipeline";
+import { useSubmitOverride } from "../../features/submit-override/model/useSubmitOverride";
 import { AGENT_NAMES } from "../../shared/config/app";
 import { PageIntro, Panel, PanelHeader } from "../../shared/ui/Panel";
 import { AnimatedAppPage } from "../../shared/ui/AnimatedAppPage";
 import Spinner from "../components/Spinner";
+import { useOrg } from "../../shared/providers/OrgRouteProvider";
+import ValidationPanelWidget from "../../widgets/validation-panel/ValidationPanelWidget";
 
 const SECTIONS = [
   { id: "problem", label: "Problem Statement" },
@@ -16,8 +19,13 @@ const SECTIONS = [
 
 export default function PrdViewer() {
   const { id } = useParams();
+  const navigate = useNavigate();
+  const { orgPath } = useOrg();
   const { item, loading } = usePipelineDetail(id);
+  const { submit, pending } = useSubmitOverride();
   const [activeSection, setActiveSection] = useState("problem");
+  const [error, setError] = useState(null);
+  const [submitted, setSubmitted] = useState(false);
 
   const prdStage = item?.stages?.find((s) => s.stage === "PRODUCT_AGENT");
   const stageOutput = prdStage?.output ?? {};
@@ -32,6 +40,23 @@ export default function PrdViewer() {
     prd?.confidenceScore ??
     prdStage?.confidenceScore ??
     0.72;
+  const paused = item?.status === "PAUSED" && item?.currentStage === "PRD_VALIDATION";
+
+  async function approve(force) {
+    setError(null);
+    try {
+      await submit(id, {
+        stage: "PRD_VALIDATION",
+        correctedOutput: prd && typeof prd === "object" ? prd : { approved: true },
+        overriddenBy: "prd-reviewer",
+        reason: force ? "Forced PRD gate override" : "Approved PRD gate",
+      });
+      setSubmitted(true);
+      window.setTimeout(() => navigate(orgPath("pipelines", id)), 1200);
+    } catch (err) {
+      setError(err?.message ?? "Could not approve the PRD gate.");
+    }
+  }
 
   if (loading && !item) {
     return (
@@ -75,15 +100,19 @@ export default function PrdViewer() {
 
         <div className="min-w-0 flex-1 space-y-5">
           <Link
-            to={`/app/pipelines?selected=${id}`}
+            to={orgPath("pipelines") + `?selected=${id}`}
             className="type-kicker hover:text-app-ink"
           >
             ← pipeline explorer
           </Link>
           <PageIntro
             kicker={item?.jiraKey ?? "PRD"}
-            title={prd?.title ?? item?.summary ?? "Product requirements"}
+            title={prd?.title ?? item?.summary ?? "Product requirements"}
           />
+
+          {gate?.validationResult ? (
+            <ValidationPanelWidget validation={gate.validationResult} />
+          ) : null}
 
           <Panel>
             <PanelHeader kicker="Document" title={SECTIONS.find((s) => s.id === activeSection)?.label} />
@@ -92,15 +121,26 @@ export default function PrdViewer() {
             </div>
           </Panel>
 
+          {error ? <p className="text-[13px] text-danger">{error}</p> : null}
+          {submitted ? <p className="text-[13px] text-success">Gate approved — resuming.</p> : null}
+
           <aside className="rounded-app border border-app-border bg-app-surface-muted/40 p-4 lg:hidden">
             <p className="type-kicker">Actions</p>
             <div className="mt-3 flex flex-col gap-2">
-              <button type="button" className="app-btn-primary text-[13px]">
+              <button
+                type="button"
+                disabled={!paused || pending}
+                onClick={() => approve(false)}
+                className="app-btn-primary text-[13px] disabled:opacity-50"
+              >
                 Approve and continue
               </button>
-              <button type="button" className="rounded-full border border-app-border px-4 py-2 text-[13px]">
+              <Link
+                to={orgPath("pipelines", id, "override")}
+                className="rounded-full border border-app-border px-4 py-2 text-center text-[13px]"
+              >
                 Request revisions
-              </button>
+              </Link>
             </div>
           </aside>
         </div>
@@ -113,13 +153,26 @@ export default function PrdViewer() {
             </p>
             <p className="mt-0.5 text-[12px] text-app-ink-dim">{band.label}</p>
             <div className="mt-5 space-y-2">
-              <button type="button" className="app-btn-primary w-full text-[13px]">
+              <button
+                type="button"
+                disabled={!paused || pending}
+                onClick={() => approve(false)}
+                className="app-btn-primary w-full text-[13px] disabled:opacity-50"
+              >
                 Approve and continue
               </button>
-              <button type="button" className="w-full rounded-full border border-app-border py-2 text-[13px]">
+              <Link
+                to={orgPath("pipelines", id, "override")}
+                className="block w-full rounded-full border border-app-border py-2 text-center text-[13px]"
+              >
                 Request revisions
-              </button>
-              <button type="button" className="w-full rounded-full border border-warning/40 py-2 text-[13px] text-warning">
+              </Link>
+              <button
+                type="button"
+                disabled={!paused || pending}
+                onClick={() => approve(true)}
+                className="w-full rounded-full border border-warning/40 py-2 text-[13px] text-warning disabled:opacity-50"
+              >
                 Override and force
               </button>
             </div>
@@ -153,8 +206,8 @@ function PrdSection({ active, prd }) {
     return (
       <ul className="space-y-3">
         {stories.map((story) => (
-          <li key={story.id ?? story.story} className="border-l-2 border-indigo/40 pl-3">
-            <p className="text-app-ink">{story.story}</p>
+          <li key={story.id ?? story.story ?? story} className="border-l-2 border-indigo/40 pl-3">
+            <p className="text-app-ink">{story.story ?? story}</p>
             <ul className="mt-1.5 space-y-1 text-[13px] text-app-ink-dim">
               {(story.acceptanceCriteria ?? []).map((ac) => (
                 <li key={ac} className="flex gap-2">
@@ -186,8 +239,8 @@ function PrdSection({ active, prd }) {
     return (
       <ul className="space-y-2">
         {(prd.openQuestions ?? []).map((q) => (
-          <li key={q.question} className="rounded-app-sm border border-app-border p-3">
-            <p className="text-app-ink">{q.question}</p>
+          <li key={q.question ?? q} className="rounded-app-sm border border-app-border p-3">
+            <p className="text-app-ink">{q.question ?? q}</p>
             <p className="mt-1.5 text-[12px] text-app-ink-dim">
               Default assumption: {q.defaultAssumption ?? q.assumption ?? "—"}
             </p>

@@ -91,6 +91,7 @@ ${knowledgeBlock ? `${knowledgeBlock}\n` : ""}
 - The user message contains the authoritative PRD (user stories, acceptance criteria, edge cases, out of scope, success metrics). Treat it as the product contract — not a hint.
 - Implement every acceptance criterion and user story unless listed under Out of Scope. Do not invent a smaller MVP that drops PRD items.
 - codingSummary and criteriaMapping in the final JSON must account for each acceptance criterion (implemented or explicitly deferred with reason).
+- When you update criteriaMapping, cite the actual files and symbols you changed (files[] / symbols[]).
 - Prefer edit_file for single-file edits (old_string/new_string must match closely)
 - For coordinated multi-file changes, use apply_aider_edits with Aider blocks:
   path/to/file.ext

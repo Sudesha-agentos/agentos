@@ -19,6 +19,12 @@ export interface NormalizedTicket {
   pmContext?: PmPipelineContext;
   intakeSourceKey?: string;
   parentStoryKey?: string;
+  /** Frozen original ask — gates compare against this, not the drifted PRD. */
+  originalTicket?: {
+    summary: string;
+    description: string;
+    comments?: string;
+  };
 }
 
 export interface IntentClassification {

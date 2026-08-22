@@ -389,6 +389,28 @@ export async function workspaceGitDiff(workspaceDir: string, filePath?: string):
   return stdout.slice(0, 20_000);
 }
 
+/** Diff of the latest commit (used after Ananta has already committed). */
+export async function workspaceCommittedDiff(workspaceDir: string): Promise<string> {
+  try {
+    const { stdout } = await execFileAsync("git", ["diff", "HEAD~1", "HEAD"], {
+      cwd: workspaceDir,
+      timeout: 15_000,
+    });
+    if (stdout.trim()) return stdout.slice(0, 20_000);
+  } catch {
+    /* first commit or shallow clone */
+  }
+  try {
+    const { stdout } = await execFileAsync("git", ["show", "--format=", "HEAD"], {
+      cwd: workspaceDir,
+      timeout: 15_000,
+    });
+    return stdout.slice(0, 20_000);
+  } catch {
+    return "";
+  }
+}
+
 export interface WorkspaceChangedFile {
   path: string;
   status: "modified" | "added" | "deleted" | "renamed";

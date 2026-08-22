@@ -286,6 +286,16 @@ export interface PmAnalysisRecord {
   updatedAt: string;
   organizationId?: string;
   engineeringHandoff?: EngineeringHandoff;
+  /** Persisted Virin / PRD gate results (not pipeline stage logs). */
+  gateResults?: Partial<Record<import("../../types/pipeline").GateId, import("../../types/pipeline").GateResult>>;
+  gateOverrides?: Partial<
+    Record<
+      import("../../types/pipeline").GateId,
+      { overriddenBy: string; reason?: string; at: string }
+    >
+  >;
+  /** True when Virin paused because the PRD gate failed. */
+  pendingPrdGate?: boolean;
 }
 
 export interface RetrospectiveInput {

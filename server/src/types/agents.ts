@@ -41,6 +41,10 @@ export interface ImplementationRisk {
 export interface CriterionMapping {
   criterion: string;
   implementation: string;
+  /** Paths in the actual workspace diff that realize this criterion. */
+  files?: string[];
+  /** Function/class names in the diff that realize this criterion. */
+  symbols?: string[];
 }
 
 export interface CodeChange {
@@ -71,6 +75,8 @@ export interface ImplementationOutput {
   codingSummary?: string;
   /** True when the post-coding safety compile failed on the pushed branch. */
   compileFailed?: boolean;
+  /** True when safety compile was skipped (no compiler / no package.json). */
+  compileSkipped?: boolean;
 }
 
 export interface TestCaseCitation {

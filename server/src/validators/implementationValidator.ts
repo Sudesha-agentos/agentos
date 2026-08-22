@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { ImplementationOutput, PrdOutput } from "../types/agents";
 import type { ValidationIssue, ValidationResult } from "../types/pipeline";
+import { getPipelineSettings } from "../pipeline/settingsStore";
 
 const implementationSchema = z.object({
   summary: z.string().min(20),
@@ -29,12 +30,15 @@ const implementationSchema = z.object({
     z.object({
       criterion: z.string().min(8),
       implementation: z.string().min(8),
+      files: z.array(z.string()).optional(),
+      symbols: z.array(z.string()).optional(),
     })
   ),
   blockers: z.array(z.string()),
   implementationMode: z.enum(["code", "content"]).optional(),
   targetFiles: z.array(z.string()).optional(),
   compileFailed: z.boolean().optional(),
+  compileSkipped: z.boolean().optional(),
   confidenceScore: z.number().min(0).max(1),
   confidenceReason: z.string().min(8),
 });
@@ -100,15 +104,20 @@ export function validateImplementation(
     amberFlags.push("No risks declared. Engineering must surface at least one risk.");
   }
   if (data.blockers.length > 0) {
-    amberFlags.push(
-      `Plan declares ${data.blockers.length} blocker(s). Pipeline should pause for human review.`
-    );
+    issues.push({
+      code: "IMPLEMENTATION_BLOCKERS",
+      severity: "error",
+      message: `Plan declares ${data.blockers.length} blocker(s): ${data.blockers
+        .slice(0, 3)
+        .join("; ")}`,
+    });
   }
-  if (data.confidenceScore < 0.7) {
+  const confidenceFloor = getPipelineSettings().implementationConfidenceThreshold;
+  if (data.confidenceScore < confidenceFloor) {
     issues.push({
       code: "LOW_CONFIDENCE",
       severity: "error",
-      message: `Implementation confidence ${data.confidenceScore} below 0.7 threshold.`,
+      message: `Implementation confidence ${data.confidenceScore} below ${confidenceFloor} threshold.`,
     });
   }
   if (data.compileFailed) {
@@ -118,6 +127,12 @@ export function validateImplementation(
       message:
         "Safety compile failed on the implementation branch — the pushed code does not build. Human review required before QA runs.",
     });
+  }
+  const modeForCompile = options?.implementationMode ?? data.implementationMode ?? "code";
+  if (modeForCompile !== "content" && data.compileSkipped && !data.compileFailed) {
+    amberFlags.push(
+      "Safety compile was skipped — no compiler/package.json in the workspace."
+    );
   }
 
   const mode = options?.implementationMode ?? data.implementationMode ?? "code";

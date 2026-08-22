@@ -92,6 +92,7 @@ export function mapPipelineSummary(dto) {
     status: dto.status,
     startedAt: dto.startedAt,
     completedAt: dto.completedAt ?? null,
+    latestValidation: dto.latestValidation ?? null,
     ticket: dto.ticket,
     raw: dto,
   };

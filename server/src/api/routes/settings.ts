@@ -6,7 +6,6 @@ import {
 } from "../../canaryAgent/settingsStore";
 import {
   getPublicPipelineSettings,
-  loadPipelineSettingsFromStore,
   savePipelineSettings,
 } from "../../pipeline/settingsStore";
 import { workspaceBillingStore } from "../../billing/workspaceBillingStore";
@@ -76,7 +75,6 @@ router.get("/", (req, res) => {
   const user = requireOrganizationUser(req, res);
   if (!user) return;
   loadCanarySettingsFromStore();
-  loadPipelineSettingsFromStore();
   res.json({
     canary: getPublicCanarySettings(),
     pipeline: getPublicPipelineSettings(),
@@ -90,8 +88,23 @@ router.put("/pipeline", (req, res) => {
     req.body?.systemDesignComplexityThreshold !== undefined
       ? Number(req.body.systemDesignComplexityThreshold)
       : undefined;
+  const prdConfidenceThreshold =
+    req.body?.prdConfidenceThreshold !== undefined
+      ? Number(req.body.prdConfidenceThreshold)
+      : undefined;
+  const implementationConfidenceThreshold =
+    req.body?.implementationConfidenceThreshold !== undefined
+      ? Number(req.body.implementationConfidenceThreshold)
+      : undefined;
+  const qaCoverageThreshold =
+    req.body?.qaCoverageThreshold !== undefined
+      ? Number(req.body.qaCoverageThreshold)
+      : undefined;
   const pipeline = savePipelineSettings({
     systemDesignComplexityThreshold: threshold,
+    prdConfidenceThreshold,
+    implementationConfidenceThreshold,
+    qaCoverageThreshold,
   });
   res.json({ pipeline });
 });

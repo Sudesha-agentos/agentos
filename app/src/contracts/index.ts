@@ -41,13 +41,28 @@ export const ValidationIssueSchema = z.object({
   path: z.string().optional(),
 });
 
-export const ValidationResultSchema = z.object({
-  passed: z.boolean(),
-  score: z.number(),
-  issues: z.array(ValidationIssueSchema),
-  amberFlags: z.array(z.string()),
-  checkedAt: z.string(),
+export const GateFindingSchema = z.object({
+  code: z.string(),
+  message: z.string(),
+  severity: z.enum(["error", "warning"]),
+  path: z.string().optional(),
+  symbol: z.string().optional(),
+  requirement: z.string().optional(),
 });
+
+export const ValidationResultSchema = z
+  .object({
+    passed: z.boolean(),
+    score: z.number(),
+    issues: z.array(ValidationIssueSchema),
+    amberFlags: z.array(z.string()),
+    checkedAt: z.string(),
+    gateId: z.string().optional(),
+    evidenceRefs: z.array(z.string()).optional(),
+    blockingIssueCodes: z.array(z.string()).optional(),
+    findings: z.array(GateFindingSchema).optional(),
+  })
+  .passthrough();
 
 export const TicketSchema = z.object({
   id: z.string().optional(),
@@ -103,6 +118,7 @@ export const PipelineSummarySchema = z.object({
   startedAt: z.string(),
   completedAt: z.string().nullable().optional(),
   ticket: TicketSchema.optional(),
+  latestValidation: ValidationResultSchema.nullable().optional(),
 });
 
 export const PipelineDetailSchema = PipelineSummarySchema.extend({
@@ -160,8 +176,14 @@ export const ResumePipelineResponseSchema = z.object({
   message: z.string().optional(),
 });
 
+export const GATE_STAGES = [
+  "PRD_VALIDATION",
+  "IMPLEMENTATION_VALIDATION",
+  "QA_VALIDATION",
+] as const;
+
 export const SubmitOverrideRequestSchema = z.object({
-  stage: PipelineStageSchema,
+  stage: z.enum(GATE_STAGES),
   correctedOutput: z.record(z.string(), z.unknown()),
   overriddenBy: z.string().min(1),
   reason: z.string().optional(),

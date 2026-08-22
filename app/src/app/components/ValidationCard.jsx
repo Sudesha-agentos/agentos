@@ -76,6 +76,23 @@ export default function ValidationCard({ validation }) {
             </ul>
           </div>
         )}
+
+        {validation.findings?.length > 0 && (
+          <div className="mt-5">
+            <p className="font-mono text-[10.5px] uppercase tracking-[0.18em] text-ink-mute">
+              Diff-quality findings
+            </p>
+            <ul className="mt-2 space-y-1.5">
+              {validation.findings.map((finding, i) => (
+                <li key={i} className="font-mono text-[12px] text-ink-dim">
+                  <span className="mr-2 text-ink-mute">[{finding.code}]</span>
+                  {finding.path ? `${finding.path}: ` : ""}
+                  {finding.message}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </div>
     </div>
   );
