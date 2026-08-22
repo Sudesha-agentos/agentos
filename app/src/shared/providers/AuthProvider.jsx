@@ -9,6 +9,7 @@ import { authAdapter, hasStoredAuthToken, readStoredSession } from "../../entiti
 import AppPreloader from "../ui/AppPreloader";
 import { AuthContext, useAuth } from "./useAuth";
 import { sessionHomePath, migrateAppPath } from "../routing/orgPaths";
+import { waitForBackend } from "../lib/backendReady";
 
 export function AuthProvider({ children }) {
   const navigate = useNavigate();
@@ -26,6 +27,7 @@ export function AuthProvider({ children }) {
 
     async function load() {
       try {
+        await waitForBackend();
         const next = await authAdapter.getSession();
         if (!cancelled) setSession(next);
       } finally {

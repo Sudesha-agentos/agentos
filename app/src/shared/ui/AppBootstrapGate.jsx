@@ -1,18 +1,33 @@
 import { useEffect, useState } from "react";
+import { DATA_MODE, DATA_MODES } from "../config/app";
+import { waitForBackend } from "../lib/backendReady";
 import AppPreloader from "./AppPreloader";
 
 const MIN_BOOT_MS = 0;
+const SLOW_MS = 4000;
+const VERY_SLOW_MS = 25000;
 
 function removeInitialLoader() {
   document.getElementById("app-initial-loader")?.remove();
   document.getElementById("root")?.classList.add("app-ready");
 }
 
+function bootLabel(apiReady, slow, verySlow) {
+  if (apiReady) return "Loading AgentOX";
+  if (verySlow) return "Still starting the backend — first visit can take a minute";
+  if (slow) return "Waking the AgentOX backend";
+  return "Loading AgentOX";
+}
+
 export default function AppBootstrapGate({ children }) {
+  const skipApiWait = DATA_MODE !== DATA_MODES.REST;
   const [docReady, setDocReady] = useState(
     () => document.readyState === "complete" || document.readyState === "interactive"
   );
   const [minElapsed, setMinElapsed] = useState(false);
+  const [apiReady, setApiReady] = useState(skipApiWait);
+  const [slow, setSlow] = useState(false);
+  const [verySlow, setVerySlow] = useState(false);
   const [showApp, setShowApp] = useState(false);
   const [overlayMounted, setOverlayMounted] = useState(true);
   const [exiting, setExiting] = useState(false);
@@ -33,9 +48,22 @@ export default function AppBootstrapGate({ children }) {
     };
   }, [docReady]);
 
-  // Don't block the public marketing shell on auth/session checks: those can hang
-  // when the API is down or slow while a stale token exists in localStorage.
-  const booting = !docReady || !minElapsed;
+  useEffect(() => {
+    if (skipApiWait) return undefined;
+    let cancelled = false;
+    void waitForBackend().then(() => {
+      if (!cancelled) setApiReady(true);
+    });
+    const slowTimer = window.setTimeout(() => setSlow(true), SLOW_MS);
+    const verySlowTimer = window.setTimeout(() => setVerySlow(true), VERY_SLOW_MS);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(slowTimer);
+      window.clearTimeout(verySlowTimer);
+    };
+  }, [skipApiWait]);
+
+  const booting = !docReady || !minElapsed || !apiReady;
 
   useEffect(() => {
     if (booting) return undefined;
@@ -59,7 +87,11 @@ export default function AppBootstrapGate({ children }) {
   return (
     <>
       {overlayMounted ? (
-        <AppPreloader overlay exiting={exiting} label="Loading AgentOX" />
+        <AppPreloader
+          overlay
+          exiting={exiting}
+          label={bootLabel(apiReady, slow, verySlow)}
+        />
       ) : null}
       <div className={showApp ? "app-boot-visible" : "app-boot-hidden"}>{children}</div>
     </>
