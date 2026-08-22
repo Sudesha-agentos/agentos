@@ -1,6 +1,10 @@
 import { useEffect, useState } from "react";
 import { DATA_MODE, DATA_MODES } from "../config/app";
-import { waitForBackend } from "../lib/backendReady";
+import {
+  healthzUrl,
+  retryWaitForBackend,
+  waitForBackend,
+} from "../lib/backendReady";
 import AppPreloader from "./AppPreloader";
 
 const MIN_BOOT_MS = 0;
@@ -84,6 +88,12 @@ export default function AppBootstrapGate({ children }) {
     };
   }, [booting]);
 
+  const onRetry = () => {
+    setSlow(true);
+    setVerySlow(true);
+    void retryWaitForBackend().then(() => setApiReady(true));
+  };
+
   return (
     <>
       {overlayMounted ? (
@@ -91,7 +101,16 @@ export default function AppBootstrapGate({ children }) {
           overlay
           exiting={exiting}
           label={bootLabel(apiReady, slow, verySlow)}
-        />
+        >
+          {verySlow && !apiReady ? (
+            <>
+              <p className="app-preloader-hint">{healthzUrl()}</p>
+              <button type="button" className="app-preloader-retry" onClick={onRetry}>
+                Retry connection
+              </button>
+            </>
+          ) : null}
+        </AppPreloader>
       ) : null}
       <div className={showApp ? "app-boot-visible" : "app-boot-hidden"}>{children}</div>
     </>

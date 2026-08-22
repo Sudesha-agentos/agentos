@@ -78,6 +78,38 @@
   color: color-mix(in srgb, var(--ink, #f0eee8) 55%, transparent);
 }
 
+.app-preloader-hint {
+  max-width: 28rem;
+  padding: 0 1.5rem;
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 11px;
+  line-height: 1.55;
+  letter-spacing: 0.02em;
+  text-align: center;
+  color: color-mix(in srgb, var(--ink, #f0eee8) 42%, transparent);
+  word-break: break-all;
+}
+
+.app-preloader-retry {
+  margin-top: 0.25rem;
+  padding: 0.45rem 1rem;
+  border: 1px solid color-mix(in srgb, var(--ink, #f0eee8) 22%, transparent);
+  border-radius: 999px;
+  background: transparent;
+  color: color-mix(in srgb, var(--ink, #f0eee8) 78%, transparent);
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.app-preloader-retry:hover {
+  border-color: color-mix(in srgb, var(--ink, #f0eee8) 45%, transparent);
+  color: var(--ink, #f0eee8);
+}
+
 .app-boot-hidden {
   visibility: hidden;
   position: fixed;

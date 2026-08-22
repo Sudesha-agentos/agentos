@@ -2,7 +2,8 @@ import { apiPath } from "../config/apiBase";
 import { DATA_MODE, DATA_MODES } from "../config/app";
 
 const POLL_MS = 1500;
-const ATTEMPT_TIMEOUT_MS = 8000;
+/** Render cold start can exceed 8s; aborting early looks like a permanent hang. */
+const ATTEMPT_TIMEOUT_MS = 30000;
 
 let ready = shouldSkipWait();
 let inFlight = null;
@@ -20,8 +21,12 @@ function sleep(ms) {
   });
 }
 
+export function healthzUrl() {
+  return apiPath("/api", "/healthz");
+}
+
 async function pingHealthz() {
-  const res = await fetch(apiPath("/api", "/healthz"), {
+  const res = await fetch(healthzUrl(), {
     method: "GET",
     cache: "no-store",
     signal: AbortSignal.timeout(ATTEMPT_TIMEOUT_MS),
@@ -62,5 +67,18 @@ export function waitForBackend() {
       ready = true;
     });
   }
+  return inFlight;
+}
+
+/** Start a new poll (e.g. Retry on the splash). Safe if one is already running. */
+export function retryWaitForBackend() {
+  if (shouldSkipWait()) {
+    ready = true;
+    return Promise.resolve();
+  }
+  ready = false;
+  inFlight = pollUntilReady().then(() => {
+    ready = true;
+  });
   return inFlight;
 }

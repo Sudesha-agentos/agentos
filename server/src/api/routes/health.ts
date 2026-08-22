@@ -6,29 +6,11 @@ import { getOssToolStatus } from "../../integrations/ossStatus";
 
 const router = Router();
 
-router.get("/healthz", async (_req, res) => {
-  const stats = await getQueueStats();
-  let ossSummary: { required: boolean; ready: boolean; installed: string[] } | undefined;
-  try {
-    const oss = await getOssToolStatus();
-    ossSummary = {
-      required: oss.required,
-      ready: oss.ready,
-      installed: oss.tools.filter((t) => t.installed).map((t) => t.id),
-    };
-  } catch {
-    ossSummary = { required: isOssToolsRequired(), ready: false, installed: [] };
-  }
+/** Liveness only — Render and the product splash poll this. Must stay fast. */
+router.get("/healthz", (_req, res) => {
   res.json({
     status: "ok",
     timestamp: new Date().toISOString(),
-    openaiChatTokenParam: "max_completion_tokens",
-    pipelineQueue: {
-      pending: stats.pending,
-      active: stats.active,
-      completed: stats.completed,
-    },
-    ossTools: ossSummary,
   });
 });
 
@@ -45,8 +27,38 @@ router.get("/readyz", async (_req, res) => {
       checks.postgres = err instanceof Error ? err.message : "error";
     }
   }
+
+  let ossSummary: { required: boolean; ready: boolean; installed: string[] } | undefined;
+  try {
+    const oss = await getOssToolStatus();
+    ossSummary = {
+      required: oss.required,
+      ready: oss.ready,
+      installed: oss.tools.filter((t) => t.installed).map((t) => t.id),
+    };
+  } catch {
+    ossSummary = { required: isOssToolsRequired(), ready: false, installed: [] };
+  }
+
+  let pipelineQueue: { pending: number; active: number; completed: number } | undefined;
+  try {
+    const stats = await getQueueStats();
+    pipelineQueue = {
+      pending: stats.pending,
+      active: stats.active,
+      completed: stats.completed,
+    };
+  } catch {
+    pipelineQueue = undefined;
+  }
+
   const ok = Object.values(checks).every((v) => v === "ok" || v.startsWith("skipped"));
-  res.status(ok ? 200 : 503).json({ status: ok ? "ready" : "degraded", checks });
+  res.status(ok ? 200 : 503).json({
+    status: ok ? "ready" : "degraded",
+    checks,
+    pipelineQueue,
+    ossTools: ossSummary,
+  });
 });
 
 export default router;
