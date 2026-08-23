@@ -9,7 +9,6 @@ import { authAdapter, hasStoredAuthToken, readStoredSession } from "../../entiti
 import AppPreloader from "../ui/AppPreloader";
 import { AuthContext, useAuth } from "./useAuth";
 import { sessionHomePath, migrateAppPath } from "../routing/orgPaths";
-import { waitForBackend } from "../lib/backendReady";
 
 export function AuthProvider({ children }) {
   const navigate = useNavigate();
@@ -27,7 +26,7 @@ export function AuthProvider({ children }) {
 
     async function load() {
       try {
-        await waitForBackend();
+        if (!hasStoredAuthToken()) return;
         const next = await authAdapter.getSession();
         if (!cancelled) setSession(next);
       } finally {
@@ -128,8 +127,14 @@ export function RequireAuth({ children }) {
 
 export function PublicOnlyRoute({ children }) {
   const { loading, isAuthenticated, onboardingCompleted, session } = useAuth();
+  const [showForm, setShowForm] = useState(false);
 
-  if (loading) {
+  useEffect(() => {
+    const timer = window.setTimeout(() => setShowForm(true), 800);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  if (loading && !showForm) {
     return <AppPreloader overlay label="Checking session" />;
   }
 
