@@ -3,6 +3,7 @@ import LabelPill from "../../../app/components/LabelPill";
 import { getIntegrationById } from "../../../shared/config/integrationsCatalog";
 import { useIntegrationsStatus } from "../../../shared/hooks/useIntegrationsStatus";
 import { useOrg } from "../../../shared/providers/OrgRouteProvider";
+import { IntegrationLogo } from "../../../shared/ui/IntegrationLogo";
 import { Panel, PanelHeader } from "../../../shared/ui/Panel";
 import { useState } from "react";
 
@@ -15,36 +16,31 @@ export default function SettingsIntegrationDetailPage() {
   const live = integrations.find((item) => item.id === integrationId);
 
   if (integrationId === "github") {
-    return <Navigate to={orgPath("settings", "integrations", "github")} replace />;
+    return <Navigate to={orgPath("integrations", "github")} replace />;
   }
   if (integrationId === "bitbucket") {
-    return <Navigate to={orgPath("settings", "integrations", "bitbucket")} replace />;
+    return <Navigate to={orgPath("integrations", "bitbucket")} replace />;
   }
   if (integrationId === "jira") {
-    return <Navigate to={orgPath("settings", "integrations", "jira")} replace />;
+    return <Navigate to={orgPath("integrations", "jira")} replace />;
   }
   if (integrationId === "spreadsheet") {
-    return <Navigate to={orgPath("settings", "integrations", "spreadsheet")} replace />;
+    return <Navigate to={orgPath("integrations", "spreadsheet")} replace />;
   }
   if (integrationId === "postgresql" || integrationId === "supabase" || integrationId === "mysql") {
-    return <Navigate to={orgPath("settings", "integrations", integrationId)} replace />;
+    return <Navigate to={orgPath("integrations", integrationId)} replace />;
   }
 
   const integration = getIntegrationById(integrationId, orgSlug);
   if (!integration) {
-    return <Navigate to={orgPath("settings", "integrations")} replace />;
-  }
-
-  // One-click backend / log services → Logs Sources with provider preselected
-  if (integration.connectKind === "log_source" && integration.route) {
-    return <Navigate to={integration.route} replace />;
+    return <Navigate to={orgPath("integrations")} replace />;
   }
 
   return (
     <ComingSoonIntegration
       integration={integration}
       displayStatus={live?.displayStatus ?? "coming_soon"}
-      backHref={orgPath("settings", "integrations")}
+      backHref={orgPath("integrations")}
     />
   );
 }
@@ -87,7 +83,12 @@ function ComingSoonIntegration({ integration, displayStatus, backHref }) {
       <Panel>
         <PanelHeader
           kicker="Integration"
-          title={integration.name}
+          title={
+            <span className="inline-flex items-center gap-2.5">
+              <IntegrationLogo integration={integration} size="sm" />
+              {integration.name}
+            </span>
+          }
           info={integration.description}
           right={<LabelPill label={statusMeta.label} tone={statusMeta.tone} />}
         />
@@ -95,7 +96,7 @@ function ComingSoonIntegration({ integration, displayStatus, backHref }) {
           <div className="rounded-app border border-app-border bg-app-surface-muted/30 p-5">
             <h3 className="text-[15px] font-medium text-app-ink">What to expect</h3>
             <ul className="mt-3 space-y-2 text-[13px] leading-relaxed text-app-ink-dim">
-              <li>• Secure OAuth or API key connection from this settings page</li>
+              <li>• Secure OAuth or API key connection from this page</li>
               <li>• Workspace-scoped credentials with audit logging</li>
               <li>• Pipeline hooks so agents can read and write through {integration.name}</li>
               <li>• Health checks and reconnect flows in the integrations hub</li>

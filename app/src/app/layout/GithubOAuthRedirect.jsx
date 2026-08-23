@@ -14,9 +14,10 @@ export default function GithubOAuthRedirect() {
 
   useEffect(() => {
     const path = location.pathname.replace(/\/$/, "") || "/";
-    const integrationPath = orgPath("settings", "integrations", "github");
+    const integrationPath = orgPath("integrations", "github");
     if (
       path === integrationPath ||
+      orgPathMatches(path, orgSlug, "integrations", "github") ||
       orgPathMatches(path, orgSlug, "settings", "integrations", "github") ||
       path === "/app/settings/integrations/github" ||
       path === "/app/git" ||

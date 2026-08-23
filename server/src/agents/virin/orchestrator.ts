@@ -16,6 +16,7 @@ import {
   sanitizeTaskBreakdownFiles,
 } from "../pm/verifiedRepoPaths";
 import { VIRIN_BEHAVIOR, VIRIN_SYSTEM_PROMPT } from "./persona";
+import { agentChatRepo } from "../../db/repositories/agentChatRepo";
 import { resolveDiscoveryBudget } from "./discoveryBudget";
 import {
   buildAlreadyBuiltFlag,
@@ -174,13 +175,57 @@ async function raiseHumanBlocker(
   return blocker;
 }
 
+async function persistDiscoveryQuestionToChat(input: {
+  jiraKey: string;
+  question: string;
+  options?: string[];
+  stage: string;
+  plannedQuestions?: string[];
+}): Promise<void> {
+  try {
+    const thread = await agentChatRepo.getOrCreateThread({
+      agentDomain: "virin",
+      contextKey: input.jiraKey,
+      title: `${input.jiraKey} discovery`,
+    });
+    const already = (thread.messages ?? []).some(
+      (msg) => msg.role === "assistant" && msg.content === input.question
+    );
+    if (already) return;
+    if (input.plannedQuestions?.length && !(thread.messages ?? []).some((msg) => msg.metadata?.kind === "discovery_plan")) {
+      await agentChatRepo.appendMessage({
+        threadId: thread.id,
+        role: "assistant",
+        content: "I'll cover these questions in chat.",
+        metadata: { kind: "discovery_plan", questions: input.plannedQuestions },
+      });
+    }
+    await agentChatRepo.appendMessage({
+      threadId: thread.id,
+      role: "assistant",
+      content: input.question,
+      metadata: {
+        kind: "discovery_question",
+        pending: true,
+        options: input.options ?? [],
+        stage: input.stage,
+        plannedQuestions: input.plannedQuestions ?? [],
+      },
+    });
+  } catch (err) {
+    logger.warn({ err, jiraKey: input.jiraKey }, "Failed to persist Virin question to chat");
+  }
+}
+
 async function pauseForHumanInput(input: {
   jiraKey: string;
   question: string;
   options?: string[];
   stage: string;
   flag?: string | null;
+  plannedQuestions?: string[];
 }): Promise<void> {
+  await persistDiscoveryQuestionToChat(input);
   await writeDiscoveryQuestionToJira({
     jiraKey: input.jiraKey,
     question: input.question,
@@ -826,6 +871,13 @@ async function runQuestionMode(
     if (!next.question) break;
 
     if (mode === "interactive") {
+      const planned = (next.remainingQuestions ?? [])
+        .map((q) => String(q).trim())
+        .filter(Boolean)
+        .slice(0, 8);
+      if (planned.length && !state.plannedQuestions?.length) {
+        state.plannedQuestions = planned;
+      }
       state.pendingQuestion = next.question;
       pmAnalysisStore.update(jiraKey, {
         questionMode: state,
@@ -842,6 +894,7 @@ async function runQuestionMode(
         options: normalizeQuestionOptions(next.options),
         stage: "QUESTION_MODE",
         flag: next.flag,
+        plannedQuestions: state.plannedQuestions,
       });
       return true;
     }

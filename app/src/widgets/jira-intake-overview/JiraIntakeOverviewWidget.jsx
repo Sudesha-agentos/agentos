@@ -29,7 +29,7 @@ export default function JiraIntakeOverviewWidget({ embedded = false }) {
       ) : error ? (
         <p className="text-[13px] leading-relaxed text-ink-dim">
           Could not load Jira setup. If Jira is not connected yet,{" "}
-          <Link to={orgPath("settings", "integrations", "jira")} className="text-indigo hover:underline">
+          <Link to={orgPath("integrations", "jira")} className="text-indigo hover:underline">
             connect it in Settings
           </Link>
           .
@@ -45,7 +45,7 @@ export default function JiraIntakeOverviewWidget({ embedded = false }) {
           </p>
           <PipelineQueueSummary setup={setup} />
           <div className="flex flex-wrap gap-4 text-[13px]">
-            <Link to={orgPath("settings", "integrations", "jira")} className="text-ink-dim transition-colors hover:text-indigo">
+            <Link to={orgPath("integrations", "jira")} className="text-ink-dim transition-colors hover:text-indigo">
               Jira pipeline setup →
             </Link>
             <Link
@@ -70,7 +70,8 @@ export default function JiraIntakeOverviewWidget({ embedded = false }) {
     return (
       <div className="min-w-0 overflow-hidden rounded-app-sm border border-app-border bg-app-surface-muted/60 p-4">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-app-ink-mute">
+          <p className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-app-ink-mute">
+            <img src="/marketing/integrations/jira.svg" alt="" className="size-5 object-contain" />
             Jira pipeline
           </p>
           <LabelPill

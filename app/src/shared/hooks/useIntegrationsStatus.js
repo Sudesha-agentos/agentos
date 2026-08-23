@@ -2,12 +2,14 @@ import { useEffect, useMemo, useState } from "react";
 import { useGitIntegrationSummary } from "../../entities/git-integration";
 import { listCustomerDatabases } from "../../entities/customer-db";
 import { fetchLogSources } from "../../entities/logIntelligence";
+import { listWorkspaceConnections } from "../../entities/workspace-connections";
 import { usePipelineJiraSetup } from "../../entities/pipeline-jira";
 import { useWorkBoardStatus } from "../../entities/work-board";
 import {
   buildIntegrationsCatalog,
   groupIntegrationsByCategory,
 } from "../config/integrationsCatalog";
+import { INTEGRATIONS_CHANGED } from "../lib/chromeEvents";
 import { useOrgOptional } from "../providers/OrgRouteProvider";
 
 function resolveDisplayStatus(integration, live) {
@@ -43,6 +45,13 @@ function resolveDisplayStatus(integration, live) {
   ) {
     const provider = integration.liveStatusKey.slice("database:".length);
     return live.databaseProviders?.has(provider) ? "connected" : "not_connected";
+  }
+  if (
+    typeof integration.liveStatusKey === "string" &&
+    integration.liveStatusKey.startsWith("workspace:")
+  ) {
+    const provider = integration.liveStatusKey.slice("workspace:".length);
+    return live.workspaceProviders?.has(provider) ? "connected" : "not_connected";
   }
   return "not_connected";
 }
@@ -106,6 +115,17 @@ export function useIntegrationsStatus() {
   const [logsLoading, setLogsLoading] = useState(true);
   const [databaseProviders, setDatabaseProviders] = useState(() => new Set());
   const [databasesLoading, setDatabasesLoading] = useState(true);
+  const [workspaceProviders, setWorkspaceProviders] = useState(() => new Set());
+  const [workspaceLoading, setWorkspaceLoading] = useState(true);
+  const [refreshTick, setRefreshTick] = useState(0);
+
+  useEffect(() => {
+    function onChanged() {
+      setRefreshTick((n) => n + 1);
+    }
+    window.addEventListener(INTEGRATIONS_CHANGED, onChanged);
+    return () => window.removeEventListener(INTEGRATIONS_CHANGED, onChanged);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -132,7 +152,7 @@ export function useIntegrationsStatus() {
     return () => {
       cancelled = true;
     };
-  }, [orgSlug]);
+  }, [orgSlug, refreshTick]);
 
   useEffect(() => {
     let cancelled = false;
@@ -157,7 +177,32 @@ export function useIntegrationsStatus() {
     return () => {
       cancelled = true;
     };
-  }, [orgSlug]);
+  }, [orgSlug, refreshTick]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setWorkspaceLoading(true);
+      try {
+        const res = await listWorkspaceConnections();
+        const list = Array.isArray(res) ? res : res?.connections ?? [];
+        const providers = new Set(
+          list
+            .map((item) => item.provider)
+            .filter(Boolean)
+            .map((value) => String(value).toLowerCase())
+        );
+        if (!cancelled) setWorkspaceProviders(providers);
+      } catch {
+        if (!cancelled) setWorkspaceProviders(new Set());
+      } finally {
+        if (!cancelled) setWorkspaceLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [orgSlug, refreshTick]);
 
   const live = useMemo(
     () => ({
@@ -179,6 +224,7 @@ export function useIntegrationsStatus() {
       workBoardReady: Boolean(boardStatus?.ready),
       logConnectedTypes: logTypes,
       databaseProviders,
+      workspaceProviders,
     }),
     [
       git?.connected,
@@ -190,6 +236,7 @@ export function useIntegrationsStatus() {
       boardStatus?.ready,
       logTypes,
       databaseProviders,
+      workspaceProviders,
     ]
   );
 
@@ -207,6 +254,6 @@ export function useIntegrationsStatus() {
   return {
     integrations,
     grouped,
-    loading: gitLoading || jiraLoading || boardLoading || logsLoading || databasesLoading,
+    loading: gitLoading || jiraLoading || boardLoading || logsLoading || databasesLoading || workspaceLoading,
   };
 }

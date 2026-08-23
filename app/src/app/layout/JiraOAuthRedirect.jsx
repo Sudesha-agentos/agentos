@@ -14,9 +14,10 @@ export default function JiraOAuthRedirect() {
 
   useEffect(() => {
     const path = location.pathname.replace(/\/$/, "") || "/";
-    const integrationPath = orgPath("settings", "integrations", "jira");
+    const integrationPath = orgPath("integrations", "jira");
     if (
       path === integrationPath ||
+      orgPathMatches(path, orgSlug, "integrations", "jira") ||
       orgPathMatches(path, orgSlug, "settings", "integrations", "jira") ||
       path === "/app/settings/integrations/jira"
     ) {

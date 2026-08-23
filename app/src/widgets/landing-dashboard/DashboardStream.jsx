@@ -3,6 +3,7 @@ import { useOrgPathBuilder } from "../../shared/providers/OrgRouteProvider";
 import { formatRelativeTime } from "../../shared/lib/format";
 import { AgentChatAvatar } from "../agent-chat/AgentChatAvatar";
 import { getAgentChatConfig } from "../agent-chat/agentChatConfig";
+import DiscoveryQuestionCard from "../pm-analysis/DiscoveryQuestionCard";
 
 export function buildDashboardStream({
   reviewItems = [],
@@ -53,6 +54,8 @@ export default function DashboardStream({
   domain,
   loadingChat,
   loadingOps,
+  onAnswerQuestion,
+  answering = false,
 }) {
   const orgPath = useOrgPathBuilder();
   const config = getAgentChatConfig(domain);
@@ -167,6 +170,41 @@ export default function DashboardStream({
               <div className="max-w-[85%] rounded-2xl bg-app-surface-muted px-4 py-2.5 text-[15px] leading-relaxed text-app-ink">
                 <p className="whitespace-pre-wrap">{msg.content}</p>
               </div>
+            </div>
+          );
+        }
+
+        if (msg.metadata?.kind === "discovery_plan") {
+          return (
+            <div key={row.id} className="flex items-start gap-3">
+              <AgentChatAvatar domain={domain} size={28} className="mt-0.5" />
+              <div className="min-w-0 max-w-[92%] rounded-2xl border border-app-border bg-app-surface px-4 py-3">
+                <p className="text-[14px] text-app-ink">{msg.content}</p>
+                <ol className="mt-2 space-y-1">
+                  {(msg.metadata.questions ?? []).map((item, index) => (
+                    <li key={`${item}-${index}`} className="text-[13px] text-app-ink-dim">
+                      {index + 1}. {item}
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            </div>
+          );
+        }
+
+        if (msg.metadata?.kind === "discovery_question") {
+          return (
+            <div key={row.id} className="flex items-start gap-3">
+              <AgentChatAvatar domain={domain} size={28} className="mt-0.5" />
+              <DiscoveryQuestionCard
+                prompt={msg.content}
+                options={msg.metadata.options}
+                turnNumber={msg.metadata.turnNumber}
+                maxTurns={msg.metadata.maxTurns}
+                pending={Boolean(msg.metadata.pending && onAnswerQuestion)}
+                busy={answering}
+                onAnswer={onAnswerQuestion}
+              />
             </div>
           );
         }

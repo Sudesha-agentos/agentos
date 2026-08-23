@@ -100,6 +100,16 @@ export const agentChatRepo = {
     return toThreadDto(created);
   },
 
+  async listThreads(limit = 50): Promise<AgentChatThreadDto[]> {
+    const organizationId = requireActiveOrganizationId();
+    const rows = await prisma.agentChatThread.findMany({
+      where: { organizationId },
+      orderBy: { updatedAt: "desc" },
+      take: Math.min(Math.max(limit, 1), 100),
+    });
+    return rows.map((row) => toThreadDto(row));
+  },
+
   async getThreadById(threadId: string): Promise<AgentChatThreadDto | null> {
     const organizationId = requireActiveOrganizationId();
     const row = await prisma.agentChatThread.findFirst({

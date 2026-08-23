@@ -1,35 +1,37 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import SettingsLayout from "../layout/SettingsLayout";
 import SettingsPlanPage from "./settings/SettingsPlanPage";
-import SettingsIntegrationsPage from "./settings/SettingsIntegrationsPage";
-import SettingsIntegrationDetailPage from "./settings/SettingsIntegrationDetailPage";
 import SettingsPipelinePage from "./settings/SettingsPipelinePage";
 import SettingsCodebaseIndexPage from "./settings/SettingsCodebaseIndexPage";
-import GitIntegration from "./GitIntegration";
-import JiraIntegration from "./JiraIntegration";
-import DatabaseIntegration from "./DatabaseIntegration";
-import SpreadsheetIntegration from "./settings/SpreadsheetIntegration";
+import SettingsProfilePage from "./settings/SettingsProfilePage";
+import SettingsUsagePage from "./settings/SettingsUsagePage";
+import SettingsAppearancePage from "./settings/SettingsAppearancePage";
+import SettingsConnectionsPage from "./settings/SettingsConnectionsPage";
 import CompanyIntelligence from "./CompanyIntelligence";
+import { RedirectSettingsIntegrations } from "./IntegrationsRoutes";
+import { useOrg } from "../../shared/providers/OrgRouteProvider";
+
+function RedirectUnknownSettings() {
+  const { orgPath } = useOrg();
+  return <Navigate to={orgPath("settings", "usage")} replace />;
+}
 
 export default function SettingsRoutes() {
   return (
     <Routes>
+      <Route path="integrations" element={<RedirectSettingsIntegrations />} />
+      <Route path="integrations/*" element={<RedirectSettingsIntegrations />} />
       <Route element={<SettingsLayout />}>
-        <Route index element={<Navigate to="integrations" replace />} />
+        <Route index element={<Navigate to="usage" replace />} />
+        <Route path="profile" element={<SettingsProfilePage />} />
         <Route path="plan" element={<SettingsPlanPage />} />
-        <Route path="integrations/github" element={<GitIntegration embedded />} />
-        <Route path="integrations/bitbucket" element={<GitIntegration embedded defaultTab="bitbucket" />} />
-        <Route path="integrations/jira" element={<JiraIntegration embedded />} />
-        <Route path="integrations/spreadsheet" element={<SpreadsheetIntegration embedded />} />
-        <Route path="integrations/postgresql" element={<DatabaseIntegration embedded defaultProvider="postgresql" />} />
-        <Route path="integrations/supabase" element={<DatabaseIntegration embedded defaultProvider="supabase" />} />
-        <Route path="integrations/mysql" element={<DatabaseIntegration embedded defaultProvider="mysql" />} />
-        <Route path="integrations" element={<SettingsIntegrationsPage />} />
-        <Route path="integrations/:integrationId" element={<SettingsIntegrationDetailPage />} />
+        <Route path="usage" element={<SettingsUsagePage />} />
+        <Route path="appearance" element={<SettingsAppearancePage />} />
+        <Route path="connections" element={<SettingsConnectionsPage />} />
         <Route path="codebase-index" element={<SettingsCodebaseIndexPage />} />
         <Route path="company" element={<CompanyIntelligence embedded />} />
         <Route path="pipeline" element={<SettingsPipelinePage />} />
-        <Route path="*" element={<Navigate to="../integrations" replace />} />
+        <Route path="*" element={<RedirectUnknownSettings />} />
       </Route>
     </Routes>
   );

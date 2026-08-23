@@ -43,7 +43,7 @@ export default function JiraSearch() {
         title="Board keyword search"
         right={
           <Link
-            to={orgPath("settings", "integrations", "jira")}
+            to={orgPath("integrations", "jira")}
             className="rounded-full border border-app-border bg-app-surface px-3.5 py-1.5 text-[12px] text-app-ink-dim transition-colors hover:text-app-ink"
           >
             AI Worker queue

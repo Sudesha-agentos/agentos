@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" role="img" viewBox="0 0 24 24">
+  <title>HubSpot</title>
+  <g fill="#FF7A59">
+    <circle cx="12" cy="12" r="3.15"/>
+    <circle cx="12" cy="4.2" r="2.15"/>
+    <circle cx="12" cy="19.8" r="2.15"/>
+    <circle cx="4.2" cy="12" r="2.15"/>
+    <circle cx="19.8" cy="12" r="2.15"/>
+    <circle cx="6.55" cy="6.55" r="1.55"/>
+    <circle cx="17.45" cy="6.55" r="1.55"/>
+    <circle cx="6.55" cy="17.45" r="1.55"/>
+    <circle cx="17.45" cy="17.45" r="1.55"/>
+  </g>
+</svg>

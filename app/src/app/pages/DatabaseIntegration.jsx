@@ -93,6 +93,7 @@ export default function DatabaseIntegration({ embedded = false, defaultProvider 
       kicker={copy.kicker}
       title={copy.title}
       info={copy.info}
+      logo={`/marketing/integrations/${defaultProvider === "postgresql" ? "postgresql" : defaultProvider}.svg`}
     >
       <div className="space-y-6">
         {forProvider.map((db) => (

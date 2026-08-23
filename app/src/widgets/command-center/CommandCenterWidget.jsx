@@ -38,10 +38,10 @@ export default function CommandCenterWidget() {
           <div className="px-5 py-6 sm:px-6">
             <CycleTrendChart points={trendData?.points ?? []} />
             <Link
-              to={orgPath("costs")}
+              to={orgPath("logs")}
               className="mt-6 inline-flex text-sm font-medium text-app-ink-dim hover:text-app-ink"
             >
-              View cost intelligence →
+              Open Log Intelligence →
             </Link>
           </div>
         </Panel>

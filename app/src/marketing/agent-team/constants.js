@@ -109,12 +109,16 @@ export const HERO_STATS = [
 ];
 
 export const INTEGRATIONS = [
-  { id: "jira", name: "Jira", detail: "Tickets & writeback", logo: "/marketing/integrations/jira-wordmark.svg", height: 30, minWidth: 88 },
-  { id: "github", name: "GitHub", detail: "Repos & PRs", logo: "/marketing/integrations/github-wordmark.svg", height: 32, minWidth: 110 },
-  { id: "bitbucket", name: "Bitbucket", detail: "Git hosting", logo: "/marketing/integrations/bitbucket-wordmark.svg", height: 26, minWidth: 120 },
-  { id: "confluence", name: "Confluence", detail: "Docs & wiki", logo: "/marketing/integrations/confluence-wordmark.svg", height: 24, minWidth: 130 },
-  { id: "supabase", name: "Supabase", detail: "Vector index", logo: "/marketing/integrations/supabase-wordmark.svg", height: 28, minWidth: 130 },
-  { id: "grafana", name: "Grafana", detail: "Observability", logo: "/marketing/integrations/grafana-wordmark.svg", height: 30, minWidth: 100 },
+  { id: "jira", name: "Jira", detail: "Tickets & writeback", logo: "/marketing/integrations/jira.svg", height: 32, minWidth: 32 },
+  { id: "github", name: "GitHub", detail: "Repos & PRs", logo: "/marketing/integrations/github.svg", height: 32, minWidth: 32 },
+  { id: "bitbucket", name: "Bitbucket", detail: "Git hosting", logo: "/marketing/integrations/bitbucket.svg", height: 32, minWidth: 32 },
+  { id: "confluence", name: "Confluence", detail: "Docs & wiki", logo: "/marketing/integrations/confluence.svg", height: 32, minWidth: 32 },
+  { id: "supabase", name: "Supabase", detail: "Vector index", logo: "/marketing/integrations/supabase.svg", height: 32, minWidth: 32 },
+  { id: "grafana", name: "Grafana", detail: "Observability", logo: "/marketing/integrations/grafana.svg", height: 32, minWidth: 32 },
+  { id: "slack", name: "Slack", detail: "Team signals", logo: "/marketing/integrations/slack.svg", height: 32, minWidth: 32 },
+  { id: "linear", name: "Linear", detail: "Issues & cycles", logo: "/marketing/integrations/linear.svg", height: 32, minWidth: 32 },
+  { id: "hubspot", name: "HubSpot", detail: "CRM", logo: "/marketing/integrations/hubspot.svg", height: 32, minWidth: 32 },
+  { id: "sentry", name: "Sentry", detail: "Errors", logo: "/marketing/integrations/sentry.svg", height: 32, minWidth: 32 },
 ];
 
 /** Product proof points — honest targets, not customer claims. */

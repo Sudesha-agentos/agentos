@@ -18,6 +18,7 @@ export default function SpreadsheetIntegration({ embedded = false }) {
       embedded={embedded}
       kicker="Issue tracking"
       title="Spreadsheet / work board"
+      logo="/marketing/integrations/spreadsheet.svg"
       info="Upload an Excel or CSV of tickets to get a Kanban board. Drag a card into AI Worker to run Virin without Jira."
     >
       <Panel>

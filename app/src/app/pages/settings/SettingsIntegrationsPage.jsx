@@ -4,6 +4,8 @@ import { useIntegrationsStatus } from "../../../shared/hooks/useIntegrationsStat
 import IntegrationsOverviewWidget from "../../../widgets/integrations-overview/IntegrationsOverviewWidget";
 import { SettingsSection } from "../../../shared/ui/SettingsForm";
 import { TitleWithInfo } from "../../../shared/ui/InfoTip";
+import { IntegrationLogo } from "../../../shared/ui/IntegrationLogo";
+
 const STATUS_META = {
   connected: { label: "Connected", tone: "success", cta: "Manage" },
   setup_incomplete: { label: "Select repository", tone: "warning", cta: "Finish setup" },
@@ -11,31 +13,10 @@ const STATUS_META = {
   coming_soon: { label: "Coming soon", tone: "indigo", cta: "Learn more" },
 };
 
-function IntegrationIcon({ integration }) {
-  if (integration.icon) {
-    return (
-      <img
-        src={integration.icon}
-        alt=""
-        className="size-10 rounded-app border border-app-border bg-white object-contain p-1.5"
-      />
-    );
-  }
-
-  return (
-    <div className="flex size-10 items-center justify-center rounded-app border border-app-border bg-app-surface-muted text-sm font-semibold text-app-ink">
-      {integration.name.slice(0, 1)}
-    </div>
-  );
-}
-
 function IntegrationCard({ integration }) {
   const meta = STATUS_META[integration.displayStatus] ?? STATUS_META.not_connected;
   const detailPath = integration.route ?? `/app/settings/integrations/${integration.id}`;
-  const cta =
-    integration.connectKind === "log_source" && integration.displayStatus === "not_connected"
-      ? "Connect in one click"
-      : meta.cta;
+  const cta = meta.cta;
 
   return (
     <Link
@@ -43,17 +24,12 @@ function IntegrationCard({ integration }) {
       className="group flex h-full flex-col rounded-app border border-app-border bg-app-surface-muted/20 p-4 transition-[border-color,box-shadow,transform] duration-300 ease-out hover:-translate-y-px hover:border-indigo/30 hover:bg-indigo/5 hover:shadow-app-card"
     >
       <div className="flex items-start justify-between gap-3">
-        <IntegrationIcon integration={integration} />
+        <IntegrationLogo integration={integration} />
         <LabelPill label={meta.label} tone={meta.tone} />
       </div>
       <h3 className="mt-4 flex items-center gap-1.5 text-[15px] font-medium text-app-ink">
         <TitleWithInfo info={integration.description}>{integration.name}</TitleWithInfo>
       </h3>
-      {integration.connectKind === "log_source" ? (
-        <p className="mt-2 text-[12px] leading-relaxed text-app-ink-dim">
-          Opens Logs → Sources with {integration.name} ready to link.
-        </p>
-      ) : null}
       <p className="mt-4 text-[11px] font-medium text-indigo transition group-hover:text-indigo/80">
         {cta} →
       </p>

@@ -322,13 +322,24 @@ function GitIntegrationContent({ setup, refetch, embedded = false, defaultTab = 
     <SettingsPageShell
       embedded={embedded}
       className="pb-16"
-      kicker="GitHub integration"
+      kicker={tab === "bitbucket" ? "Bitbucket integration" : "GitHub integration"}
+      logo={
+        tab === "bitbucket"
+          ? "/marketing/integrations/bitbucket.svg"
+          : "/marketing/integrations/github.svg"
+      }
       title={
         connected
-          ? "GitHub connected"
+          ? tab === "bitbucket"
+            ? "Bitbucket connected"
+            : "GitHub connected"
           : needsRepoPick
-            ? "Finish GitHub setup"
-            : "Connect GitHub"
+            ? tab === "bitbucket"
+              ? "Finish Bitbucket setup"
+              : "Finish GitHub setup"
+            : tab === "bitbucket"
+              ? "Connect Bitbucket"
+              : "Connect GitHub"
       }
     >
       {(connected || needsRepoPick) && !embedded ? (

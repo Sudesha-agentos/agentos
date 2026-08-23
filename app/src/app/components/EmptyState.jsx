@@ -1,6 +1,6 @@
 export default function EmptyState({ kicker = "Empty", title, body, action }) {
   return (
-    <div className="rounded-app border border-dashed border-app-border bg-app-surface-muted/60 px-6 py-10 text-center">
+    <div className="rounded-2xl border border-app-border bg-app-surface px-6 py-8 text-center">
       <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-app-ink-mute">
         {kicker}
       </p>

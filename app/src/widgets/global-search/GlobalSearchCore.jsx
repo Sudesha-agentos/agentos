@@ -13,9 +13,12 @@ function buildStaticPages(orgPath) {
     { label: "Log Intelligence", href: orgPath("logs"), keywords: ["logs", "errors", "sentry", "render", "anomaly", "production", "qa gap"] },
     { label: "Pipelines", href: orgPath("pipelines"), keywords: ["pipeline", "ticket", "queue", "review"] },
     { label: "Codebase indexing", href: orgPath("settings", "codebase-index"), keywords: ["codebase", "index", "embeddings", "vector"] },
-    { label: "GitHub integration", href: orgPath("settings", "integrations", "github"), keywords: ["github", "git", "repo", "repository"] },
-    { label: "Jira integration", href: orgPath("settings", "integrations", "jira"), keywords: ["jira", "ticket", "board"] },
-    { label: "Settings", href: orgPath("settings"), keywords: ["settings", "integrations", "billing", "plan"] },
+    { label: "GitHub integration", href: orgPath("integrations", "github"), keywords: ["github", "git", "repo", "repository"] },
+    { label: "Jira integration", href: orgPath("integrations", "jira"), keywords: ["jira", "ticket", "board"] },
+    { label: "Integrations", href: orgPath("integrations"), keywords: ["integrations", "connect", "github", "jira"] },
+    { label: "Settings", href: orgPath("settings"), keywords: ["settings", "billing", "plan", "usage", "credits", "profile"] },
+    { label: "Usage History", href: orgPath("settings", "usage"), keywords: ["usage", "credits", "history"] },
+    { label: "Account", href: orgPath("settings", "profile"), keywords: ["account", "profile", "email"] },
   ];
 }
 

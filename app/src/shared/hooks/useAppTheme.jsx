@@ -4,55 +4,85 @@ const STORAGE_KEY = "agentox-app-theme";
 
 const AppThemeContext = createContext(null);
 
+function prefersDark() {
+  if (typeof window === "undefined") return true;
+  return window.matchMedia("(prefers-color-scheme: dark)").matches;
+}
+
+function resolveTheme(preference) {
+  if (preference === "system") return prefersDark() ? "dark" : "light";
+  return preference === "light" ? "light" : "dark";
+}
+
 function readStoredTheme() {
-  if (typeof window === "undefined") return "light";
+  if (typeof window === "undefined") return "system";
   try {
     const stored = window.localStorage.getItem(STORAGE_KEY);
-    if (stored === "dark" || stored === "light") return stored;
+    if (stored === "dark" || stored === "light" || stored === "system") return stored;
   } catch {
     /* ignore */
   }
-  return "light";
+  return "system";
 }
 
-function applyThemeClass(theme) {
+function applyThemeClass(resolved) {
   const root = document.documentElement;
   root.classList.add("app-theme");
-  root.classList.toggle("app-theme-dark", theme === "dark");
-  root.style.colorScheme = theme === "dark" ? "dark" : "light";
+  root.classList.toggle("app-theme-dark", resolved === "dark");
+  root.style.colorScheme = resolved === "dark" ? "dark" : "light";
 }
 
 /**
- * Post-login dashboard light/dark theme. Persists in localStorage.
+ * Post-login dashboard theme. Preference is light / dark / system; resolved follows OS when system.
  */
 export function AppThemeProvider({ children }) {
-  const [theme, setThemeState] = useState(readStoredTheme);
+  const [preference, setPreferenceState] = useState(readStoredTheme);
+  const [systemDark, setSystemDark] = useState(prefersDark);
 
   useEffect(() => {
-    applyThemeClass(theme);
+    const media = window.matchMedia("(prefers-color-scheme: dark)");
+    const onChange = () => setSystemDark(media.matches);
+    onChange();
+    media.addEventListener("change", onChange);
+    return () => media.removeEventListener("change", onChange);
+  }, []);
+
+  const resolved = preference === "system" ? (systemDark ? "dark" : "light") : resolveTheme(preference);
+
+  useEffect(() => {
+    applyThemeClass(resolved);
     try {
-      window.localStorage.setItem(STORAGE_KEY, theme);
+      window.localStorage.setItem(STORAGE_KEY, preference);
     } catch {
       /* ignore */
     }
-  }, [theme]);
+  }, [preference, resolved]);
 
   const setTheme = useCallback((next) => {
-    setThemeState(next === "dark" ? "dark" : "light");
+    if (next === "dark" || next === "light" || next === "system") {
+      setPreferenceState(next);
+      return;
+    }
+    setPreferenceState("light");
   }, []);
 
   const toggleTheme = useCallback(() => {
-    setThemeState((prev) => (prev === "dark" ? "light" : "dark"));
+    setPreferenceState((prev) => {
+      const current = prev === "system" ? (prefersDark() ? "dark" : "light") : prev;
+      return current === "dark" ? "light" : "dark";
+    });
   }, []);
 
   const value = useMemo(
     () => ({
-      theme,
-      isDark: theme === "dark",
+      theme: preference,
+      preference,
+      resolved,
+      isDark: resolved === "dark",
       setTheme,
       toggleTheme,
     }),
-    [theme, setTheme, toggleTheme]
+    [preference, resolved, setTheme, toggleTheme]
   );
 
   return <AppThemeContext.Provider value={value}>{children}</AppThemeContext.Provider>;

@@ -45,8 +45,13 @@ export const INTEGRATIONS = {
     { name: "Jira", src: "/marketing/integrations/jira.svg" },
     { name: "GitHub", src: "/marketing/integrations/github.svg" },
     { name: "Bitbucket", src: "/marketing/integrations/bitbucket.svg" },
-    { name: "Confluence", src: "/marketing/integrations/confluence.svg" },
+    { name: "Slack", src: "/marketing/integrations/slack.svg" },
+    { name: "Linear", src: "/marketing/integrations/linear.svg" },
+    { name: "HubSpot", src: "/marketing/integrations/hubspot.svg" },
     { name: "Supabase", src: "/marketing/integrations/supabase.svg" },
+    { name: "Grafana", src: "/marketing/integrations/grafana.svg" },
+    { name: "Sentry", src: "/marketing/integrations/sentry.svg" },
+    { name: "Datadog", src: "/marketing/integrations/datadog.svg" },
   ],
 };
 

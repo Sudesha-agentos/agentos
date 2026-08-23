@@ -66,6 +66,12 @@ function mockReply(domain, content) {
 }
 
 const restAdapter = {
+  async listThreads() {
+    const data = await fetchJson(apiPath("/api", "/agent-chat/threads"), {
+      headers: headers(),
+    });
+    return data?.threads ?? [];
+  },
   async getThread(domain, contextKey = "") {
     const qs = new URLSearchParams({ domain, contextKey });
     const data = await fetchJson(apiPath("/api", `/agent-chat/threads?${qs}`), {
@@ -73,13 +79,13 @@ const restAdapter = {
     });
     return data?.thread ?? null;
   },
-  async ensureThread(domain, contextKey = "") {
+  async ensureThread(domain, contextKey = "", title) {
     const existing = await this.getThread(domain, contextKey);
     if (existing) return existing;
     const data = await fetchJson(apiPath("/api", "/agent-chat/threads"), {
       method: "POST",
       headers: headers({ "Content-Type": "application/json" }),
-      body: JSON.stringify({ domain, contextKey }),
+      body: JSON.stringify({ domain, contextKey, title }),
     });
     return data.thread;
   },
@@ -105,17 +111,34 @@ const restAdapter = {
 };
 
 const mockAdapter = {
+  async listThreads() {
+    if (typeof window === "undefined") return [];
+    const threads = [];
+    for (let i = 0; i < window.localStorage.length; i += 1) {
+      const key = window.localStorage.key(i);
+      if (!key?.startsWith(STORAGE_PREFIX)) continue;
+      try {
+        const parsed = JSON.parse(window.localStorage.getItem(key) ?? "");
+        if (parsed?.id) threads.push(parsed);
+      } catch {
+        /* ignore */
+      }
+    }
+    return threads.sort(
+      (a, b) => new Date(b.updatedAt ?? 0).getTime() - new Date(a.updatedAt ?? 0).getTime()
+    );
+  },
   async getThread(domain, contextKey = "") {
     return readMockThread(domain, contextKey);
   },
-  async ensureThread(domain, contextKey = "") {
+  async ensureThread(domain, contextKey = "", title) {
     let thread = readMockThread(domain, contextKey);
     if (!thread) {
       thread = {
         id: `mock-thread-${domain}-${contextKey || "default"}`,
         agentDomain: domain,
         contextKey,
-        title: null,
+        title: title ?? null,
         messages: [],
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
@@ -161,8 +184,12 @@ const mockAdapter = {
 
 const adapter = DATA_MODE === DATA_MODES.REST ? restAdapter : mockAdapter;
 
-export async function ensureAgentChatThread(domain, contextKey = "") {
-  return adapter.ensureThread(domain, contextKey);
+export async function listAgentChatThreads() {
+  return adapter.listThreads();
+}
+
+export async function ensureAgentChatThread(domain, contextKey = "", title) {
+  return adapter.ensureThread(domain, contextKey, title);
 }
 
 export async function getAgentChatThread(domain, contextKey = "") {

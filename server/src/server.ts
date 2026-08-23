@@ -31,10 +31,14 @@ async function bootstrap(): Promise<void> {
   ensureOssCliPath();
   validateAuthConfig();
   await runMigrationsOnStartup();
-  initIntakeDb();
-  loadPipelineJiraCredentialsFromStore();
-  loadCanarySettingsFromStore();
-  loadPipelineSettingsFromStore();
+  try {
+    initIntakeDb();
+    loadPipelineJiraCredentialsFromStore();
+    loadCanarySettingsFromStore();
+    loadPipelineSettingsFromStore();
+  } catch (err) {
+    logger.warn({ err }, "intake sqlite unavailable — local file stores disabled this process");
+  }
 
   await recoverPipelineStateOnBoot().catch((err) => {
     logger.warn({ err }, "startup pipeline queue recovery failed");

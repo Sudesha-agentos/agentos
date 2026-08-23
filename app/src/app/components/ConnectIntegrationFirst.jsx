@@ -61,7 +61,7 @@ export default function ConnectIntegrationFirst({
           {items.map((item) => (
             <Link
               key={item.id}
-              to={item.href === "board" ? orgPath("board") : orgPath("settings", "integrations", item.segment)}
+              to={item.href === "board" ? orgPath("board") : orgPath("integrations", item.segment)}
               className="app-btn-primary"
             >
               {item.cta ?? `Connect ${item.name}`}
@@ -69,7 +69,7 @@ export default function ConnectIntegrationFirst({
           ))}
           {items.length > 1 ? (
             <Link
-              to={orgPath("settings", "integrations")}
+              to={orgPath("integrations")}
               className="rounded-full border border-app-border bg-app-surface px-4 py-2 text-sm font-medium text-app-ink transition hover:border-indigo/40"
             >
               All integrations

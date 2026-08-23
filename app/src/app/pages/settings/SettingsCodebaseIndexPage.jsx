@@ -34,11 +34,11 @@ export default function SettingsCodebaseIndexPage() {
           semantic code search: this is not shown in the Ananta workspace UI.
         </p>
         <p className="mt-2 text-[13px] text-app-ink-dim">
-          <Link to={orgPath("settings", "integrations", "github")} className="text-indigo hover:underline">
+          <Link to={orgPath("integrations", "github")} className="text-indigo hover:underline">
             GitHub integration →
           </Link>
           {" · "}
-          <Link to={orgPath("settings", "integrations", "jira")} className="text-indigo hover:underline">
+          <Link to={orgPath("integrations", "jira")} className="text-indigo hover:underline">
             Jira vector index →
           </Link>
           {" · "}

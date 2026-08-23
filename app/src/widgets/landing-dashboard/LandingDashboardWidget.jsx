@@ -1,6 +1,5 @@
 import { useMemo } from "react";
 import { usePipelineList } from "../../entities/pipeline";
-import { useCostsDaily } from "../../entities/costs";
 import { useQaReports } from "../../entities/qa";
 import { useOrgPathBuilder } from "../../shared/providers/OrgRouteProvider";
 import { useCoreIntegrations } from "../../shared/hooks/useIntegrationsStatus";
@@ -9,7 +8,7 @@ import {
   deriveRecentCompletions,
   deriveReviewQueueItems,
 } from "../../shared/lib/pipelineCounts";
-import { formatCostToday, derivePassRate } from "../../shared/lib/dashboardMetrics";
+import { derivePassRate } from "../../shared/lib/dashboardMetrics";
 import {
   useActivityEvents,
   useAgentHealth,
@@ -17,7 +16,7 @@ import {
 } from "../../entities/workspace";
 import DashboardWorkspace from "./DashboardWorkspace";
 
-function buildStatusMetrics(orgPath, counts, costToday = "—", passRate = "—") {
+function buildStatusMetrics(orgPath, counts, passRate = "—") {
   return [
     {
       id: "running",
@@ -39,13 +38,6 @@ function buildStatusMetrics(orgPath, counts, costToday = "—", passRate = "—"
       value: String(counts.completedToday),
       tone: "success",
       href: `${orgPath("pipelines")}?tab=history`,
-    },
-    {
-      id: "cost",
-      label: "Cost today",
-      value: costToday,
-      tone: "neutral",
-      href: orgPath("costs"),
     },
     {
       id: "pass_rate",
@@ -76,15 +68,13 @@ export default function LandingDashboardWidget() {
   );
   const completions = useMemo(() => deriveRecentCompletions(pipelines), [pipelines]);
 
-  const { data: costsDaily, loading: costsLoading } = useCostsDaily({ pollMs: 30_000 });
   const { data: qaReports, loading: qaLoading } = useQaReports({ pollMs: 30_000 });
-  const costToday = useMemo(() => formatCostToday(costsDaily), [costsDaily]);
   const passRate = useMemo(() => derivePassRate(qaReports), [qaReports]);
   const statusMetrics = useMemo(
-    () => buildStatusMetrics(orgPath, counts, costToday, passRate),
-    [orgPath, counts, costToday, passRate]
+    () => buildStatusMetrics(orgPath, counts, passRate),
+    [orgPath, counts, passRate]
   );
-  const metricsLoading = pipelinesLoading || costsLoading || qaLoading;
+  const metricsLoading = pipelinesLoading || qaLoading;
 
   const { data: eventsData, loading: eventsLoading } = useActivityEvents({ pollMs: 30_000 });
   const { data: trendData, loading: trendLoading } = useWeeklyTrend();

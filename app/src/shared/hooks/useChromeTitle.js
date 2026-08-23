@@ -14,9 +14,10 @@ export function useChromeTitle() {
   if (pathMatches("codebase")) return "Ananta Brain";
   if (pathMatches("ananta")) return "Ananta";
   if (pathMatches("qa")) return "Neel";
-  if (pathMatches("costs")) return "Cost & ROI";
+  if (pathMatches("projects")) return "All projects";
+  if (pathMatches("integrations")) return "Integrations";
   if (pathMatches("logs")) return "Log Intelligence";
-  if (pathMatches("settings")) return "Configuration";
+  if (pathMatches("settings")) return "Settings";
   if (pathMatches("audit")) return "Audit Trail";
   return orgName;
 }

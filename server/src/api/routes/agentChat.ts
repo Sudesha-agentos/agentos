@@ -8,6 +8,10 @@ import {
 import type { AgentChatDomain } from "../../agentChat/types";
 import { bindOrganizationContextMiddleware } from "../orgRequestContext";
 import { ValidationError } from "../../utils/errors";
+import { pmAnalysisStore } from "../../agents/pm/store";
+import { startPmAnalysisInBackground } from "../../agents/pm/backgroundRunner";
+import { submitVirinAnswer } from "../../agents/virin/orchestrator";
+import { getActiveOrganizationId } from "../../organization/context";
 
 const router = Router();
 
@@ -25,6 +29,12 @@ function parseDomain(value: unknown): AgentChatDomain {
 
 router.get("/threads", async (req, res, next) => {
   try {
+    if (!req.query.domain) {
+      const limit = Number(req.query.limit ?? 50);
+      const threads = await agentChatRepo.listThreads(Number.isFinite(limit) ? limit : 50);
+      res.json({ threads });
+      return;
+    }
     const domain = parseDomain(req.query.domain);
     const contextKey = String(req.query.contextKey ?? "");
     const thread = await agentChatRepo.findThread(domain, contextKey);
@@ -96,6 +106,26 @@ router.post("/threads/:id/messages", async (req, res, next) => {
     if (!thread.title && content.length > 0) {
       const title = content.length > 60 ? `${content.slice(0, 57)}…` : content;
       await agentChatRepo.updateThreadTitle(thread.id, title);
+    }
+
+    const ticketKey = String(thread.contextKey ?? "").trim().toUpperCase();
+    const analysis = ticketKey ? pmAnalysisStore.get(ticketKey) : null;
+    if (
+      thread.agentDomain === "virin" &&
+      analysis?.status === "AWAITING_INPUT" &&
+      analysis.pendingQuestion
+    ) {
+      startPmAnalysisInBackground(ticketKey, () => submitVirinAnswer(ticketKey, content), {
+        organizationId: getActiveOrganizationId() ?? undefined,
+      });
+      const assistantMessage = await agentChatRepo.appendMessage({
+        threadId: thread.id,
+        role: "assistant",
+        content: "Got it. Preparing the next question.",
+        metadata: { kind: "discovery_ack" },
+      });
+      res.json({ userMessage, assistantMessage, toolCallLog: [], costUsd: 0 });
+      return;
     }
 
     const history = (thread.messages ?? [])

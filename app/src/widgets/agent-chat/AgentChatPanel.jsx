@@ -1,9 +1,11 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   clearAgentChatThread,
   ensureAgentChatThread,
   sendAgentChatMessage,
 } from "../../entities/agent-chat";
+import { usePmAnalysis } from "../../entities/pm-agents";
+import { mergeVirinDiscoveryMessages } from "../pm-analysis/virinChatTranscript";
 import { getAgentChatConfig } from "./agentChatConfig";
 import { AgentChatAvatar } from "./AgentChatAvatar";
 import { AgentChatComposer } from "./AgentChatComposer";
@@ -23,6 +25,18 @@ export function AgentChatPanel({
   const [sending, setSending] = useState(false);
   const [error, setError] = useState(null);
   const isPopup = layout === "popup";
+  const ticketKey = domain === "virin" ? String(contextKey ?? "").trim().toUpperCase() : "";
+  const { data: analysis } = usePmAnalysis(ticketKey, {
+    pollMs: ticketKey ? 800 : 0,
+    skip: !ticketKey,
+  });
+  const awaitingQuestion = Boolean(
+    analysis?.status === "AWAITING_INPUT" && analysis.pendingQuestion
+  );
+  const visibleMessages = useMemo(
+    () => mergeVirinDiscoveryMessages(messages, analysis),
+    [messages, analysis]
+  );
 
   const loadThread = useCallback(async () => {
     setLoading(true);
@@ -97,7 +111,7 @@ export function AgentChatPanel({
             <div className="flex flex-wrap items-center gap-2">
               <p className="type-kicker">{config.role}</p>
               <span className="rounded-full border border-app-border bg-app-surface-muted/60 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-app-ink-mute">
-                Discussion only
+                {awaitingQuestion ? "Asking in chat" : "Chat"}
               </span>
             </div>
             <h3 className="mt-0.5 text-[16px] font-semibold leading-tight text-app-ink">
@@ -136,7 +150,14 @@ export function AgentChatPanel({
           Loading conversation…
         </div>
       ) : (
-        <AgentChatMessages domain={domain} messages={messages} loading={sending} compact={isPopup} />
+        <AgentChatMessages
+          domain={domain}
+          messages={visibleMessages}
+          loading={sending || analysis?.status === "RUNNING"}
+          compact={isPopup}
+          answering={sending}
+          onAnswerQuestion={awaitingQuestion ? handleSend : undefined}
+        />
       )}
 
       <AgentChatComposer

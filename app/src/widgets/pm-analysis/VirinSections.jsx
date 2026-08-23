@@ -105,7 +105,7 @@ export function VirinHumanBlockersBanner({ analysis }) {
             <p className="mt-1 text-[13px] leading-relaxed text-app-ink-dim">{b.detail}</p>
             {b.kind === "credentials" || b.kind === "access" ? (
               <Link
-                to={orgPath("settings", "integrations")}
+                to={orgPath("integrations")}
                 className="mt-3 inline-flex text-[12px] font-medium text-indigo hover:underline"
               >
                 Open Settings → Integrations (one-click backend links) →
