@@ -7,7 +7,8 @@ const Pipelines = lazy(() => import("../../app/pages/Pipelines"));
 const PipelineDetail = lazy(() => import("../../app/pages/PipelineDetail"));
 const Override = lazy(() => import("../../app/pages/Override"));
 const SettingsRoutes = lazy(() => import("../../app/pages/SettingsRoutes"));
-const IntegrationsRoutes = lazy(() => import("../../app/pages/IntegrationsRoutes"));
+const IntegrationsPage = lazy(() => import("../../app/pages/IntegrationsPage"));
+const IntegrationConnectPage = lazy(() => import("../../app/pages/IntegrationConnectPage"));
 const AnantaWorkspace = lazy(() => import("../../app/pages/AnantaWorkspace"));
 const QaCenter = lazy(() => import("../../app/pages/QaCenter"));
 const CostIntelligence = lazy(() => import("../../app/pages/CostIntelligence"));
@@ -64,7 +65,8 @@ export const orgAppRouteElements = (
     <Route path="github" element={<RedirectTo segments={["integrations", "github"]} />} />
     <Route path="jira" element={<RedirectTo segments={["integrations", "jira"]} />} />
     <Route path="jira-search" element={<JiraSearch />} />
-    <Route path="integrations/*" element={<IntegrationsRoutes />} />
+    <Route path="integrations" element={<IntegrationsPage />} />
+    <Route path="integrations/:integrationId" element={<IntegrationConnectPage />} />
     <Route path="settings/*" element={<SettingsRoutes />} />
     <Route path="*" element={<OrgNotFound />} />
   </>

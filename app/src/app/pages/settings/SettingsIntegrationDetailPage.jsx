@@ -35,11 +35,6 @@ export default function SettingsIntegrationDetailPage() {
     return <Navigate to={orgPath("integrations")} replace />;
   }
 
-  // One-click backend / log services → Logs Sources with provider preselected
-  if (integration.connectKind === "log_source" && integration.route) {
-    return <Navigate to={integration.route} replace />;
-  }
-
   return (
     <ComingSoonIntegration
       integration={integration}

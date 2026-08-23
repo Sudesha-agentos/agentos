@@ -31,8 +31,8 @@ export const INTEGRATION_CATEGORIES = [
 /**
  * connectKind:
  *  - native: dedicated connect page (GitHub / Jira / databases)
- *  - log_source: one-click deep-link to Logs → Sources with provider preselected
- *  - coming_soon: notify-only
+ *  - log_source: connect a log adapter from the integrations page
+ *  - workspace: token/API-key connect for business data apps
  */
 const INTEGRATION_DEFS = [
   {
@@ -94,11 +94,11 @@ const INTEGRATION_DEFS = [
     tag: "Communication",
     description:
       "Surface customer conversations, alerts, and team signals as AI-accessible context.",
-    catalogStatus: "coming_soon",
-    connectKind: "coming_soon",
+    catalogStatus: "available",
+    connectKind: "workspace",
     routeParts: ["integrations", "slack"],
     icon: null,
-    liveStatusKey: null,
+    liveStatusKey: "workspace:slack",
   },
   {
     id: "hubspot",
@@ -107,11 +107,11 @@ const INTEGRATION_DEFS = [
     tag: "CRM",
     description:
       "Pull CRM data — contacts, deals, companies — into the AI's context for account-aware responses.",
-    catalogStatus: "coming_soon",
-    connectKind: "coming_soon",
+    catalogStatus: "available",
+    connectKind: "workspace",
     routeParts: ["integrations", "hubspot"],
     icon: null,
-    liveStatusKey: null,
+    liveStatusKey: "workspace:hubspot",
   },
   {
     id: "gong",
@@ -120,11 +120,11 @@ const INTEGRATION_DEFS = [
     tag: "Revenue Intelligence",
     description:
       "Feed call recordings and revenue intelligence into agents for product and sales insights.",
-    catalogStatus: "coming_soon",
-    connectKind: "coming_soon",
+    catalogStatus: "available",
+    connectKind: "workspace",
     routeParts: ["integrations", "gong"],
     icon: null,
-    liveStatusKey: null,
+    liveStatusKey: "workspace:gong",
   },
   {
     id: "linear",
@@ -133,11 +133,11 @@ const INTEGRATION_DEFS = [
     tag: "Project Management",
     description:
       "Sync issues, projects, and milestones so agents stay aligned with your engineering roadmap.",
-    catalogStatus: "coming_soon",
-    connectKind: "coming_soon",
+    catalogStatus: "available",
+    connectKind: "workspace",
     routeParts: ["integrations", "linear"],
     icon: null,
-    liveStatusKey: null,
+    liveStatusKey: "workspace:linear",
   },
   {
     id: "zendesk",
@@ -146,11 +146,11 @@ const INTEGRATION_DEFS = [
     tag: "Customer Support",
     description:
       "Ingest support tickets as customer signals — surface pain points and feature requests from real conversations.",
-    catalogStatus: "coming_soon",
-    connectKind: "coming_soon",
+    catalogStatus: "available",
+    connectKind: "workspace",
     routeParts: ["integrations", "zendesk"],
     icon: null,
-    liveStatusKey: null,
+    liveStatusKey: "workspace:zendesk",
   },
   {
     id: "intercom",
@@ -159,11 +159,11 @@ const INTEGRATION_DEFS = [
     tag: "Customer Support",
     description:
       "Pull customer conversations and support threads as signals to understand common themes and friction.",
-    catalogStatus: "coming_soon",
-    connectKind: "coming_soon",
+    catalogStatus: "available",
+    connectKind: "workspace",
     routeParts: ["integrations", "intercom"],
     icon: null,
-    liveStatusKey: null,
+    liveStatusKey: "workspace:intercom",
   },
   {
     id: "amplitude",
@@ -172,11 +172,11 @@ const INTEGRATION_DEFS = [
     tag: "Product Analytics",
     description:
       "Bring product analytics — funnels, retention, and feature usage — into agent context for data-informed decisions.",
-    catalogStatus: "coming_soon",
-    connectKind: "coming_soon",
+    catalogStatus: "available",
+    connectKind: "workspace",
     routeParts: ["integrations", "amplitude"],
     icon: null,
-    liveStatusKey: null,
+    liveStatusKey: "workspace:amplitude",
   },
   {
     id: "postgresql",
@@ -227,8 +227,7 @@ const INTEGRATION_DEFS = [
     catalogStatus: "available",
     connectKind: "log_source",
     logSourceType: "datadog",
-    routeParts: ["logs"],
-    search: "tab=sources&provider=datadog",
+    routeParts: ["integrations", "datadog"],
     icon: null,
     liveStatusKey: "log:datadog",
   },
@@ -242,8 +241,7 @@ const INTEGRATION_DEFS = [
     catalogStatus: "available",
     connectKind: "log_source",
     logSourceType: "sentry",
-    routeParts: ["logs"],
-    search: "tab=sources&provider=sentry",
+    routeParts: ["integrations", "sentry"],
     icon: null,
     liveStatusKey: "log:sentry",
   },
@@ -256,8 +254,7 @@ const INTEGRATION_DEFS = [
     catalogStatus: "available",
     connectKind: "log_source",
     logSourceType: "grafana_loki",
-    routeParts: ["logs"],
-    search: "tab=sources&provider=grafana_loki",
+    routeParts: ["integrations", "grafana"],
     icon: "/marketing/integrations/grafana-wordmark.svg",
     liveStatusKey: "log:grafana_loki",
   },
@@ -270,8 +267,7 @@ const INTEGRATION_DEFS = [
     catalogStatus: "available",
     connectKind: "log_source",
     logSourceType: "render",
-    routeParts: ["logs"],
-    search: "tab=sources&provider=render",
+    routeParts: ["integrations", "render"],
     icon: null,
     liveStatusKey: "log:render",
   },
@@ -284,8 +280,7 @@ const INTEGRATION_DEFS = [
     catalogStatus: "available",
     connectKind: "log_source",
     logSourceType: "railway",
-    routeParts: ["logs"],
-    search: "tab=sources&provider=railway",
+    routeParts: ["integrations", "railway"],
     icon: null,
     liveStatusKey: "log:railway",
   },
@@ -298,8 +293,7 @@ const INTEGRATION_DEFS = [
     catalogStatus: "available",
     connectKind: "log_source",
     logSourceType: "cloudwatch",
-    routeParts: ["logs"],
-    search: "tab=sources&provider=cloudwatch",
+    routeParts: ["integrations", "cloudwatch"],
     icon: null,
     liveStatusKey: "log:cloudwatch",
   },
@@ -313,8 +307,7 @@ const INTEGRATION_DEFS = [
     catalogStatus: "available",
     connectKind: "log_source",
     logSourceType: "otlp",
-    routeParts: ["logs"],
-    search: "tab=sources&provider=otlp",
+    routeParts: ["integrations", "otlp"],
     icon: null,
     liveStatusKey: "log:otlp",
   },

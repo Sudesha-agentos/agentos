@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { useIntegrationsStatus } from "../../shared/hooks/useIntegrationsStatus";
+import { useOrg } from "../../shared/providers/OrgRouteProvider";
 import { AnimatedAppPage } from "../../shared/ui/AnimatedAppPage";
 
 const CTA = {
@@ -52,8 +53,9 @@ export default function IntegrationsPage() {
 }
 
 function IntegrationRow({ integration, divided }) {
+  const { orgPath } = useOrg();
   const cta = CTA[integration.displayStatus] ?? "Connect";
-  const to = integration.route;
+  const to = orgPath("integrations", integration.id);
 
   return (
     <div

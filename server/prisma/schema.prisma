@@ -380,6 +380,7 @@ model Organization {
   errorPatterns           ErrorPattern[]
   anomalyDetections       AnomalyDetection[]
   logIntelligenceConfig   LogIntelligenceConfig?
+  workspaceConnections    WorkspaceConnection[]
   canaryHypothesisLibrary CanaryHypothesisLibrary[]
   databases               OrganizationDatabase[]
   workBoard               WorkBoard?
@@ -1079,6 +1080,24 @@ model AnomalyDetection {
 
   @@index([organizationId, detectedAt])
   @@index([severity, acknowledged])
+}
+
+/// Business-data integrations (Slack, HubSpot, Linear, …). Secrets in configEnc.
+model WorkspaceConnection {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  provider       String
+  displayName    String
+  configEnc      Json
+  metadata       Json         @default("{}")
+  lastVerifiedAt DateTime?
+  lastError      String?      @db.Text
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@unique([organizationId, provider])
+  @@index([organizationId])
 }
 
 model LogIntelligenceConfig {

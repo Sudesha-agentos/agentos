@@ -23,6 +23,8 @@ export type LogAdapterCatalogEntry = {
   mode: LogAdapterMode;
   configSchema: LogConfigField[];
   docsHint: string;
+  docsUrl?: string;
+  docsLabel?: string;
   /** Hide from primary picker (aliases like loki → grafana_loki). */
   aliasOf?: string;
 };
@@ -32,6 +34,8 @@ export const LOG_ADAPTER_CATALOG: LogAdapterCatalogEntry[] = [
     id: "render",
     displayName: "Render",
     mode: "pull",
+    docsUrl: "https://api-docs.render.com/reference/create-api-key",
+    docsLabel: "Render API keys",
     docsHint:
       "Create an API key in Render Account Settings → API Keys. Use the service ID from the service URL (srv-…). AgentOX pulls error/warn logs on a schedule.",
     configSchema: [
@@ -73,6 +77,8 @@ export const LOG_ADAPTER_CATALOG: LogAdapterCatalogEntry[] = [
     id: "sentry",
     displayName: "Sentry",
     mode: "both",
+    docsUrl: "https://docs.sentry.io/api/auth/",
+    docsLabel: "Sentry authentication",
     docsHint:
       "Use a Sentry auth token with event:read. For push, also point a Sentry webhook at POST /api/log-intelligence/webhooks/sentry?organizationId=<yourOrgId>.",
     configSchema: [
@@ -113,6 +119,8 @@ export const LOG_ADAPTER_CATALOG: LogAdapterCatalogEntry[] = [
     id: "datadog",
     displayName: "Datadog",
     mode: "pull",
+    docsUrl: "https://docs.datadoghq.com/api/latest/authentication/",
+    docsLabel: "Datadog authentication",
     docsHint:
       "Requires an API key and Application key with logs_read. Site defaults to datadoghq.com (use datadoghq.eu for EU).",
     configSchema: [
@@ -157,6 +165,8 @@ export const LOG_ADAPTER_CATALOG: LogAdapterCatalogEntry[] = [
     id: "cloudwatch",
     displayName: "AWS CloudWatch",
     mode: "pull",
+    docsUrl: "https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/Working-with-log-groups-and-streams.html",
+    docsLabel: "CloudWatch Logs",
     docsHint:
       "IAM user/role needs logs:FilterLogEvents on the target log group. Region must match the log group.",
     configSchema: [
@@ -209,6 +219,8 @@ export const LOG_ADAPTER_CATALOG: LogAdapterCatalogEntry[] = [
     id: "grafana_loki",
     displayName: "Grafana Loki",
     mode: "pull",
+    docsUrl: "https://grafana.com/docs/loki/latest/query/",
+    docsLabel: "Grafana Loki query API",
     docsHint:
       "Works with Grafana Cloud Loki (username + API key) or self-hosted Loki with basic auth on the query endpoint.",
     configSchema: [
@@ -261,6 +273,8 @@ export const LOG_ADAPTER_CATALOG: LogAdapterCatalogEntry[] = [
     id: "railway",
     displayName: "Railway",
     mode: "pull",
+    docsUrl: "https://docs.railway.com/guides/public-api",
+    docsLabel: "Railway public API",
     docsHint:
       "Use a Railway account token. Provide environmentId (preferred) or a specific deploymentId.",
     configSchema: [
@@ -302,6 +316,8 @@ export const LOG_ADAPTER_CATALOG: LogAdapterCatalogEntry[] = [
     id: "otlp",
     displayName: "OTLP / OpenTelemetry",
     mode: "push",
+    docsUrl: "https://opentelemetry.io/docs/specs/otlp/",
+    docsLabel: "OTLP specification",
     docsHint:
       "Push OTLP JSON logs to AgentOX. No outbound credentials required — AgentOX is the receiver. Use the ingest URL shown after you save this source.",
     configSchema: [

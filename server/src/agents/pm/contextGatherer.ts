@@ -10,6 +10,7 @@ import { logger } from "../../utils/logger";
 import { companyIntelligence } from "../../companyIntelligence";
 import { orgIntelligence } from "../../orgIntelligence";
 import { buildDatabaseCatalogPromptBlock } from "../../customerDb/promptBlock";
+import { buildWorkspaceConnectionsPromptBlock } from "../../integrations/workspaceConnections/promptBlock";
 import type { PmTicketInput, SynthesisSummary } from "./types";
 import { enrichTicketFromJira } from "./ticketEnrichment";
 import type { RetrievalResult } from "../../rag/retriever";
@@ -610,6 +611,9 @@ export async function gatherPmContext(
   const databaseCatalogBlock = await buildDatabaseCatalogPromptBlock().catch(
     () => "CUSTOMER DATABASES: catalog unavailable."
   );
+  const workspaceConnectionsBlock = await buildWorkspaceConnectionsPromptBlock().catch(
+    () => "BUSINESS DATA INTEGRATIONS: catalog unavailable."
+  );
   const okrList =
     companyProfile?.strategicGoals?.length
       ? companyProfile.strategicGoals.join("; ")
@@ -620,7 +624,9 @@ export async function gatherPmContext(
     similarTicketsList,
     componentBugCount,
     okrList,
-    companyContextBlock: [companyContextBlock, databaseCatalogBlock].filter(Boolean).join("\n\n"),
+    companyContextBlock: [companyContextBlock, databaseCatalogBlock, workspaceConnectionsBlock]
+      .filter(Boolean)
+      .join("\n\n"),
     companyName: companyProfile?.companyName?.trim() ?? "",
     companyWebsite: companyProfile?.website?.trim() ?? "",
     companyProductSummary: companyProfile?.productSummary?.trim() ?? "",
