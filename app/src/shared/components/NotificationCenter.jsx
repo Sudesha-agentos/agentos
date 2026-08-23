@@ -118,7 +118,7 @@ export default function NotificationCenter() {
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="relative flex size-10 items-center justify-center rounded-full border border-app-border bg-app-surface text-app-ink-dim transition-colors hover:border-app-ink/12 hover:text-app-ink"
+        className="relative flex size-9 items-center justify-center rounded-lg text-app-ink-dim transition-colors hover:bg-app-surface-muted hover:text-app-ink"
         aria-label="Notifications"
         aria-expanded={open}
       >

@@ -11,7 +11,7 @@ export const PRODUCT_TOUR_STEPS = [
     target: "dashboard",
     segment: "",
     title: "Dashboard",
-    body: "Your mission control. See every pipeline at a glance: what the agents are working on, what's waiting for your review, and what shipped.",
+    body: "Your workspace home. Ask Virin, Ananta, or Neel, review what is waiting on you, and jump into running pipelines from the chips and stream.",
   },
   {
     id: "pipelines",

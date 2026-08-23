@@ -4,7 +4,6 @@ import { useCostsDaily } from "../../entities/costs";
 import { useQaReports } from "../../entities/qa";
 import { useOrgPathBuilder } from "../../shared/providers/OrgRouteProvider";
 import { useCoreIntegrations } from "../../shared/hooks/useIntegrationsStatus";
-import ConnectIntegrationFirst from "../../app/components/ConnectIntegrationFirst";
 import {
   derivePipelineCounts,
   deriveRecentCompletions,
@@ -16,12 +15,7 @@ import {
   useAgentHealth,
   useWeeklyTrend,
 } from "../../entities/workspace";
-import DashboardStatusBar from "./DashboardStatusBar";
-import ReviewQueuePanel from "./ReviewQueuePanel";
-import DashboardLiveActivity from "./DashboardLiveActivity";
-import WeeklyTrendChart from "./WeeklyTrendChart";
-import RecentCompletionsPanel from "./RecentCompletionsPanel";
-import AgentHealthPanel from "./AgentHealthPanel";
+import DashboardWorkspace from "./DashboardWorkspace";
 
 function buildStatusMetrics(orgPath, counts, costToday = "—", passRate = "—") {
   return [
@@ -97,32 +91,20 @@ export default function LandingDashboardWidget() {
   const { data: healthData, loading: healthLoading } = useAgentHealth({ pollMs: 30_000 });
 
   return (
-    <div className="space-y-6">
-      {needsSetup ? (
-        <ConnectIntegrationFirst
-          integrations={missing}
-          title="Connect integrations to start this workspace"
-          body="AgentOX runs from Jira tickets or a spreadsheet work board through your Git repository. Connect those in Settings, then Virin, Ananta, and pipelines will have something to work on."
-        />
-      ) : null}
-
-      <DashboardStatusBar metrics={statusMetrics} loading={metricsLoading} />
-
-      <section className="grid items-start gap-6 lg:grid-cols-[1.35fr_1fr]">
-        <ReviewQueuePanel
-          items={reviewItems}
-          loading={pipelinesLoading}
-          needsSetup={needsSetup}
-        />
-        <DashboardLiveActivity events={eventsData?.events} loading={eventsLoading} />
-      </section>
-
-      <WeeklyTrendChart trend={trendData} loading={trendLoading} />
-
-      <section className="grid gap-6 lg:grid-cols-2">
-        <RecentCompletionsPanel items={completions} loading={pipelinesLoading} />
-        <AgentHealthPanel agents={healthData?.agents} loading={healthLoading} />
-      </section>
-    </div>
+    <DashboardWorkspace
+      needsSetup={needsSetup}
+      missing={missing}
+      statusMetrics={statusMetrics}
+      metricsLoading={metricsLoading}
+      reviewItems={reviewItems}
+      completions={completions}
+      events={eventsData?.events}
+      eventsLoading={eventsLoading}
+      pipelinesLoading={pipelinesLoading}
+      trendData={trendData}
+      trendLoading={trendLoading}
+      healthData={healthData}
+      healthLoading={healthLoading}
+    />
   );
 }

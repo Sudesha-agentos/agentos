@@ -22,8 +22,8 @@ function AppShellContent() {
     <div className="relative flex">
       <Sidebar />
       <div
-        className={`flex min-h-screen min-w-0 flex-1 flex-col overflow-x-hidden transition-[padding] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
-          collapsed ? "md:pl-14" : "md:pl-[13.75rem]"
+        className={`flex min-h-screen min-w-0 flex-1 flex-col overflow-x-hidden bg-app-canvas transition-[padding] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+          collapsed ? "md:pl-14" : "md:pl-64"
         }`}
       >
         <TopBar />
@@ -32,7 +32,7 @@ function AppShellContent() {
           initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.28, ease: EASE }}
-          className="flex-1 scroll-smooth px-4 pb-24 pt-4 sm:px-6 sm:pb-20 sm:pt-6 lg:px-8"
+          className="flex-1 scroll-smooth px-4 pb-8 pt-2 sm:px-6 sm:pb-10 sm:pt-3 lg:px-8"
         >
           <Suspense fallback={<AppPageFallback />}>
             <RouteErrorBoundary>

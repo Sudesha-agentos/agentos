@@ -39,19 +39,19 @@ html.app-theme {
 
 html.app-theme.app-theme-dark {
   color-scheme: dark;
-  --app-canvas: 12 12 18;
-  --app-surface: 18 18 28;
-  --app-surface-muted: 26 26 38;
-  --app-ink: 240 238 232;
-  --app-ink-dim: 160 160 174;
-  --app-ink-mute: 107 107 123;
-  --app-border-rgb: 240 238 232;
-  --app-border-alpha: 0.1;
+  --app-canvas: 10 10 10;
+  --app-surface: 26 26 26;
+  --app-surface-muted: 38 38 38;
+  --app-ink: 245 244 241;
+  --app-ink-dim: 168 168 168;
+  --app-ink-mute: 110 110 110;
+  --app-border-rgb: 255 255 255;
+  --app-border-alpha: 0.08;
   --app-lavender: 48 42 72;
   --app-peach: 64 48 40;
   --app-mint: 36 56 48;
   --app-butter: 56 52 36;
-  --app-charcoal: 240 238 232;
+  --app-charcoal: 245 244 241;
 }
 
 html.app-theme body {
