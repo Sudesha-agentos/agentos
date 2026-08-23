@@ -297,7 +297,7 @@ export default function LogSourceConnectWidget({ integration, sourceType }) {
           <div>
             <label className="type-kicker">Display name</label>
             <input
-              className="mt-1 w-full rounded-lg border border-app-border bg-app-bg px-2 py-1.5 text-[13px]"
+              className="mt-1 w-full"
               placeholder={selected?.displayName || integration.name}
               value={displayName}
               onChange={(event) => setDisplayName(event.target.value)}
@@ -311,7 +311,7 @@ export default function LogSourceConnectWidget({ integration, sourceType }) {
               </label>
               {field.type === "select" ? (
                 <select
-                  className="mt-1 w-full rounded-lg border border-app-border bg-app-bg px-2 py-1.5 text-[13px]"
+                  className="mt-1 w-full"
                   value={config[field.key] ?? ""}
                   onChange={(event) => setField(field.key, event.target.value)}
                 >
@@ -324,7 +324,7 @@ export default function LogSourceConnectWidget({ integration, sourceType }) {
               ) : (
                 <input
                   type={field.type === "password" ? "password" : "text"}
-                  className="mt-1 w-full rounded-lg border border-app-border bg-app-bg px-2 py-1.5 text-[13px]"
+                  className="mt-1 w-full"
                   placeholder={field.placeholder || ""}
                   value={config[field.key] ?? ""}
                   onChange={(event) => setField(field.key, event.target.value)}
@@ -361,7 +361,7 @@ export default function LogSourceConnectWidget({ integration, sourceType }) {
           </div>
         </form>
         {testOut ? (
-          <pre className="mx-5 mb-5 max-h-48 overflow-auto rounded-lg border border-app-border bg-app-bg p-3 text-[11px]">
+          <pre className="mx-5 mb-5 max-h-48 overflow-auto rounded-lg border border-app-ink/15 bg-app-canvas p-3 text-[11px]">
             {testOut}
           </pre>
         ) : null}

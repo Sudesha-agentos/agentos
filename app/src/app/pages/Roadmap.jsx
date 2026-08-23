@@ -241,7 +241,7 @@ export default function Roadmap() {
               <input
                 value={newTitle}
                 onChange={(e) => setNewTitle(e.target.value)}
-                className="mt-1 w-full rounded-lg border border-app-border px-3 py-2 text-[14px]"
+                className="mt-1 w-full"
                 placeholder="e.g. Launch beta program"
                 autoFocus
                 required
@@ -252,7 +252,7 @@ export default function Roadmap() {
               <select
                 value={newRouteType}
                 onChange={(e) => setNewRouteType(e.target.value)}
-                className="mt-1 w-full rounded-lg border border-app-border px-3 py-2 text-[14px]"
+                className="mt-1 w-full"
               >
                 {ROUTE_TYPE_OPTIONS.map((o) => (
                   <option key={o.id} value={o.id}>

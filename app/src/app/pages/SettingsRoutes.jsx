@@ -6,6 +6,7 @@ import SettingsCodebaseIndexPage from "./settings/SettingsCodebaseIndexPage";
 import SettingsProfilePage from "./settings/SettingsProfilePage";
 import SettingsUsagePage from "./settings/SettingsUsagePage";
 import SettingsAppearancePage from "./settings/SettingsAppearancePage";
+import SettingsModelsPage from "./settings/SettingsModelsPage";
 import SettingsConnectionsPage from "./settings/SettingsConnectionsPage";
 import CompanyIntelligence from "./CompanyIntelligence";
 import { RedirectSettingsIntegrations } from "./IntegrationsRoutes";
@@ -27,6 +28,7 @@ export default function SettingsRoutes() {
         <Route path="plan" element={<SettingsPlanPage />} />
         <Route path="usage" element={<SettingsUsagePage />} />
         <Route path="appearance" element={<SettingsAppearancePage />} />
+        <Route path="models" element={<SettingsModelsPage />} />
         <Route path="connections" element={<SettingsConnectionsPage />} />
         <Route path="codebase-index" element={<SettingsCodebaseIndexPage />} />
         <Route path="company" element={<CompanyIntelligence embedded />} />

@@ -79,6 +79,7 @@ export async function runVirinChatTurn(input: {
     tools: VIRIN_CHAT_TOOL_DEFINITIONS,
     executeToolCall: executeVirinChatToolCall,
     maxToolCalls: 8,
+    role: "product",
     forcedWrapUpMessage:
       "Stop calling tools. Answer in first person as Virin, discussion-only.",
   });

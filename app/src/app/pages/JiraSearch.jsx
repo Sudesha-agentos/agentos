@@ -72,7 +72,7 @@ export default function JiraSearch() {
               value={keyword}
               onChange={(e) => setKeyword(e.target.value)}
               placeholder="e.g. login, automate"
-              className="rounded-app-sm border border-app-border bg-app-surface px-3 py-2 text-sm text-app-ink outline-none focus:border-indigo/40 focus:ring-2 focus:ring-indigo/10"
+              className="mt-1 w-full"
               autoComplete="off"
             />
           </label>
@@ -81,7 +81,7 @@ export default function JiraSearch() {
             <select
               value={searchIn}
               onChange={(e) => setSearchIn(e.target.value)}
-              className="rounded-app-sm border border-app-border bg-app-surface px-3 py-2 text-sm text-app-ink outline-none focus:border-indigo/40"
+              className="mt-1.5 w-full"
             >
               <option value="both">Summary & description</option>
               <option value="summary">Summary only</option>

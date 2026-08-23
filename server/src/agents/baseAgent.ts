@@ -1,5 +1,8 @@
 import { auditRepo } from "../db/repositories/auditRepo";
+import { getModelIdForRole } from "../billing/consumeAgentCredits";
+import type { AgentRole } from "../llm/agentModels";
 import { chatCompletionText } from "../llm/openaiCompletion";
+import { applyClaudeSkillsToPrompt } from "../llm/claudeSkills";
 import { getOpenAIChatModel } from "../llm/openaiClient";
 import type { AgentOutput } from "../types/agents";
 import { AgentParseError } from "../utils/errors";
@@ -14,6 +17,7 @@ export abstract class BaseAgent<TParsed = Record<string, unknown>> {
   abstract systemPrompt: string;
   protected model = getOpenAIChatModel();
   protected maxTokens = 4000;
+  protected role: AgentRole = "product";
 
   async run(
     pipelineId: string,
@@ -21,7 +25,10 @@ export abstract class BaseAgent<TParsed = Record<string, unknown>> {
     options?: { systemPrompt?: string; jsonMode?: boolean; maxTokens?: number }
   ): Promise<AgentOutput<TParsed>> {
     const startTime = Date.now();
-    const system = options?.systemPrompt ?? this.systemPrompt;
+    const system = applyClaudeSkillsToPrompt(
+      options?.systemPrompt ?? this.systemPrompt,
+      this.role
+    );
 
     await auditRepo.log(pipelineId, `${this.name}_STARTED`, {
       promptLength: userPrompt.length,
@@ -34,6 +41,8 @@ export abstract class BaseAgent<TParsed = Record<string, unknown>> {
           user: userPrompt,
           maxTokens: options?.maxTokens ?? this.maxTokens,
           jsonMode: options?.jsonMode ?? false,
+          providerId: getModelIdForRole(this.role),
+          role: this.role,
         }),
       { attempts: 3, baseDelayMs: 1200 }
     );

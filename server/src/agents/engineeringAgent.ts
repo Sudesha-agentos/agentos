@@ -5,6 +5,7 @@ import { buildEngineeringAgentSystemPrompt } from "./engineeringAgentPrompt";
 
 export class EngineeringAgent extends BaseAgent<ImplementationOutput> {
   name = "ENGINEERING_AGENT";
+  protected role = "tech" as const;
 
   systemPrompt = buildEngineeringAgentSystemPrompt("code");
   protected maxTokens = 8000;

@@ -16,8 +16,7 @@ import {
   useCustomerDatabases,
 } from "../../entities/customer-db";
 
-const INPUT =
-  "mt-1.5 w-full rounded-app-sm border border-app-border bg-app-surface px-3 py-2 text-sm";
+const INPUT = "mt-1.5 w-full";
 
 const PROVIDER_COPY = {
   postgresql: {

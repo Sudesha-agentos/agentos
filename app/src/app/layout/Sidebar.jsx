@@ -103,7 +103,7 @@ export default function Sidebar() {
 
   return (
     <aside
-      className={`fixed inset-y-0 left-0 z-30 hidden flex-col bg-app-surface transition-[width,padding] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] md:flex ${
+      className={`app-glass fixed bottom-0 left-0 top-14 z-30 hidden flex-col transition-[width,padding] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] md:flex ${
         collapsed ? "w-14 px-1.5" : "w-[17rem] px-3"
       }`}
     >
@@ -127,7 +127,7 @@ export default function Sidebar() {
                 <span className="truncate text-[13px] font-semibold text-app-ink">
                   {workspaceLabel}
                 </span>
-                <span className="rounded-md border border-app-border px-1.5 py-px text-[10px] font-medium text-app-ink-mute">
+                <span className="rounded-md bg-app-surface-muted px-1.5 py-px text-[10px] font-medium text-app-ink-mute">
                   Free
                 </span>
               </span>
@@ -162,7 +162,7 @@ export default function Sidebar() {
         <button
           type="button"
           onClick={openPalette}
-          className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-app-border text-app-ink-dim transition hover:bg-app-surface-muted hover:text-app-ink"
+          className="flex size-10 shrink-0 items-center justify-center rounded-xl text-app-ink-dim transition hover:bg-app-surface-muted hover:text-app-ink"
           aria-label="Search"
           title="Search (⌘K)"
         >

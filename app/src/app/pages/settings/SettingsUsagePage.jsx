@@ -1,9 +1,11 @@
 import { useMemo, useState } from "react";
 import { useWorkspaceBilling } from "../../../entities/billing";
 import { usePipelineList } from "../../../entities/pipeline";
+import { useSettings } from "../../../entities/settings";
 import { useAuth } from "../../../shared/providers/useAuth";
 import { AGENT_NAMES } from "../../../shared/config/app";
 import { PILOT_PLAN } from "../../../shared/config/billingPlans";
+import { getAgentModelForSurface } from "../../../shared/config/agentModels";
 import { SettingsPageHeader } from "../../layout/SettingsLayout";
 
 const SURFACE_FILTERS = [
@@ -60,6 +62,7 @@ function formatCredits(value) {
 export default function SettingsUsagePage() {
   const { organization, session } = useAuth();
   const { data: billing } = useWorkspaceBilling();
+  const { data: settings } = useSettings();
   const { items: pipelines } = usePipelineList(undefined, { pollMs: 60_000 });
   const [surface, setSurface] = useState("all");
   const [range, setRange] = useState("all");
@@ -80,18 +83,22 @@ export default function SettingsUsagePage() {
         credits: cap,
         model: "—",
       },
-      ...(pipelines ?? []).map((pipeline) => ({
-        id: pipeline.id,
-        at: pipeline.completedAt ?? pipeline.startedAt,
-        action: pipeline.summary || pipeline.jiraKey || "Pipeline run",
-        detail: pipeline.jiraKey && pipeline.summary ? pipeline.jiraKey : "Pipeline run",
-        surface: surfaceFromStage(pipeline.currentStage),
-        credits: -1,
-        model: "—",
-      })),
+      ...(pipelines ?? []).map((pipeline) => {
+        const surface = surfaceFromStage(pipeline.currentStage);
+        const model = getAgentModelForSurface(settings, surface);
+        return {
+          id: pipeline.id,
+          at: pipeline.completedAt ?? pipeline.startedAt,
+          action: pipeline.summary || pipeline.jiraKey || "Pipeline run",
+          detail: pipeline.jiraKey && pipeline.summary ? pipeline.jiraKey : "Pipeline run",
+          surface,
+          credits: model ? -model.creditsPerRun : -1,
+          model: model?.label ?? "—",
+        };
+      }),
     ];
     return rows.sort((a, b) => new Date(b.at) - new Date(a.at));
-  }, [cap, pipelines, session?.issuedAt]);
+  }, [cap, pipelines, session?.issuedAt, settings]);
 
   const visible = activity.filter((row) => {
     if (!inRange(row.at, range)) return false;
@@ -125,7 +132,7 @@ export default function SettingsUsagePage() {
         {metrics.map((metric) => (
           <div
             key={metric.label}
-            className="rounded-xl border border-app-border bg-app-surface px-5 py-4"
+            className="app-card rounded-2xl px-5 py-4"
           >
             <p className="text-[12px] text-app-ink-mute">{metric.label}</p>
             <p className="mt-2 text-[22px] font-semibold tracking-tight text-app-ink">
@@ -170,18 +177,19 @@ export default function SettingsUsagePage() {
         </div>
       </div>
 
-      <div className="mt-5 overflow-hidden rounded-xl border border-app-border bg-app-surface">
-        <div className="border-b border-app-border px-5 py-4">
+      <div className="app-card mt-5 overflow-hidden rounded-2xl">
+        <div className="px-5 py-4">
           <h2 className="text-[15px] font-semibold text-app-ink">Credit Activity</h2>
           <p className="mt-1 max-w-3xl text-[13px] leading-relaxed text-app-ink-dim">
-            Every credit in and out — deductions per pipeline run, plus credits added by a plan
-            renewal or the AgentOX team.
+            Every credit in and out — deductions follow the model selected for Product, Tech, and
+            QA (ChatGPT 1, Grok 2, Claude 3), plus credits added by a plan renewal or the AgentOX
+            team.
           </p>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[640px] text-left">
             <thead>
-              <tr className="border-b border-app-border text-[10px] font-semibold uppercase tracking-[0.12em] text-app-ink-mute">
+              <tr className="text-[10px] font-semibold uppercase tracking-[0.12em] text-app-ink-mute">
                 <th className="px-5 py-3">Date</th>
                 <th className="px-5 py-3">Action</th>
                 <th className="px-5 py-3">Surface</th>
@@ -198,7 +206,7 @@ export default function SettingsUsagePage() {
                 </tr>
               ) : (
                 visible.map((row) => (
-                  <tr key={row.id} className="border-b border-app-border/70 last:border-b-0">
+                  <tr key={row.id} className="last:border-b-0">
                     <td className="whitespace-nowrap px-5 py-3.5 text-[13px] text-app-ink-dim">
                       {formatActivityDate(row.at)}
                     </td>

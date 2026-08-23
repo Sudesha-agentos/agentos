@@ -43,6 +43,7 @@ export async function runAnantaChatTurn(input: {
     tools: ANANTA_CHAT_TOOL_DEFINITIONS,
     executeToolCall: executeAnantaChatToolCall,
     maxToolCalls: 10,
+    role: "tech",
     forcedWrapUpMessage:
       "Stop calling tools. Answer in first person as Ananta, discussion-only.",
   });

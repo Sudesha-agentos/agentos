@@ -1,5 +1,6 @@
 import { SettingsSchema } from "../../contracts";
 import { DATA_MODE, DATA_MODES } from "../../shared/config/app";
+import { isAgentModelId } from "../../shared/config/agentModels";
 import { apiPath } from "../../shared/config/apiBase";
 import { fetchJson } from "../../shared/lib/fetchJson";
 import { useResource } from "../../shared/lib/useResource";
@@ -19,6 +20,9 @@ export const DEFAULT_SETTINGS = SettingsSchema.parse({
   canaryStagingBaseUrl: "",
   canaryProductionBaseUrl: "",
   canaryAuthToken: "",
+  productModel: "chatgpt",
+  techModel: "chatgpt",
+  qaModel: "chatgpt",
 });
 
 function readLocalSettings() {
@@ -71,6 +75,16 @@ async function saveServerSettings(settings) {
         prdConfidenceThreshold: settings.prdConfidenceThreshold,
         implementationConfidenceThreshold: settings.implementationConfidenceThreshold,
         qaCoverageThreshold: settings.qaCoverageThreshold,
+        productModel: settings.productModel,
+        techModel: settings.techModel,
+        qaModel: settings.qaModel,
+        productModelName: settings.productModelName,
+        techModelName: settings.techModelName,
+        qaModelName: settings.qaModelName,
+        claudeSkills: settings.claudeSkills ?? [],
+        productSkillIds: settings.productSkillIds ?? [],
+        techSkillIds: settings.techSkillIds ?? [],
+        qaSkillIds: settings.qaSkillIds ?? [],
       }),
     });
   }
@@ -109,6 +123,39 @@ const settingsAdapter = {
         local.implementationConfidenceThreshold,
       qaCoverageThreshold:
         serverPipeline?.qaCoverageThreshold ?? local.qaCoverageThreshold,
+      productModel: isAgentModelId(serverPipeline?.productModel)
+        ? serverPipeline.productModel
+        : local.productModel,
+      techModel: isAgentModelId(serverPipeline?.techModel)
+        ? serverPipeline.techModel
+        : local.techModel,
+      qaModel: isAgentModelId(serverPipeline?.qaModel)
+        ? serverPipeline.qaModel
+        : local.qaModel,
+      productModelName:
+        typeof serverPipeline?.productModelName === "string"
+          ? serverPipeline.productModelName
+          : local.productModelName,
+      techModelName:
+        typeof serverPipeline?.techModelName === "string"
+          ? serverPipeline.techModelName
+          : local.techModelName,
+      qaModelName:
+        typeof serverPipeline?.qaModelName === "string"
+          ? serverPipeline.qaModelName
+          : local.qaModelName,
+      claudeSkills: Array.isArray(serverPipeline?.claudeSkills)
+        ? serverPipeline.claudeSkills
+        : local.claudeSkills,
+      productSkillIds: Array.isArray(serverPipeline?.productSkillIds)
+        ? serverPipeline.productSkillIds
+        : local.productSkillIds,
+      techSkillIds: Array.isArray(serverPipeline?.techSkillIds)
+        ? serverPipeline.techSkillIds
+        : local.techSkillIds,
+      qaSkillIds: Array.isArray(serverPipeline?.qaSkillIds)
+        ? serverPipeline.qaSkillIds
+        : local.qaSkillIds,
     });
   },
   async save(settings) {

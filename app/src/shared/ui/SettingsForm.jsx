@@ -6,7 +6,7 @@ import { TitleWithInfo } from "./InfoTip";
 export function SettingsSection({ title, info, children, className = "", ...rest }) {
   return (
     <section
-      className={`border-b border-app-border py-6 last:border-b-0 last:pb-0 ${className}`}
+      className={`border-b border-app-ink/6 py-6 last:border-b-0 last:pb-0 ${className}`}
       {...rest}
     >
       {title ? (
@@ -24,7 +24,7 @@ export function SettingsSection({ title, info, children, className = "", ...rest
 export function SettingsRow({ label, info, children, className = "" }) {
   return (
     <div
-      className={`grid grid-cols-1 gap-4 border-t border-app-border py-5 first:border-t-0 first:pt-0 lg:grid-cols-[minmax(0,280px)_minmax(0,1fr)] lg:gap-8 ${className}`}
+      className={`grid grid-cols-1 gap-4 border-t border-app-ink/6 py-5 first:border-t-0 first:pt-0 lg:grid-cols-[minmax(0,280px)_minmax(0,1fr)] lg:gap-8 ${className}`}
     >
       <div className="max-w-sm">
         {label ? (
@@ -40,7 +40,7 @@ export function SettingsRow({ label, info, children, className = "" }) {
 
 export function SettingsFormFooter({ onCancel, onSave, saveLabel = "Save changes", pending = false, disabled = false }) {
   return (
-    <div className="mt-6 flex flex-wrap items-center justify-end gap-3 border-t border-app-border pt-6">
+    <div className="mt-6 flex flex-wrap items-center justify-end gap-3 border-t border-app-ink/6 pt-6">
       {onCancel ? (
         <button
           type="button"

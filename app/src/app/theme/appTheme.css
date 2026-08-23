@@ -11,7 +11,7 @@
   --app-ink-dim: 78 78 78;
   --app-ink-mute: 119 113 105;
   --app-border-rgb: 231 229 228;
-  --app-border-alpha: 1;
+  --app-border-alpha: 0;
   --app-lavender: 200 184 224;
   --app-peach: 244 197 168;
   --app-mint: 167 229 211;
@@ -29,7 +29,7 @@ html.app-theme {
   --app-ink-dim: 78 78 78;
   --app-ink-mute: 119 113 105;
   --app-border-rgb: 231 229 228;
-  --app-border-alpha: 1;
+  --app-border-alpha: 0;
   --app-lavender: 200 184 224;
   --app-peach: 244 197 168;
   --app-mint: 167 229 211;
@@ -39,14 +39,14 @@ html.app-theme {
 
 html.app-theme.app-theme-dark {
   color-scheme: dark;
-  --app-canvas: 12 10 9;
-  --app-surface: 28 25 23;
-  --app-surface-muted: 41 37 36;
+  --app-canvas: 6 6 6;
+  --app-surface: 12 12 12;
+  --app-surface-muted: 20 20 20;
   --app-ink: 250 250 249;
   --app-ink-dim: 168 162 158;
   --app-ink-mute: 120 113 108;
-  --app-border-rgb: 255 255 255;
-  --app-border-alpha: 0.08;
+  --app-border-rgb: 0 0 0;
+  --app-border-alpha: 0;
   --app-lavender: 68 58 88;
   --app-peach: 80 56 44;
   --app-mint: 36 64 56;
@@ -79,17 +79,139 @@ html.app-theme ::-webkit-scrollbar-thumb:hover {
 html.app-theme.app-theme-dark .app-shell-gradient {
   background-color: rgb(var(--app-canvas));
   background-image:
-    radial-gradient(ellipse 40% 32% at 8% 0%, rgba(167, 229, 211, 0.08), transparent 70%),
-    radial-gradient(ellipse 36% 28% at 92% 8%, rgba(244, 197, 168, 0.07), transparent 72%);
+    radial-gradient(ellipse 50% 40% at 12% 0%, rgba(40, 40, 40, 0.55), transparent 70%),
+    radial-gradient(ellipse 40% 32% at 92% 8%, rgba(28, 28, 28, 0.5), transparent 72%);
 }
 
-html.app-theme.app-theme-dark .app-glass {
-  background: rgb(var(--app-surface) / 0.82);
+html.app-theme.app-theme-dark .app-glass,
+html.app-theme.app-theme-dark .app-card {
+  background: rgba(0, 0, 0, 0.42);
+  backdrop-filter: blur(22px) saturate(140%);
+  -webkit-backdrop-filter: blur(22px) saturate(140%);
+  border-color: transparent;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.45);
+}
+
+html.app-theme.app-theme-dark .app-card-interactive:hover {
+  background: rgba(0, 0, 0, 0.55);
+  border-color: transparent;
+}
+
+html.app-theme.app-theme-dark .app-pill {
+  background: rgba(0, 0, 0, 0.4);
+  border-color: transparent;
+}
+
+html.app-theme .app-shell input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not(.app-field-plain),
+html.app-theme .app-shell textarea:not(.app-field-plain),
+html.app-theme .app-shell select:not(.app-field-plain) {
+  appearance: none;
+  -webkit-appearance: none;
+  min-height: 2.75rem;
+  padding: 0.7rem 0.95rem;
+  border-radius: 0.9rem;
+  border: 1px solid transparent;
+  background-color: rgb(var(--app-surface-muted));
+  color: rgb(var(--app-ink));
+  box-shadow: inset 0 0 0 1px rgb(var(--app-ink) / 0.07);
+  transition: background-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+html.app-theme .app-shell textarea:not(.app-field-plain) {
+  min-height: 6.5rem;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+html.app-theme .app-shell select:not(.app-field-plain) {
+  padding-right: 2.4rem;
+  cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='none'%3E%3Cpath d='M2.5 4.5 6 8 9.5 4.5' stroke='%230c0a09' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.9rem center;
+  background-size: 0.75rem;
+}
+
+html.app-theme .app-shell input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not(.app-field-plain):hover,
+html.app-theme .app-shell textarea:not(.app-field-plain):hover,
+html.app-theme .app-shell select:not(.app-field-plain):hover {
+  box-shadow: inset 0 0 0 1px rgb(var(--app-ink) / 0.12);
+}
+
+html.app-theme .app-shell input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not(.app-field-plain):focus,
+html.app-theme .app-shell textarea:not(.app-field-plain):focus,
+html.app-theme .app-shell select:not(.app-field-plain):focus {
+  outline: none;
+  background-color: rgb(var(--app-surface));
+  box-shadow:
+    inset 0 0 0 1px rgb(var(--app-ink) / 0.18),
+    0 0 0 4px rgb(var(--app-ink) / 0.06);
+}
+
+html.app-theme .app-shell select option {
+  background-color: #ffffff;
+  color: #0c0a09;
+}
+
+html.app-theme.app-theme-dark .app-shell input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not(.app-field-plain),
+html.app-theme.app-theme-dark .app-shell textarea:not(.app-field-plain),
+html.app-theme.app-theme-dark .app-shell select:not(.app-field-plain) {
+  background-color: rgb(18 18 18);
+  color: rgb(var(--app-ink));
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.08);
+}
+
+html.app-theme.app-theme-dark .app-shell select:not(.app-field-plain) {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='none'%3E%3Cpath d='M2.5 4.5 6 8 9.5 4.5' stroke='%23fafaf9' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+
+html.app-theme.app-theme-dark .app-shell input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not(.app-field-plain):hover,
+html.app-theme.app-theme-dark .app-shell textarea:not(.app-field-plain):hover,
+html.app-theme.app-theme-dark .app-shell select:not(.app-field-plain):hover {
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.14);
+}
+
+html.app-theme.app-theme-dark .app-shell input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not(.app-field-plain):focus,
+html.app-theme.app-theme-dark .app-shell textarea:not(.app-field-plain):focus,
+html.app-theme.app-theme-dark .app-shell select:not(.app-field-plain):focus {
+  background-color: rgb(24 24 24);
+  box-shadow:
+    inset 0 0 0 1px rgb(255 255 255 / 0.2),
+    0 0 0 4px rgb(255 255 255 / 0.06);
+}
+
+html.app-theme.app-theme-dark .app-shell select option {
+  background-color: #141414;
+  color: #fafaf9;
+}
+
+html.app-theme .app-shell .app-field-plain {
+  appearance: none;
+  min-height: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  background-image: none;
+}
+
+html.app-theme .app-shell .integration-logo,
+html.app-theme.app-theme-dark .app-shell .integration-logo {
+  background-color: #ffffff;
 }
 
 html.app-theme.app-theme-dark .app-btn-primary {
   background-color: rgb(var(--app-ink));
   color: rgb(var(--app-canvas));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html.app-theme.app-theme-dark .app-glass,
+  html.app-theme.app-theme-dark .app-card,
+  html.app-theme.app-theme-dark .app-shell .editorial-panel {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    background: rgb(var(--app-surface));
+  }
 }
 
 html.app-theme.app-theme-dark .shadow-app-card {
@@ -223,18 +345,14 @@ html.app-theme.app-theme-dark .shadow-app-nav-active {
   }
 
   html.app-theme-dark .app-shell .editorial-panel {
-    box-shadow: 0 4px 24px -4px rgba(0, 0, 0, 0.4);
+    background: rgba(0, 0, 0, 0.42);
+    backdrop-filter: blur(22px) saturate(140%);
+    -webkit-backdrop-filter: blur(22px) saturate(140%);
+    border-color: transparent;
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.45);
   }
 
-  /* Form controls */
-  .app-shell input:not([type="checkbox"]):not([type="radio"]),
-  .app-shell textarea,
-  .app-shell select {
-    background-color: rgb(var(--app-surface));
-    color: rgb(var(--app-ink));
-    border-color: rgb(var(--app-border-rgb) / 0.14);
-  }
-
+  /* Form control text/placeholder; edge + fill are set outside this layer so they win over utilities */
   .app-shell input::placeholder,
   .app-shell textarea::placeholder {
     color: rgb(var(--app-ink-mute));

@@ -524,7 +524,7 @@ function SourcesPanel({ sources, catalog, ingestDocs, onChanged, initialProvider
           <div>
             <label className="type-kicker">Display name</label>
             <input
-              className="mt-1 w-full rounded-lg border border-app-border bg-app-bg px-2 py-1.5 text-[13px]"
+              className="mt-1 w-full"
               placeholder={selected?.displayName || "My API logs"}
               value={displayName}
               onChange={(ev) => setDisplayName(ev.target.value)}
@@ -539,7 +539,7 @@ function SourcesPanel({ sources, catalog, ingestDocs, onChanged, initialProvider
               </label>
               {field.type === "select" ? (
                 <select
-                  className="mt-1 w-full rounded-lg border border-app-border bg-app-bg px-2 py-1.5 text-[13px]"
+                  className="mt-1 w-full"
                   value={config[field.key] ?? ""}
                   onChange={(ev) => setField(field.key, ev.target.value)}
                 >
@@ -552,7 +552,7 @@ function SourcesPanel({ sources, catalog, ingestDocs, onChanged, initialProvider
               ) : (
                 <input
                   type={field.type === "password" ? "password" : "text"}
-                  className="mt-1 w-full rounded-lg border border-app-border bg-app-bg px-2 py-1.5 text-[13px]"
+                  className="mt-1 w-full"
                   placeholder={field.placeholder || ""}
                   value={config[field.key] ?? ""}
                   onChange={(ev) => setField(field.key, ev.target.value)}

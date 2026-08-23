@@ -4,6 +4,7 @@ import { BaseAgent } from "./baseAgent";
 /** @deprecated Use runQaAgentic from ../qaAgent for the four-phase QA workflow. */
 export class QAAgent extends BaseAgent<QaOutput> {
   name = "QA_AGENT";
+  protected role = "qa" as const;
 
   systemPrompt = `
 You are a senior QA engineer who writes exhaustive test plans directly

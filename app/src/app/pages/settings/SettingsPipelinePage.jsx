@@ -35,7 +35,7 @@ export default function SettingsPipelinePage() {
     <div>
       <SettingsPageHeader
         title="Pipeline & quality"
-        description="Validation gates and quality thresholds for Virin, Ananta, and Neel."
+        description="Validation gates and quality thresholds for Virin, Ananta, and Neel. Choose Claude, Grok, or ChatGPT under Models."
       />
       <SettingsSectionsWidget
         form={form}

@@ -466,7 +466,7 @@ function ItemDrawer({ item, busy, orgPath, onClose, onSave, onAnalyze }) {
           <input
             value={summary}
             onChange={(e) => setSummary(e.target.value)}
-            className="mt-1 w-full rounded-app-sm border border-app-border px-3 py-2 text-sm"
+            className="mt-1 w-full"
           />
         </label>
         <label className="block">
@@ -474,8 +474,8 @@ function ItemDrawer({ item, busy, orgPath, onClose, onSave, onAnalyze }) {
           <textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
+            className="mt-1 w-full"
             rows={6}
-            className="mt-1 w-full rounded-app-sm border border-app-border px-3 py-2 text-sm"
           />
         </label>
         <div className="grid grid-cols-2 gap-2">
@@ -484,7 +484,7 @@ function ItemDrawer({ item, busy, orgPath, onClose, onSave, onAnalyze }) {
             <select
               value={issueType}
               onChange={(e) => setIssueType(e.target.value)}
-              className="mt-1 w-full rounded-app-sm border border-app-border px-2 py-2 text-sm"
+              className="mt-1 w-full"
             >
               <option>Task</option>
               <option>Bug</option>
@@ -495,14 +495,14 @@ function ItemDrawer({ item, busy, orgPath, onClose, onSave, onAnalyze }) {
             <input
               value={priority}
               onChange={(e) => setPriority(e.target.value)}
-              className="mt-1 w-full rounded-app-sm border border-app-border px-2 py-2 text-sm"
+              className="mt-1 w-full"
             />
           </label>
         </div>
         <button
           type="button"
           disabled={busy}
-          className="w-full rounded-full border border-app-border py-2 text-sm font-medium disabled:opacity-50"
+          className="w-full rounded-full bg-app-ink py-2.5 text-sm font-medium text-app-canvas disabled:opacity-50"
           onClick={() => onSave({ summary, description, issueType, priority })}
         >
           Save

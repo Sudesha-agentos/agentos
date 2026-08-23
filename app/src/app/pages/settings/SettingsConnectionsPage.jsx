@@ -29,13 +29,13 @@ export default function SettingsConnectionsPage() {
           Open Integrations hub →
         </Link>
       </div>
-      <div className="overflow-hidden rounded-xl border border-app-border bg-app-surface">
+      <div className="app-card overflow-hidden rounded-2xl">
         {loading && grouped.length === 0 ? (
           <p className="px-5 py-10 text-center text-[13px] text-app-ink-mute">Loading connections…</p>
         ) : (
           grouped.map((section, index) => (
-            <div key={section.id} className={index > 0 ? "border-t border-app-border" : ""}>
-              <p className="bg-app-surface-muted/40 px-5 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-app-ink-mute">
+            <div key={section.id} className={index > 0 ? "mt-1" : ""}>
+              <p className="bg-app-surface-muted/30 px-5 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-app-ink-mute">
                 {section.label}
               </p>
               {section.items.map((integration) => {
@@ -45,7 +45,7 @@ export default function SettingsConnectionsPage() {
                   <Link
                     key={integration.id}
                     to={to}
-                    className="flex items-center gap-3 border-t border-app-border px-5 py-3.5 transition hover:bg-app-surface-muted/50"
+                    className="flex items-center gap-3 px-5 py-3.5 transition hover:bg-app-surface-muted/40"
                   >
                     <IntegrationLogo integration={integration} size="sm" />
                     <div className="min-w-0 flex-1">

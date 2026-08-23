@@ -1,8 +1,11 @@
 import type { ChatCompletionMessageToolCall } from "openai/resources/chat/completions";
 import type Anthropic from "@anthropic-ai/sdk";
-import { createChatCompletion, getOpenAIChatModel } from "../llm/openaiClient";
 import type { AgenticMessage } from "../llm/openaiCompletion";
 import { anthropicToolsToOpenAI } from "../llm/openaiTools";
+import { createProviderChatCompletion } from "../llm/providerChat";
+import { getModelIdForRole } from "../billing/consumeAgentCredits";
+import type { AgentRole } from "../llm/agentModels";
+import { applyClaudeSkillsToPrompt } from "../llm/claudeSkills";
 import type { ToolCallInput, ToolCallResult } from "../tools/executor";
 import { logger } from "../utils/logger";
 import { withRetry } from "../utils/retry";
@@ -26,6 +29,7 @@ export interface AgenticChatTurnConfig {
     contextKey: string
   ) => Promise<ToolCallResult>;
   forcedWrapUpMessage?: string;
+  role?: AgentRole;
 }
 
 export interface AgenticChatTurnResult {
@@ -50,7 +54,11 @@ export async function runAgenticChatTurn(
     tools,
     executeToolCall: executeToolCallFn,
     forcedWrapUpMessage,
+    role = "product" as AgentRole,
   } = config;
+
+  const providerId = getModelIdForRole(role);
+  const prompt = applyClaudeSkillsToPrompt(systemPrompt, role);
 
   const messages: AgenticMessage[] = [
     ...conversationHistory.map(
@@ -80,16 +88,16 @@ export async function runAgenticChatTurn(
       forcedWrapUp = true;
     }
 
-    const model = getOpenAIChatModel();
     const response = await withRetry(
       () =>
-        createChatCompletion({
-          model,
+        createProviderChatCompletion({
+          providerId,
+          role,
           maxTokens: 4000,
-          messages: [{ role: "system", content: systemPrompt }, ...messages],
+          messages: [{ role: "system", content: prompt }, ...messages],
           ...(forcedWrapUp || openaiTools.length === 0
             ? {}
-            : { tools: openaiTools, tool_choice: "auto" as const }),
+            : { tools: openaiTools }),
         }),
       { maxAttempts: 3, baseDelayMs: 2000, maxDelayMs: 20000 }
     );

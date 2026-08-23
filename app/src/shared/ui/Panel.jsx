@@ -2,8 +2,8 @@ import InfoTip, { TitleWithInfo } from "./InfoTip";
 
 const PANEL_STYLES = {
   light: {
-    panel: "rounded-app border border-app-border bg-app-surface shadow-app-card transition-[box-shadow,border-color] duration-300 ease-out",
-    headerBorder: "border-app-border",
+    panel: "app-card",
+    headerBorder: "border-transparent",
     kicker: "type-kicker",
     title: "type-section-title",
     subtitle: "type-body",

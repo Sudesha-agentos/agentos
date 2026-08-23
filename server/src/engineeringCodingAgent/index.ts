@@ -131,6 +131,7 @@ export async function runEngineeringCodingAgentic(
         mode === "content"
           ? `You have used the maximum number of coding tool calls. Produce the final JSON summary now using all changes made so far. Do not call more tools.`
           : `You have used the maximum number of coding tool calls. Return final JSON only if you already called edit_file/write_file on real files; otherwise use remaining calls to implement.`,
+      role: "tech",
     });
 
     const parsed = parseDiscoveryJson<CodingAgentJsonOutput>(

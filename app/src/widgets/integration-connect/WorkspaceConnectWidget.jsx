@@ -201,7 +201,7 @@ export default function WorkspaceConnectWidget({ integration }) {
               </label>
               <input
                 type={field.type === "password" ? "password" : "text"}
-                className="mt-1 w-full rounded-lg border border-app-border bg-app-bg px-2 py-1.5 text-[13px]"
+                className="mt-1 w-full"
                 placeholder={field.placeholder || ""}
                 value={config[field.key] ?? ""}
                 onChange={(event) => setField(field.key, event.target.value)}

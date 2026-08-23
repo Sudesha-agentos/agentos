@@ -37,6 +37,7 @@ export class ProductAgent {
       initialUserMessage: buildInitialUserMessage(input),
       pipelineId: input.pipelineId,
       jiraKey: input.ticket.jiraKey,
+      role: "product",
     });
 
     const prd = parseDiscoveryJson<GeneratedPRD>(loop.finalResponse, "productAgent");

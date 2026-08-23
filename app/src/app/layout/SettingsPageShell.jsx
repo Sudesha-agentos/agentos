@@ -32,7 +32,7 @@ export function SettingsPageShell({
           </Link>
         ) : null}
         {kicker || title ? (
-          <div className="border-b border-app-border pb-6">
+          <div className="border-b border-app-ink/6 pb-6">
             {kicker ? <p className="text-xs font-semibold text-app-ink-dim">{kicker}</p> : null}
             {title ? (
               <h2 className="mt-1 flex items-center gap-2.5 text-sm font-semibold text-app-ink">
