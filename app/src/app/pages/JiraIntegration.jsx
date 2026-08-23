@@ -563,6 +563,7 @@ function JiraIntegrationContent({ setup, refetchSetup, embedded = false }) {
       embedded={embedded}
       kicker="Jira"
       title="Jira pipeline"
+      logo="/marketing/integrations/jira.svg"
     >
 
       {disconnected && !connected ? (

@@ -11,6 +11,7 @@ import {
   planRoiCalculatorHref,
 } from "../../../shared/config/billingPlans";
 import { computeEstimatedRoi } from "../../../shared/roi/estimatedRoi";
+import { SettingsPageHeader } from "../../layout/SettingsLayout";
 
 export default function SettingsPlanPage() {
   const { data: billing } = useWorkspaceBilling();
@@ -20,6 +21,10 @@ export default function SettingsPlanPage() {
 
   return (
     <div className="space-y-6">
+      <SettingsPageHeader
+        title="Plans & Credits"
+        description="Your current plan, pipeline-run credits, and available AgentOX tiers."
+      />
       {isPilot ? (
         <Panel className="border-indigo/25 bg-indigo/5">
           <PanelHeader

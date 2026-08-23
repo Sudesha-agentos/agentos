@@ -232,6 +232,7 @@ export default function CompanyIntelligence({ embedded = false }) {
   return (
     <SettingsPageShell
       embedded={embedded}
+      showBack={!embedded}
       backTo={orgPath("settings", "plan")}
       backLabel="← Settings"
       kicker="Business intelligence"

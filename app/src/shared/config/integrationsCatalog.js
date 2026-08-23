@@ -45,7 +45,7 @@ const INTEGRATION_DEFS = [
     catalogStatus: "available",
     connectKind: "native",
     routeParts: ["integrations", "github"],
-    icon: "/marketing/integrations/github-wordmark.svg",
+    icon: "/marketing/integrations/github.svg",
     liveStatusKey: "github",
   },
   {
@@ -58,7 +58,7 @@ const INTEGRATION_DEFS = [
     catalogStatus: "available",
     connectKind: "native",
     routeParts: ["integrations", "bitbucket"],
-    icon: "/marketing/integrations/bitbucket-wordmark.svg",
+    icon: "/marketing/integrations/bitbucket.svg",
     liveStatusKey: "bitbucket",
   },
   {
@@ -71,7 +71,7 @@ const INTEGRATION_DEFS = [
     catalogStatus: "available",
     connectKind: "native",
     routeParts: ["integrations", "jira"],
-    icon: "/marketing/integrations/jira-wordmark.svg",
+    icon: "/marketing/integrations/jira.svg",
     liveStatusKey: "jira",
   },
   {
@@ -84,7 +84,7 @@ const INTEGRATION_DEFS = [
     catalogStatus: "available",
     connectKind: "native",
     routeParts: ["integrations", "spreadsheet"],
-    icon: null,
+    icon: "/marketing/integrations/spreadsheet.svg",
     liveStatusKey: "spreadsheet",
   },
   {
@@ -97,7 +97,7 @@ const INTEGRATION_DEFS = [
     catalogStatus: "available",
     connectKind: "workspace",
     routeParts: ["integrations", "slack"],
-    icon: null,
+    icon: "/marketing/integrations/slack.svg",
     liveStatusKey: "workspace:slack",
   },
   {
@@ -110,7 +110,7 @@ const INTEGRATION_DEFS = [
     catalogStatus: "available",
     connectKind: "workspace",
     routeParts: ["integrations", "hubspot"],
-    icon: null,
+    icon: "/marketing/integrations/hubspot.svg",
     liveStatusKey: "workspace:hubspot",
   },
   {
@@ -123,7 +123,7 @@ const INTEGRATION_DEFS = [
     catalogStatus: "available",
     connectKind: "workspace",
     routeParts: ["integrations", "gong"],
-    icon: null,
+    icon: "/marketing/integrations/gong.svg",
     liveStatusKey: "workspace:gong",
   },
   {
@@ -136,7 +136,7 @@ const INTEGRATION_DEFS = [
     catalogStatus: "available",
     connectKind: "workspace",
     routeParts: ["integrations", "linear"],
-    icon: null,
+    icon: "/marketing/integrations/linear.svg",
     liveStatusKey: "workspace:linear",
   },
   {
@@ -149,7 +149,7 @@ const INTEGRATION_DEFS = [
     catalogStatus: "available",
     connectKind: "workspace",
     routeParts: ["integrations", "zendesk"],
-    icon: null,
+    icon: "/marketing/integrations/zendesk.svg",
     liveStatusKey: "workspace:zendesk",
   },
   {
@@ -162,7 +162,7 @@ const INTEGRATION_DEFS = [
     catalogStatus: "available",
     connectKind: "workspace",
     routeParts: ["integrations", "intercom"],
-    icon: null,
+    icon: "/marketing/integrations/intercom.svg",
     liveStatusKey: "workspace:intercom",
   },
   {
@@ -175,7 +175,7 @@ const INTEGRATION_DEFS = [
     catalogStatus: "available",
     connectKind: "workspace",
     routeParts: ["integrations", "amplitude"],
-    icon: null,
+    icon: "/marketing/integrations/amplitude.svg",
     liveStatusKey: "workspace:amplitude",
   },
   {
@@ -188,7 +188,7 @@ const INTEGRATION_DEFS = [
     catalogStatus: "available",
     connectKind: "native",
     routeParts: ["integrations", "postgresql"],
-    icon: null,
+    icon: "/marketing/integrations/postgresql.svg",
     liveStatusKey: "database:postgresql",
   },
   {
@@ -201,7 +201,7 @@ const INTEGRATION_DEFS = [
     catalogStatus: "available",
     connectKind: "native",
     routeParts: ["integrations", "supabase"],
-    icon: "/marketing/integrations/supabase-wordmark.svg",
+    icon: "/marketing/integrations/supabase.svg",
     liveStatusKey: "database:supabase",
   },
   {
@@ -214,7 +214,7 @@ const INTEGRATION_DEFS = [
     catalogStatus: "available",
     connectKind: "native",
     routeParts: ["integrations", "mysql"],
-    icon: null,
+    icon: "/marketing/integrations/mysql.svg",
     liveStatusKey: "database:mysql",
   },
   {
@@ -228,7 +228,7 @@ const INTEGRATION_DEFS = [
     connectKind: "log_source",
     logSourceType: "datadog",
     routeParts: ["integrations", "datadog"],
-    icon: null,
+    icon: "/marketing/integrations/datadog.svg",
     liveStatusKey: "log:datadog",
   },
   {
@@ -242,7 +242,7 @@ const INTEGRATION_DEFS = [
     connectKind: "log_source",
     logSourceType: "sentry",
     routeParts: ["integrations", "sentry"],
-    icon: null,
+    icon: "/marketing/integrations/sentry.svg",
     liveStatusKey: "log:sentry",
   },
   {
@@ -255,7 +255,7 @@ const INTEGRATION_DEFS = [
     connectKind: "log_source",
     logSourceType: "grafana_loki",
     routeParts: ["integrations", "grafana"],
-    icon: "/marketing/integrations/grafana-wordmark.svg",
+    icon: "/marketing/integrations/grafana.svg",
     liveStatusKey: "log:grafana_loki",
   },
   {
@@ -268,7 +268,7 @@ const INTEGRATION_DEFS = [
     connectKind: "log_source",
     logSourceType: "render",
     routeParts: ["integrations", "render"],
-    icon: null,
+    icon: "/marketing/integrations/render.svg",
     liveStatusKey: "log:render",
   },
   {
@@ -281,7 +281,7 @@ const INTEGRATION_DEFS = [
     connectKind: "log_source",
     logSourceType: "railway",
     routeParts: ["integrations", "railway"],
-    icon: null,
+    icon: "/marketing/integrations/railway.svg",
     liveStatusKey: "log:railway",
   },
   {
@@ -294,7 +294,7 @@ const INTEGRATION_DEFS = [
     connectKind: "log_source",
     logSourceType: "cloudwatch",
     routeParts: ["integrations", "cloudwatch"],
-    icon: null,
+    icon: "/marketing/integrations/cloudwatch.svg",
     liveStatusKey: "log:cloudwatch",
   },
   {
@@ -308,7 +308,7 @@ const INTEGRATION_DEFS = [
     connectKind: "log_source",
     logSourceType: "otlp",
     routeParts: ["integrations", "otlp"],
-    icon: null,
+    icon: "/marketing/integrations/otlp.svg",
     liveStatusKey: "log:otlp",
   },
 ];

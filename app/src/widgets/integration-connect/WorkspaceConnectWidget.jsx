@@ -126,6 +126,7 @@ export default function WorkspaceConnectWidget({ integration }) {
       kicker={integration.tag || "Business Data"}
       title={integration.name}
       info={integration.description}
+      logo={integration.icon}
     >
       <Panel>
         <PanelHeader

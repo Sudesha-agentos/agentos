@@ -3,6 +3,7 @@ import LabelPill from "../../../app/components/LabelPill";
 import { getIntegrationById } from "../../../shared/config/integrationsCatalog";
 import { useIntegrationsStatus } from "../../../shared/hooks/useIntegrationsStatus";
 import { useOrg } from "../../../shared/providers/OrgRouteProvider";
+import { IntegrationLogo } from "../../../shared/ui/IntegrationLogo";
 import { Panel, PanelHeader } from "../../../shared/ui/Panel";
 import { useState } from "react";
 
@@ -82,7 +83,12 @@ function ComingSoonIntegration({ integration, displayStatus, backHref }) {
       <Panel>
         <PanelHeader
           kicker="Integration"
-          title={integration.name}
+          title={
+            <span className="inline-flex items-center gap-2.5">
+              <IntegrationLogo integration={integration} size="sm" />
+              {integration.name}
+            </span>
+          }
           info={integration.description}
           right={<LabelPill label={statusMeta.label} tone={statusMeta.tone} />}
         />

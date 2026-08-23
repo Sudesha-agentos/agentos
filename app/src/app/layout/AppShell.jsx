@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { EASE } from "../../lib/motion";
 import { SidebarProvider, useSidebarCollapsed } from "../../shared/hooks/useSidebarCollapsed";
 import { AppThemeProvider } from "../../shared/hooks/useAppTheme";
+import { useOrgNavigation } from "../../shared/routing/useOrgNavigation";
 import AppPageFallback from "../../shared/ui/AppPageFallback";
 import AppPageTransition from "../../shared/ui/AppPageTransition";
 import RouteErrorBoundary from "../../shared/ui/RouteErrorBoundary";
@@ -15,8 +16,28 @@ import TopBar from "./TopBar";
 import IntakeAssignmentListener from "../../shared/components/IntakeAssignmentListener";
 import ProductTourController from "../../features/product-tour/ProductTourController";
 
+function AppOutlet() {
+  return (
+    <Suspense fallback={<AppPageFallback />}>
+      <RouteErrorBoundary>
+        <AppPageTransition />
+      </RouteErrorBoundary>
+    </Suspense>
+  );
+}
+
 function AppShellContent() {
   const { collapsed } = useSidebarCollapsed();
+  const { pathMatches } = useOrgNavigation();
+  const onSettings = pathMatches("settings");
+
+  if (onSettings) {
+    return (
+      <div className="relative min-h-screen bg-app-canvas">
+        <AppOutlet />
+      </div>
+    );
+  }
 
   return (
     <div className="relative flex">
@@ -34,11 +55,7 @@ function AppShellContent() {
           transition={{ duration: 0.28, ease: EASE }}
           className="flex-1 scroll-smooth px-4 pb-8 pt-2 sm:px-6 sm:pb-10 sm:pt-3 lg:px-8"
         >
-          <Suspense fallback={<AppPageFallback />}>
-            <RouteErrorBoundary>
-              <AppPageTransition />
-            </RouteErrorBoundary>
-          </Suspense>
+          <AppOutlet />
         </motion.main>
       </div>
     </div>

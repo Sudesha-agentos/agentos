@@ -230,6 +230,7 @@ export default function LogSourceConnectWidget({ integration, sourceType }) {
       kicker="Observability"
       title={integration.name}
       info={integration.description}
+      logo={integration.icon}
     >
       <Panel>
         <PanelHeader

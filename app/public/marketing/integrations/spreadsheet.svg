@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" role="img" viewBox="0 0 24 24">
+  <title>Spreadsheet</title>
+  <rect width="24" height="24" rx="4.5" fill="#217346"/>
+  <path fill="#fff" d="M8.1 6.4 12 10.9l3.9-4.5h2.4L13.4 12l4.9 5.6h-2.4L12 13.1l-3.9 4.5H5.7L10.6 12 5.7 6.4h2.4Z"/>
+  <path fill="#fff" opacity=".35" d="M4.4 9.2h15.2v.7H4.4Zm0 2.45h15.2v.7H4.4Zm0 2.45h15.2v.7H4.4Z"/>
+</svg>

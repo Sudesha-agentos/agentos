@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { useIntegrationsStatus } from "../../shared/hooks/useIntegrationsStatus";
 import { useOrg } from "../../shared/providers/OrgRouteProvider";
 import { AnimatedAppPage } from "../../shared/ui/AnimatedAppPage";
+import { IntegrationLogo } from "../../shared/ui/IntegrationLogo";
 
 const CTA = {
   connected: "Manage",
@@ -63,7 +64,7 @@ function IntegrationRow({ integration, divided }) {
         divided ? "border-t border-app-border" : ""
       }`}
     >
-      <IntegrationIcon integration={integration} />
+      <IntegrationLogo integration={integration} />
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
           <h3 className="text-[14px] font-semibold text-app-ink">{integration.name}</h3>
@@ -81,24 +82,6 @@ function IntegrationRow({ integration, divided }) {
       >
         {cta}
       </Link>
-    </div>
-  );
-}
-
-function IntegrationIcon({ integration }) {
-  if (integration.icon) {
-    return (
-      <img
-        src={integration.icon}
-        alt=""
-        className="size-10 shrink-0 rounded-[10px] border border-app-border bg-white object-contain p-1.5"
-      />
-    );
-  }
-
-  return (
-    <div className="flex size-10 shrink-0 items-center justify-center rounded-[10px] border border-app-border bg-app-surface-muted text-[13px] font-semibold text-app-ink">
-      {integration.name.slice(0, 1)}
     </div>
   );
 }

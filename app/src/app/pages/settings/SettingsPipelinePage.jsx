@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useSettings } from "../../../entities/settings";
 import { useSaveSettings } from "../../../features/save-settings/model/useSaveSettings";
 import SettingsSectionsWidget from "../../../widgets/settings-sections/SettingsSectionsWidget";
+import { SettingsPageHeader } from "../../layout/SettingsLayout";
 
 /** Pipeline quality & gate thresholds (integrations live under Integrations tab). */
 export default function SettingsPipelinePage() {
@@ -31,14 +32,20 @@ export default function SettingsPipelinePage() {
   }
 
   return (
-    <SettingsSectionsWidget
-      form={form}
-      onChange={update}
-      onSubmit={onSubmit}
-      pending={pending}
-      savedAt={savedAt}
-      error={error?.message}
-      mode="pipeline"
-    />
+    <div>
+      <SettingsPageHeader
+        title="Pipeline & quality"
+        description="Validation gates and quality thresholds for Virin, Ananta, and Neel."
+      />
+      <SettingsSectionsWidget
+        form={form}
+        onChange={update}
+        onSubmit={onSubmit}
+        pending={pending}
+        savedAt={savedAt}
+        error={error?.message}
+        mode="pipeline"
+      />
+    </div>
   );
 }
