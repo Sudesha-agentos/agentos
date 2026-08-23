@@ -107,15 +107,10 @@ export default function SettingsSectionsWidget({
       >
         <Panel>
           <PanelHeader
-            kicker="Reasoning"
-            title="Model and gate thresholds"
+            kicker="Quality"
+            title="Gate thresholds"
           />
           <div className="grid gap-4 p-5 sm:grid-cols-2 sm:p-6">
-            <Field
-              label="Model"
-              value={form.model}
-              onChange={(value) => onChange("model", value)}
-            />
             <Field
               label="PRD confidence ≥"
               value={String(form.prdConfidenceThreshold)}
@@ -197,7 +192,7 @@ function Field({ label, value, onChange, type = "text", placeholder }) {
         value={value}
         placeholder={placeholder}
         onChange={(event) => onChange(event.target.value)}
-        className="mt-2 h-11 w-full rounded-full border border-hairline bg-surface/40 px-4 text-[13px] text-ink outline-none placeholder:text-ink-mute focus:border-indigo/50"
+        className="mt-2 h-11 w-full"
       />
     </label>
   );

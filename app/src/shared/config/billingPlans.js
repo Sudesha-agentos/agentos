@@ -1,6 +1,6 @@
 /** Public SaaS tiers (Pilot is internal: see PILOT_PLAN). */
 export const PIPELINE_RUN_DEFINITION =
-  "A pipeline run is counted each time a ticket completes discovery and produces a PRD: regardless of whether it proceeds to Engineering or QA. Tickets that fail validation and are revised do not count as additional runs.";
+  "Credits are deducted when Product (Virin), Tech (Ananta), or QA (Neel) completes a run. Cost depends on the model chosen for that process: ChatGPT is 1 credit, Grok is 2, Claude is 3. Tickets that fail validation and are revised do not count as additional runs.";
 
 export const BILLING_PLANS = [
   {

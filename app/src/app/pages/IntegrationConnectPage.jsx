@@ -77,11 +77,5 @@ export default function IntegrationConnectPage() {
 }
 
 function ConnectShell({ children }) {
-  return (
-    <AnimatedAppPage className="max-w-5xl">
-      <div className="rounded-2xl border border-app-border bg-app-surface p-6 sm:p-8">
-        {children}
-      </div>
-    </AnimatedAppPage>
-  );
+  return <AnimatedAppPage className="max-w-5xl">{children}</AnimatedAppPage>;
 }

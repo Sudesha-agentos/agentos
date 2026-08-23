@@ -72,7 +72,7 @@ export default function GitHubIntegrationOverviewWidget({ embedded = false }) {
       <div className="min-w-0 overflow-hidden rounded-app-sm border border-app-border bg-app-surface-muted/60 p-4">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <p className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-app-ink-mute">
-            <img src="/marketing/integrations/github.svg" alt="" className="size-5 object-contain" />
+            <img src="/marketing/integrations/github.svg" alt="" className="integration-logo size-5 rounded object-contain p-0.5" />
             GitHub
           </p>
           <LabelPill

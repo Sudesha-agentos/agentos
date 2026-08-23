@@ -19,7 +19,7 @@ export function IntegrationLogo({
         src={icon}
         alt=""
         title={label}
-        className={`${sizes[size] ?? sizes.md} shrink-0 rounded-[10px] border border-app-border bg-white object-contain ${className}`}
+        className={`integration-logo ${sizes[size] ?? sizes.md} shrink-0 rounded-[10px] object-contain ${className}`}
       />
     );
   }
@@ -27,7 +27,7 @@ export function IntegrationLogo({
   return (
     <div
       title={label}
-      className={`flex ${sizes[size] ?? sizes.md} shrink-0 items-center justify-center rounded-[10px] border border-app-border bg-app-surface-muted text-[13px] font-semibold text-app-ink ${className}`}
+      className={`flex ${sizes[size] ?? sizes.md} shrink-0 items-center justify-center rounded-[10px] bg-app-surface-muted text-[13px] font-semibold text-app-ink ${className}`}
     >
       {label.slice(0, 1)}
     </div>

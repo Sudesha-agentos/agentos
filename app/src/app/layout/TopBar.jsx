@@ -4,30 +4,42 @@ import { useAppTheme } from "../../shared/hooks/useAppTheme";
 import { useChromeTitle } from "../../shared/hooks/useChromeTitle";
 import { useOrg } from "../../shared/providers/OrgRouteProvider";
 import { PRODUCT_TOUR_START_EVENT } from "../../features/product-tour/productTourStorage";
+import WorkspaceModeSwitch from "../../shared/ui/WorkspaceModeSwitch";
+import { useWorkspaceMode } from "../../shared/hooks/useWorkspaceMode";
 
 export default function TopBar() {
   const { orgPath } = useOrg();
   const location = useLocation();
   const { isDark, toggleTheme } = useAppTheme();
   const title = useChromeTitle();
+  const { isPreview } = useWorkspaceMode();
   const onHome = location.pathname === orgPath();
 
   return (
-    <header className="sticky top-0 z-20 flex h-14 items-center justify-between gap-3 bg-app-canvas px-4 sm:px-6">
-      <div className="w-10 shrink-0 md:hidden" />
+    <header className="app-glass sticky top-0 z-40 flex h-14 items-center gap-3 px-4 sm:px-6">
+      <div className="flex min-w-0 flex-1 items-center">
+        <div className="w-10 shrink-0 md:hidden" />
+        {isPreview && onHome ? (
+          <p className="hidden min-w-0 truncate text-[13px] text-app-ink-mute sm:block">
+            Live preview
+          </p>
+        ) : onHome ? (
+          <Link
+            to={orgPath("settings", "plan")}
+            className="min-w-0 truncate text-[12px] text-app-ink-mute"
+          >
+            Free plan · <span className="font-medium text-app-ink">Upgrade</span>
+          </Link>
+        ) : (
+          <h1 className="min-w-0 truncate text-[15px] font-medium text-app-ink">{title}</h1>
+        )}
+      </div>
       {onHome ? (
-        <Link
-          to={orgPath("settings", "plan")}
-          className="min-w-0 flex-1 truncate text-center text-[12px] text-app-ink-mute"
-        >
-          Free plan · <span className="font-medium text-app-ink">Upgrade</span>
-        </Link>
-      ) : (
-        <h1 className="min-w-0 flex-1 truncate text-center text-[15px] font-medium text-app-ink">
-          {title}
-        </h1>
-      )}
-      <div className="flex shrink-0 items-center gap-1">
+        <div className="shrink-0">
+          <WorkspaceModeSwitch />
+        </div>
+      ) : null}
+      <div className="flex min-w-0 flex-1 items-center justify-end gap-1">
         <button
           type="button"
           onClick={() => window.dispatchEvent(new CustomEvent(PRODUCT_TOUR_START_EVENT))}

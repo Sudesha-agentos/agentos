@@ -587,7 +587,7 @@ function GitIntegrationContent({ setup, refetch, embedded = false, defaultTab = 
                     <label className="block text-sm">
                       <span className="text-muted">Repository</span>
                       <select
-                        className="mt-1 w-full rounded border border-border bg-surface px-3 py-2 font-mono text-sm"
+                        className="mt-1 w-full font-mono text-sm"
                         value={selectedRepo}
                         onChange={(e) => setSelectedRepo(e.target.value)}
                       >
@@ -971,7 +971,7 @@ function BitbucketPanel({
                       setWorkspace(e.target.value);
                       setSelectedRepo("");
                     }}
-                    className="mt-1 w-full rounded-lg border border-hairline bg-surface-elevated px-3 py-2 font-mono text-sm text-ink"
+                    className="mt-1 w-full font-mono text-sm"
                   >
                     <option value="">Select workspace…</option>
                     {workspaces.map((ws) => (
@@ -993,7 +993,7 @@ function BitbucketPanel({
                       value={selectedRepo}
                       onChange={(e) => setSelectedRepo(e.target.value)}
                       disabled={!workspace}
-                      className="mt-1 w-full rounded-lg border border-hairline bg-surface-elevated px-3 py-2 font-mono text-sm text-ink disabled:opacity-50"
+                      className="mt-1 w-full font-mono text-sm disabled:opacity-50"
                     >
                       <option value="">Select repository…</option>
                       {bbRepos.map((repo) => (

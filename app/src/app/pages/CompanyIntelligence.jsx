@@ -218,8 +218,7 @@ export default function CompanyIntelligence({ embedded = false }) {
     }
   }
 
-  const inputClass =
-    "w-full rounded-app-sm border border-app-border bg-app-surface px-4 py-2.5 text-[14px] text-app-ink outline-none transition focus:border-indigo/40 focus:ring-2 focus:ring-indigo/10";
+  const inputClass = "w-full";
 
   if (loading && !form) {
     return (

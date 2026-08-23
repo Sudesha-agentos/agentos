@@ -18,6 +18,7 @@ export function initIntakeDb(): Database.Database {
   migrateGitCredentialsTable(db);
   migratePipelineJiraCredentialsTable(db);
   migratePipelineQueueTable(db);
+  migratePipelineRuntimeSettingsTable(db);
   return db;
 }
 
@@ -100,6 +101,16 @@ function migratePipelineJiraCredentialsTable(database: Database.Database): void 
       "ALTER TABLE pipeline_jira_credentials ADD COLUMN ai_worker_statuses_json TEXT"
     );
   }
+}
+
+function migratePipelineRuntimeSettingsTable(database: Database.Database): void {
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS pipeline_runtime_settings (
+      singleton_id   INTEGER PRIMARY KEY CHECK (singleton_id = 1),
+      settings_json  TEXT NOT NULL,
+      updated_at     TEXT NOT NULL
+    );
+  `);
 }
 
 export function getDb(): Database.Database {

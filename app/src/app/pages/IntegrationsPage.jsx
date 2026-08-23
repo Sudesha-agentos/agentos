@@ -18,7 +18,7 @@ export default function IntegrationsPage() {
     <AnimatedAppPage className="max-w-[44rem]">
       <header className="pt-2">
         <div className="flex items-center gap-3">
-          <div className="flex size-9 items-center justify-center rounded-[10px] border border-app-border bg-app-surface text-app-ink">
+          <div className="flex size-9 items-center justify-center rounded-xl bg-app-surface-muted text-app-ink">
             <IconPlug />
           </div>
           <h1 className="text-[1.75rem] font-semibold tracking-tight text-app-ink">Integrations</h1>
@@ -37,7 +37,7 @@ export default function IntegrationsPage() {
                 {section.description}
               </p>
             ) : null}
-            <div className="mt-4 overflow-hidden rounded-2xl border border-app-border bg-app-surface">
+            <div className="app-card mt-4 overflow-hidden rounded-2xl">
               {section.items.map((integration, index) => (
                 <IntegrationRow
                   key={integration.id}
@@ -61,7 +61,7 @@ function IntegrationRow({ integration, divided }) {
   return (
     <div
       className={`flex items-center gap-4 px-4 py-4 sm:px-5 ${
-        divided ? "border-t border-app-border" : ""
+        divided ? "border-t border-app-ink/6" : ""
       }`}
     >
       <IntegrationLogo integration={integration} />
@@ -78,7 +78,7 @@ function IntegrationRow({ integration, divided }) {
       </div>
       <Link
         to={to}
-        className="shrink-0 rounded-lg border border-app-border px-3 py-1.5 text-[13px] font-medium text-app-ink transition hover:bg-app-surface-muted"
+        className="shrink-0 rounded-full bg-app-surface-muted px-3.5 py-1.5 text-[13px] font-medium text-app-ink transition hover:bg-app-ink hover:text-app-canvas"
       >
         {cta}
       </Link>

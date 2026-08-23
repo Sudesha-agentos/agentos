@@ -765,7 +765,7 @@ function JiraIntegrationContent({ setup, refetchSetup, embedded = false }) {
             <label className="block text-sm">
               <span className="type-kicker">Base URL</span>
               <input
-                className="mt-1.5 w-full rounded-app-sm border border-app-border bg-app-surface px-3 py-2 text-sm"
+                className="mt-1.5 w-full"
                 value={baseUrl}
                 onChange={(e) => setBaseUrl(e.target.value)}
                 placeholder="https://your-domain.atlassian.net"
@@ -774,7 +774,7 @@ function JiraIntegrationContent({ setup, refetchSetup, embedded = false }) {
             <label className="block text-sm">
               <span className="type-kicker">Email</span>
               <input
-                className="mt-1.5 w-full rounded-app-sm border border-app-border bg-app-surface px-3 py-2 text-sm"
+                className="mt-1.5 w-full"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
               />
@@ -783,7 +783,7 @@ function JiraIntegrationContent({ setup, refetchSetup, embedded = false }) {
               <span className="type-kicker">API token</span>
               <input
                 type="password"
-                className="mt-1.5 w-full rounded-app-sm border border-app-border bg-app-surface px-3 py-2 text-sm"
+                className="mt-1.5 w-full"
                 value={apiToken}
                 onChange={(e) => setApiToken(e.target.value)}
                 placeholder={setup?.jira?.hasApiToken ? "Saved: leave blank to keep" : "Required"}
@@ -800,7 +800,7 @@ function JiraIntegrationContent({ setup, refetchSetup, embedded = false }) {
                   : "(optional)"}
               </span>
               <input
-                className="mt-1.5 w-full rounded-app-sm border border-app-border bg-app-surface px-3 py-2 text-sm"
+                className="mt-1.5 w-full"
                 value={webhookSecret}
                 onChange={(e) => setWebhookSecret(e.target.value)}
               />
@@ -831,7 +831,7 @@ function JiraIntegrationContent({ setup, refetchSetup, embedded = false }) {
             <label className="block text-sm">
               <span className="type-kicker">Project</span>
               <select
-                className="mt-1.5 w-full rounded-app-sm border border-app-border bg-app-surface px-3 py-2 text-sm"
+                className="mt-1.5 w-full"
                 value={selectedProjectKey}
                 onChange={(e) => {
                   const key = e.target.value;
@@ -862,7 +862,7 @@ function JiraIntegrationContent({ setup, refetchSetup, embedded = false }) {
             <label className="block text-sm">
               <span className="type-kicker">Board</span>
               <select
-                className="mt-1.5 w-full rounded-app-sm border border-app-border bg-app-surface px-3 py-2 text-sm"
+                className="mt-1.5 w-full"
                 value={boardId}
                 onChange={(e) => setBoardId(e.target.value)}
                 disabled={!selectedProjectKey || loadingBoards}
@@ -919,7 +919,7 @@ function JiraIntegrationContent({ setup, refetchSetup, embedded = false }) {
             <label className="block min-w-[240px] flex-1 text-sm">
               <span className="type-kicker">Board column</span>
               <select
-                className="mt-1.5 w-full rounded-app-sm border border-app-border bg-app-surface px-3 py-2 text-sm"
+                className="mt-1.5 w-full"
                 value={intakeColumn}
                 onChange={(e) => setIntakeColumn(e.target.value)}
               >

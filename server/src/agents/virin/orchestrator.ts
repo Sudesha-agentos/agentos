@@ -1,6 +1,7 @@
 import { companyIntelligence, mapBusinessFitToRevenueRisk } from "../../companyIntelligence";
 import { analyzeCompetitorApproaches } from "../../companyIntelligence/competitorAnalyzer";
 import { mergeUsage } from "../../llm/openaiCompletion";
+import { consumeAgentCredits } from "../../billing/consumeAgentCredits";
 import type { GeneratedPRD } from "../../prd/prdGenerator";
 import { recordRetrospectiveLearning } from "../../rag/retrievalLearning";
 import { logger } from "../../utils/logger";
@@ -608,6 +609,11 @@ export async function runVirinPipeline(input: {
     pmAnalysisStore.setStatus(jiraKey, "COMPLETED");
     pmAnalysisStore.setCurrentStage(jiraKey, null);
     const completed = pmAnalysisStore.get(jiraKey)!;
+    try {
+      await consumeAgentCredits("product");
+    } catch (err) {
+      logger.warn({ err, jiraKey }, "Failed to consume product credits after Virin completion");
+    }
     await autoStartEngineeringFromVirin(jiraKey);
     return completed;
   } catch (err) {

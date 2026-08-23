@@ -6,6 +6,7 @@ import {
 } from "../../canaryAgent/settingsStore";
 import {
   getPublicPipelineSettings,
+  loadPipelineSettingsFromStore,
   savePipelineSettings,
 } from "../../pipeline/settingsStore";
 import { workspaceBillingStore } from "../../billing/workspaceBillingStore";
@@ -75,6 +76,7 @@ router.get("/", (req, res) => {
   const user = requireOrganizationUser(req, res);
   if (!user) return;
   loadCanarySettingsFromStore();
+  loadPipelineSettingsFromStore();
   res.json({
     canary: getPublicCanarySettings(),
     pipeline: getPublicPipelineSettings(),
@@ -100,11 +102,38 @@ router.put("/pipeline", (req, res) => {
     req.body?.qaCoverageThreshold !== undefined
       ? Number(req.body.qaCoverageThreshold)
       : undefined;
+  const productModel =
+    req.body?.productModel !== undefined ? String(req.body.productModel) : undefined;
+  const techModel =
+    req.body?.techModel !== undefined ? String(req.body.techModel) : undefined;
+  const qaModel = req.body?.qaModel !== undefined ? String(req.body.qaModel) : undefined;
+  const productModelName =
+    req.body?.productModelName !== undefined ? String(req.body.productModelName) : undefined;
+  const techModelName =
+    req.body?.techModelName !== undefined ? String(req.body.techModelName) : undefined;
+  const qaModelName =
+    req.body?.qaModelName !== undefined ? String(req.body.qaModelName) : undefined;
+  const claudeSkills = Array.isArray(req.body?.claudeSkills) ? req.body.claudeSkills : undefined;
+  const productSkillIds = Array.isArray(req.body?.productSkillIds)
+    ? req.body.productSkillIds
+    : undefined;
+  const techSkillIds = Array.isArray(req.body?.techSkillIds) ? req.body.techSkillIds : undefined;
+  const qaSkillIds = Array.isArray(req.body?.qaSkillIds) ? req.body.qaSkillIds : undefined;
   const pipeline = savePipelineSettings({
     systemDesignComplexityThreshold: threshold,
     prdConfidenceThreshold,
     implementationConfidenceThreshold,
     qaCoverageThreshold,
+    productModel: productModel as "chatgpt" | "grok" | "claude" | undefined,
+    techModel: techModel as "chatgpt" | "grok" | "claude" | undefined,
+    qaModel: qaModel as "chatgpt" | "grok" | "claude" | undefined,
+    productModelName,
+    techModelName,
+    qaModelName,
+    claudeSkills,
+    productSkillIds,
+    techSkillIds,
+    qaSkillIds,
   });
   res.json({ pipeline });
 });

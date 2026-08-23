@@ -2,7 +2,9 @@ import type { ChatCompletionMessageParam } from "openai/resources/chat/completio
 import { AgentParseError } from "../utils/errors";
 import { logger } from "../utils/logger";
 import { withRetry } from "../utils/retry";
-import { createChatCompletion, getOpenAIChatModel } from "./openaiClient";
+import { getOpenAIChatModel } from "./openaiClient";
+import { createProviderChatCompletion } from "./providerChat";
+import { DEFAULT_AGENT_MODEL_ID, type AgentModelId, type AgentRole } from "./agentModels";
 
 // GPT-5.1 pricing placeholder — update when billing constants are finalized.
 const INPUT_COST_PER_TOKEN = 0.00000125;
@@ -45,14 +47,17 @@ export async function chatCompletionText(params: {
   maxTokens?: number;
   jsonMode?: boolean;
   model?: string;
+  providerId?: AgentModelId;
+  role?: AgentRole;
 }): Promise<{ text: string; usage: LlmUsage; model: string }> {
-  const model = params.model ?? getOpenAIChatModel();
+  const providerId = params.providerId ?? DEFAULT_AGENT_MODEL_ID;
   const response = await withRetry(
     () =>
-      createChatCompletion({
-        model,
+      createProviderChatCompletion({
+        providerId,
+        role: params.role,
         maxTokens: params.maxTokens ?? 4000,
-        ...(params.jsonMode ? { response_format: { type: "json_object" } } : {}),
+        jsonMode: params.jsonMode ?? false,
         messages: [
           { role: "system", content: params.system },
           { role: "user", content: params.user },
@@ -63,11 +68,12 @@ export async function chatCompletionText(params: {
 
   const text = response.choices[0]?.message?.content?.trim() ?? "";
   if (!text) {
-    throw new Error("OpenAI chat completion returned empty content");
+    throw new Error("Chat completion returned empty content");
   }
 
   const inputTokens = response.usage?.prompt_tokens ?? 0;
   const outputTokens = response.usage?.completion_tokens ?? 0;
+  const model = params.model ?? response.model ?? getOpenAIChatModel();
 
   return {
     text,
@@ -86,12 +92,16 @@ export async function completionJson<T>(params: {
   systemPrompt: string;
   userPrompt: string;
   maxTokens?: number;
+  providerId?: AgentModelId;
+  role?: AgentRole;
 }): Promise<{ parsed: T; usage: LlmUsage; raw: string }> {
   const { text, usage } = await chatCompletionText({
     system: params.systemPrompt,
     user: params.userPrompt,
     maxTokens: params.maxTokens,
     jsonMode: true,
+    providerId: params.providerId,
+    role: params.role,
   });
 
   const parsed = parseDiscoveryJson<T>(text, params.source);

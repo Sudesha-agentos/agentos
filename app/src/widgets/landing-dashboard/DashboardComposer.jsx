@@ -68,7 +68,7 @@ export default function DashboardComposer({
 
   return (
     <form
-      className={`relative border border-app-border bg-app-surface shadow-app-float ${
+      className={`relative bg-app-surface shadow-app-float ${
         compact ? "rounded-2xl px-3 py-2.5" : "rounded-[1.75rem] px-4 pb-3 pt-4"
       }`}
       onSubmit={(e) => {
@@ -77,14 +77,14 @@ export default function DashboardComposer({
       }}
     >
       <div className="absolute -top-3 right-4">
-        <label className="inline-flex items-center gap-1.5 rounded-full border border-app-border bg-app-canvas px-2.5 py-1 text-[12px] font-medium text-app-ink shadow-app-card">
+        <label className="inline-flex items-center gap-1.5 rounded-full bg-app-surface-muted px-2.5 py-1 text-[12px] font-medium text-app-ink">
           <span className="size-1.5 rounded-full bg-warning" />
           Ask {agent.label}
           <select
             value={domain}
             onChange={(e) => onDomainChange(e.target.value)}
             disabled={busy}
-            className="absolute inset-0 cursor-pointer opacity-0"
+            className="app-field-plain absolute inset-0 cursor-pointer opacity-0"
             aria-label="Choose agent"
           >
             {AGENTS.map((item) => (
@@ -142,7 +142,7 @@ export default function DashboardComposer({
           }
         }}
         placeholder={PLACEHOLDER}
-        className="w-full resize-none bg-transparent px-1 py-2 text-[16px] leading-relaxed text-app-ink placeholder:text-app-ink-mute focus:outline-none disabled:opacity-50"
+        className="app-field-plain w-full resize-none bg-transparent px-1 py-2 text-[16px] leading-relaxed text-app-ink placeholder:text-app-ink-mute focus:outline-none disabled:opacity-50"
       />
 
       <div className="relative mt-1 flex items-center gap-1.5">

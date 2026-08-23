@@ -1,8 +1,11 @@
 import { auditRepo } from "../db/repositories/auditRepo";
 import type { ChatCompletionMessageToolCall } from "openai/resources/chat/completions";
-import { createChatCompletion, getOpenAIChatModel } from "../llm/openaiClient";
 import type { AgenticMessage } from "../llm/openaiCompletion";
 import { anthropicToolsToOpenAI } from "../llm/openaiTools";
+import { createProviderChatCompletion } from "../llm/providerChat";
+import { getModelIdForRole, getApiModelForRole, consumeAgentCredits } from "../billing/consumeAgentCredits";
+import type { AgentRole } from "../llm/agentModels";
+import { applyClaudeSkillsToPrompt } from "../llm/claudeSkills";
 import { executeToolCall, type ToolCallInput, type ToolCallResult } from "../tools/executor";
 import { TOOL_DEFINITIONS } from "../tools/definitions";
 import { logger } from "../utils/logger";
@@ -43,6 +46,8 @@ export interface AgenticLoopConfig {
     pipelineId: string,
     jiraKey: string
   ) => Promise<ToolCallResult>;
+  /** Which process this loop is for — selects Claude / Grok / ChatGPT and credit cost. */
+  role?: AgentRole;
 }
 
 export interface AgenticLoopResult {
@@ -75,7 +80,12 @@ export async function runAgenticLoop(
     maxMutatingToolRetries = 2,
     mutatingToolRetryMessage,
     executeToolCall: executeToolCallFn = executeToolCall,
+    role = "product" as AgentRole,
   } = config;
+
+  const providerId = getModelIdForRole(role);
+  const apiModel = getApiModelForRole(role);
+  const prompt = applyClaudeSkillsToPrompt(systemPrompt, role);
 
   const messages = createInitialMessages(initialUserMessage);
   const openaiTools = anthropicToolsToOpenAI(tools);
@@ -94,6 +104,9 @@ export async function runAgenticLoop(
   await auditRepo.log(pipelineId, "AGENTIC_LOOP_STARTED", {
     jiraKey,
     maxToolCalls,
+    role,
+    provider: providerId,
+    model: apiModel,
   });
 
   while (true) {
@@ -107,16 +120,14 @@ export async function runAgenticLoop(
       forcedWrapUp = true;
     }
 
-    const model = getOpenAIChatModel();
     const response = await withRetry(
       () =>
-        createChatCompletion({
-          model,
+        createProviderChatCompletion({
+          providerId,
+          role,
           maxTokens: 6000,
-          messages: [{ role: "system", content: systemPrompt }, ...messages],
-          ...(forcedWrapUp || openaiTools.length === 0
-            ? {}
-            : { tools: openaiTools, tool_choice: "auto" as const }),
+          messages: [{ role: "system", content: prompt }, ...messages],
+          ...(forcedWrapUp || openaiTools.length === 0 ? {} : { tools: openaiTools }),
         }),
       {
         maxAttempts: 3,
@@ -168,11 +179,22 @@ export async function runAgenticLoop(
         totalInputTokens * INPUT_COST_PER_TOKEN +
         totalOutputTokens * OUTPUT_COST_PER_TOKEN;
 
+      let creditsCharged = 0;
+      try {
+        creditsCharged = await consumeAgentCredits(role);
+      } catch (err) {
+        logger.warn({ err, pipelineId, role, provider: providerId }, "Failed to consume agent credits");
+      }
+
       await auditRepo.log(pipelineId, "AGENTIC_LOOP_COMPLETED", {
         toolCallCount,
         totalInputTokens,
         totalOutputTokens,
         totalCostUsd,
+        role,
+        provider: providerId,
+        model: apiModel,
+        creditsCharged,
       });
 
       return {

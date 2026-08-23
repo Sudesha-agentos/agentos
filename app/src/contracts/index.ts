@@ -258,6 +258,25 @@ export const SettingsSchema = z.object({
   canaryStagingBaseUrl: z.string(),
   canaryProductionBaseUrl: z.string(),
   canaryAuthToken: z.string(),
+  productModel: z.enum(["chatgpt", "grok", "claude"]).default("chatgpt"),
+  techModel: z.enum(["chatgpt", "grok", "claude"]).default("chatgpt"),
+  qaModel: z.enum(["chatgpt", "grok", "claude"]).default("chatgpt"),
+  productModelName: z.string().default("gpt-5.1"),
+  techModelName: z.string().default("gpt-5.1"),
+  qaModelName: z.string().default("gpt-5.1"),
+  claudeSkills: z
+    .array(
+      z.object({
+        id: z.string().min(1),
+        name: z.string(),
+        description: z.string(),
+        body: z.string(),
+      })
+    )
+    .default([]),
+  productSkillIds: z.array(z.string()).default([]),
+  techSkillIds: z.array(z.string()).default([]),
+  qaSkillIds: z.array(z.string()).default([]),
 });
 
 export type TicketStatus = z.infer<typeof TicketStatusSchema>;

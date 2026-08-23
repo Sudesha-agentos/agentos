@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { EASE } from "../../lib/motion";
 import { SidebarProvider, useSidebarCollapsed } from "../../shared/hooks/useSidebarCollapsed";
 import { AppThemeProvider } from "../../shared/hooks/useAppTheme";
+import { WorkspaceModeProvider, useWorkspaceMode } from "../../shared/hooks/useWorkspaceMode";
 import { useOrgNavigation } from "../../shared/routing/useOrgNavigation";
 import AppPageFallback from "../../shared/ui/AppPageFallback";
 import AppPageTransition from "../../shared/ui/AppPageTransition";
@@ -13,6 +14,7 @@ import JiraOAuthRedirect from "./JiraOAuthRedirect";
 import MobileNav from "./MobileNav";
 import Sidebar from "./Sidebar";
 import TopBar from "./TopBar";
+import WebsitePreview from "./WebsitePreview";
 import IntakeAssignmentListener from "../../shared/components/IntakeAssignmentListener";
 import ProductTourController from "../../features/product-tour/ProductTourController";
 
@@ -28,35 +30,45 @@ function AppOutlet() {
 
 function AppShellContent() {
   const { collapsed } = useSidebarCollapsed();
-  const { pathMatches } = useOrgNavigation();
+  const { pathMatches, orgPath, location } = useOrgNavigation();
+  const { isPreview, setWork } = useWorkspaceMode();
   const onSettings = pathMatches("settings");
+  const onCreateNew = location.pathname === orgPath();
+  const showPreview = isPreview && onCreateNew;
 
-  if (onSettings) {
-    return (
-      <div className="relative min-h-screen bg-app-canvas">
-        <AppOutlet />
-      </div>
-    );
-  }
+  useEffect(() => {
+    if (!onCreateNew && isPreview) setWork();
+  }, [onCreateNew, isPreview, setWork]);
 
   return (
-    <div className="relative flex">
-      <Sidebar />
-      <div
-        className={`flex min-h-screen min-w-0 flex-1 flex-col overflow-x-hidden bg-app-canvas transition-[padding] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
-          collapsed ? "md:pl-14" : "md:pl-[17rem]"
-        }`}
-      >
-        <TopBar />
-        <MobileNav />
-        <motion.main
-          initial={{ opacity: 0, y: 6 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.28, ease: EASE }}
-          className="flex-1 scroll-smooth px-4 pb-8 pt-2 sm:px-6 sm:pb-10 sm:pt-3 lg:px-8"
-        >
-          <AppOutlet />
-        </motion.main>
+    <div className="flex min-h-screen flex-col bg-app-canvas">
+      <TopBar />
+      {showPreview ? <WebsitePreview /> : null}
+      <div className={showPreview ? "hidden" : "flex min-h-0 flex-1 flex-col"}>
+        {onSettings ? (
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            <AppOutlet />
+          </div>
+        ) : (
+          <div className="relative flex min-h-0 flex-1">
+            <Sidebar />
+            <div
+              className={`flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden bg-app-canvas transition-[padding] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+                collapsed ? "md:pl-14" : "md:pl-[17rem]"
+              }`}
+            >
+              <MobileNav />
+              <motion.main
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.28, ease: EASE }}
+                className="flex-1 scroll-smooth px-4 pb-8 pt-2 sm:px-6 sm:pb-10 sm:pt-3 lg:px-8"
+              >
+                <AppOutlet />
+              </motion.main>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -76,13 +88,15 @@ export default function AppShell() {
     <AppThemeProvider>
       <CodebaseCommandPaletteProvider>
         <SidebarProvider>
-          <div className="app-shell app-shell-gradient min-h-screen text-app-ink">
-            <GithubOAuthRedirect />
-            <JiraOAuthRedirect />
-            <IntakeAssignmentListener />
-            <ProductTourController />
-            <AppShellContent />
-          </div>
+          <WorkspaceModeProvider>
+            <div className="app-shell app-shell-gradient min-h-screen text-app-ink">
+              <GithubOAuthRedirect />
+              <JiraOAuthRedirect />
+              <IntakeAssignmentListener />
+              <ProductTourController />
+              <AppShellContent />
+            </div>
+          </WorkspaceModeProvider>
         </SidebarProvider>
       </CodebaseCommandPaletteProvider>
     </AppThemeProvider>

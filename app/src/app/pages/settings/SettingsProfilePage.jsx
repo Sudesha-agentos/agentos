@@ -26,12 +26,12 @@ export default function SettingsProfilePage() {
         title="Profile"
         description="Your account on this AgentOX workspace."
       />
-      <div className="overflow-hidden rounded-xl border border-app-border bg-app-surface">
+      <div className="app-card overflow-hidden rounded-2xl">
         {rows.map((row, index) => (
           <div
             key={row.label}
             className={`flex items-baseline justify-between gap-6 px-5 py-4 ${
-              index > 0 ? "border-t border-app-border" : ""
+              index > 0 ? "bg-app-surface-muted/25" : ""
             }`}
           >
             <p className="text-[13px] text-app-ink-mute">{row.label}</p>

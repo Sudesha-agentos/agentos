@@ -33,6 +33,12 @@ CREATE TABLE IF NOT EXISTS canary_runtime_settings (
   updated_at            TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS pipeline_runtime_settings (
+  singleton_id   INTEGER PRIMARY KEY CHECK (singleton_id = 1),
+  settings_json  TEXT NOT NULL,
+  updated_at     TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS pm_analysis_records (
   jira_key      TEXT PRIMARY KEY,
   record_json   TEXT NOT NULL,

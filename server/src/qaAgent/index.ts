@@ -66,6 +66,7 @@ export async function runQaAgentic(
       tools: QA_TOOL_DEFINITIONS,
       executeToolCall: executeQaToolCall,
       forcedWrapUpMessage: `You have used the maximum number of QA tool calls. Produce the final JSON test plan now using everything gathered. Do not call more tools.`,
+      role: "qa",
     });
 
     // Mandatory QA OSS suite for every ticket (Semgrep, Playwright, Cover-Agent, Hypothesis)

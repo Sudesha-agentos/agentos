@@ -1,4 +1,5 @@
 import { AGENT_NAMES } from "../../shared/config/app";
+import WorkspaceModeSwitch from "../../shared/ui/WorkspaceModeSwitch";
 
 export const AGENT_OPERATIONS = [
   {
@@ -84,21 +85,24 @@ export default function CreateNewPanel({ open, onClose, onSelect }) {
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 px-4 py-10 sm:py-16">
       <button type="button" className="absolute inset-0 cursor-default" aria-label="Close" onClick={onClose} />
-      <div className="relative z-10 w-full max-w-[40rem] overflow-hidden rounded-2xl border border-app-border bg-app-surface shadow-app-float">
-        <div className="flex items-start justify-between gap-4 border-b border-app-border px-5 py-4">
+      <div className="relative z-10 w-full max-w-[40rem] overflow-hidden rounded-2xl bg-app-surface shadow-app-float">
+        <div className="flex items-start justify-between gap-4 px-5 py-4">
           <div>
             <h2 className="text-[16px] font-semibold text-app-ink">Create New</h2>
             <p className="mt-1 text-[13px] text-app-ink-dim">
               Start a stored chat with Virin, Ananta, or Neel. Tag a ticket or GitHub file after you open it.
             </p>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-lg px-2 py-1 text-[13px] text-app-ink-dim hover:bg-app-surface-muted hover:text-app-ink"
-          >
-            Close
-          </button>
+          <div className="flex shrink-0 items-center gap-2">
+            <WorkspaceModeSwitch />
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-lg px-2 py-1 text-[13px] text-app-ink-dim hover:bg-app-surface-muted hover:text-app-ink"
+            >
+              Close
+            </button>
+          </div>
         </div>
         <div className="max-h-[min(70vh,36rem)] space-y-6 overflow-y-auto px-5 py-5">
           <button
@@ -111,7 +115,7 @@ export default function CreateNewPanel({ open, onClose, onSelect }) {
                 starter: "",
               })
             }
-            className="w-full rounded-xl border border-app-border px-4 py-3 text-left transition hover:bg-app-surface-muted/60"
+            className="w-full rounded-xl bg-app-surface-muted px-4 py-3 text-left transition hover:bg-app-ink/5"
           >
             <p className="text-[14px] font-semibold text-app-ink">Blank chat</p>
             <p className="mt-0.5 text-[13px] text-app-ink-dim">
@@ -136,7 +140,7 @@ export default function CreateNewPanel({ open, onClose, onSelect }) {
                           starter: op.starter,
                         })
                       }
-                      className="w-full rounded-xl border border-app-border px-4 py-3 text-left transition hover:bg-app-surface-muted/60"
+                      className="w-full rounded-xl bg-app-surface-muted px-4 py-3 text-left transition hover:bg-app-ink/5"
                     >
                       <p className="text-[14px] font-semibold text-app-ink">{op.title}</p>
                       <p className="mt-0.5 text-[13px] text-app-ink-dim">{op.description}</p>

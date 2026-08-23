@@ -91,14 +91,14 @@ export default function SidebarUserCard({ collapsed = false }) {
             ref={menuRef}
             role="menu"
             style={{ left: menuPos.left, bottom: menuPos.bottom }}
-            className="fixed z-[80] w-[272px] overflow-hidden rounded-2xl border border-app-border bg-app-surface shadow-app-float"
+            className="fixed z-[80] w-[272px] overflow-hidden rounded-2xl app-glass shadow-app-float"
           >
             <div className="flex items-center justify-between gap-3 px-3.5 py-3">
               <span className="text-[13px] text-app-ink">Theme</span>
               <ThemeSegmentedControl size="sm" />
             </div>
 
-            <div className="border-t border-app-border px-3.5 py-3">
+            <div className="px-3.5 py-3">
               <div className="flex items-center justify-between gap-2">
                 <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-app-ink-mute">
                   Credits
@@ -126,7 +126,7 @@ export default function SidebarUserCard({ collapsed = false }) {
               </div>
             </div>
 
-            <div className="border-t border-app-border p-1.5">
+            <div className="p-1.5">
               <Link
                 to={orgPath("settings", "profile")}
                 role="menuitem"

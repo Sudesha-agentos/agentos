@@ -6,6 +6,7 @@ export function buildSettingsNav(slug) {
     { id: "plan", label: "Plans & Credits", to: orgPath(slug, "settings", "plan") },
     { id: "usage", label: "Usage History", to: orgPath(slug, "settings", "usage") },
     { id: "appearance", label: "Appearance", to: orgPath(slug, "settings", "appearance") },
+    { id: "models", label: "Models", to: orgPath(slug, "settings", "models") },
     { id: "connections", label: "Connections", to: orgPath(slug, "settings", "connections") },
     { id: "company", label: "Company", to: orgPath(slug, "settings", "company") },
     {

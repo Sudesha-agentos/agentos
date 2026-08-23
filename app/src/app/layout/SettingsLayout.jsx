@@ -8,6 +8,7 @@ const ICONS = {
   plan: IconPlan,
   usage: IconUsage,
   appearance: IconAppearance,
+  models: IconModels,
   connections: IconConnections,
   company: IconCompany,
   "codebase-index": IconCodebase,
@@ -40,8 +41,8 @@ export default function SettingsLayout() {
   const settingsNav = buildSettingsNav(orgSlug);
 
   return (
-    <div className="flex min-h-screen flex-col bg-app-canvas md:flex-row">
-      <aside className="flex w-full shrink-0 flex-col border-b border-app-border bg-app-surface px-3 py-3 md:sticky md:top-0 md:h-screen md:w-[15.5rem] md:overflow-y-auto md:border-b-0 md:border-r md:py-5">
+    <div className="flex min-h-full flex-col bg-app-canvas md:flex-row">
+      <aside className="app-glass flex w-full shrink-0 flex-col px-3 py-3 md:w-[15.5rem] md:overflow-y-auto md:py-5">
         <Link
           to={orgPath()}
           className="mb-3 inline-flex w-fit items-center gap-2 rounded-lg px-2.5 py-1.5 text-[13px] text-app-ink-dim transition hover:bg-app-surface-muted hover:text-app-ink"
@@ -152,6 +153,17 @@ function IconAppearance() {
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
       <circle cx="12" cy="12" r="8.2" stroke="currentColor" strokeWidth="1.6" />
       <path d="M12 3.8v16.4M12 12c3.6 0 6.5-3.7 6.5-8.2M12 12c-3.6 0-6.5 3.7-6.5 8.2" stroke="currentColor" strokeWidth="1.4" />
+    </svg>
+  );
+}
+
+function IconModels() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <circle cx="8" cy="8" r="2.2" stroke="currentColor" strokeWidth="1.6" />
+      <circle cx="16" cy="8" r="2.2" stroke="currentColor" strokeWidth="1.6" />
+      <circle cx="12" cy="16" r="2.2" stroke="currentColor" strokeWidth="1.6" />
+      <path d="M9.8 9.4 11.2 14.2M14.2 9.4 12.8 14.2" stroke="currentColor" strokeWidth="1.6" />
     </svg>
   );
 }

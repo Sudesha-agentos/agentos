@@ -76,19 +76,21 @@ export const workspaceBillingStore = {
     return toDto(row);
   },
 
-  async incrementRunsUsed(organizationId?: string): Promise<void> {
+  async incrementRunsUsed(amount = 1, organizationId?: string): Promise<void> {
     const orgId = organizationId ?? getActiveOrganizationId();
     if (!orgId) return;
+    const delta = Number.isFinite(amount) ? Math.max(0, Math.round(amount)) : 1;
+    if (delta <= 0) return;
     await prisma.workspaceBilling.upsert({
       where: { organizationId: orgId },
       create: {
         organizationId: orgId,
         planId: DEFAULT.planId,
-        runsUsed: 1,
+        runsUsed: delta,
         runsCap: DEFAULT.runsCap,
         billingCycle: DEFAULT.billingCycle,
       },
-      update: { runsUsed: { increment: 1 } },
+      update: { runsUsed: { increment: delta } },
     });
   },
 };

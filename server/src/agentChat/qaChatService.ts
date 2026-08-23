@@ -47,6 +47,7 @@ export async function runQaChatTurn(input: {
     tools: QA_CHAT_TOOL_DEFINITIONS,
     executeToolCall: executeQaChatToolCall,
     maxToolCalls: 10,
+    role: "qa",
     forcedWrapUpMessage:
       "Stop calling tools. Answer in first person as Neel, discussion-only.",
   });
