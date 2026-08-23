@@ -41,35 +41,42 @@ function AppShellContent() {
   }, [onCreateNew, isPreview, setWork]);
 
   return (
-    <div className="flex min-h-screen flex-col bg-app-canvas">
+    <div
+      className={`flex flex-col bg-app-canvas ${
+        showPreview ? "h-svh overflow-hidden" : "min-h-screen"
+      }`}
+    >
       <TopBar />
-      {showPreview ? <WebsitePreview /> : null}
-      <div className={showPreview ? "hidden" : "flex min-h-0 flex-1 flex-col"}>
-        {onSettings ? (
-          <div className="min-h-0 flex-1 overflow-y-auto">
-            <AppOutlet />
-          </div>
-        ) : (
-          <div className="relative flex min-h-0 flex-1">
-            <Sidebar />
-            <div
-              className={`flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden bg-app-canvas transition-[padding] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
-                collapsed ? "md:pl-14" : "md:pl-[17rem]"
-              }`}
-            >
-              <MobileNav />
-              <motion.main
-                initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.28, ease: EASE }}
-                className="flex-1 scroll-smooth px-4 pb-8 pt-2 sm:px-6 sm:pb-10 sm:pt-3 lg:px-8"
-              >
-                <AppOutlet />
-              </motion.main>
+      {showPreview ? (
+        <WebsitePreview />
+      ) : (
+        <div className="flex min-h-0 flex-1 flex-col">
+          {onSettings ? (
+            <div className="min-h-0 flex-1 overflow-y-auto">
+              <AppOutlet />
             </div>
-          </div>
-        )}
-      </div>
+          ) : (
+            <div className="relative flex min-h-0 flex-1">
+              <Sidebar />
+              <div
+                className={`flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden bg-app-canvas transition-[padding] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+                  collapsed ? "md:pl-14" : "md:pl-[17rem]"
+                }`}
+              >
+                <MobileNav />
+                <motion.main
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.28, ease: EASE }}
+                  className="flex-1 scroll-smooth px-4 pb-8 pt-2 sm:px-6 sm:pb-10 sm:pt-3 lg:px-8"
+                >
+                  <AppOutlet />
+                </motion.main>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
