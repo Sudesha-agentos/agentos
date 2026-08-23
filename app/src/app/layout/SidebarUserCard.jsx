@@ -14,9 +14,12 @@ function userInitials(user) {
 }
 
 export default function SidebarUserCard({ collapsed = false }) {
-  const { user, logout } = useAuth();
+  const { user, organization, logout } = useAuth();
 
   if (!user) return null;
+
+  const displayName = user.name?.trim() || user.email?.split("@")[0];
+  const planLine = organization?.name?.trim() || organization?.slug || "Workspace";
 
   async function handleLogout() {
     await logout();
@@ -24,21 +27,21 @@ export default function SidebarUserCard({ collapsed = false }) {
 
   if (collapsed) {
     return (
-      <div className="border-t border-app-border px-2 py-4">
+      <div className="px-1.5 py-3">
         <div className="group relative flex justify-center">
           <button
             type="button"
-            className="flex size-9 items-center justify-center rounded-full bg-app-charcoal text-xs font-semibold text-white"
+            className="flex size-8 items-center justify-center rounded-full bg-app-surface-muted text-[11px] font-semibold text-app-ink"
             aria-label={user.email}
           >
             {userInitials(user)}
           </button>
-          <div className="invisible absolute bottom-full left-1/2 z-50 mb-2 w-48 -translate-x-1/2 rounded-lg border border-app-border bg-app-surface p-2 opacity-0 shadow-app-float transition-all group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100">
+          <div className="invisible absolute bottom-full left-1/2 z-50 mb-2 w-48 -translate-x-1/2 rounded-xl border border-app-border bg-app-surface p-2 opacity-0 shadow-app-float transition-all group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100">
             <p className="truncate px-2 py-1 text-xs text-app-ink-mute">{user.email}</p>
             <button
               type="button"
               onClick={handleLogout}
-              className="w-full rounded-md px-2 py-1.5 text-left text-sm text-app-ink-dim hover:bg-app-surface-muted hover:text-app-ink"
+              className="w-full rounded-lg px-2 py-1.5 text-left text-sm text-app-ink-dim hover:bg-app-surface-muted hover:text-app-ink"
             >
               Log out
             </button>
@@ -49,25 +52,25 @@ export default function SidebarUserCard({ collapsed = false }) {
   }
 
   return (
-    <div className="border-t border-app-border px-2 py-3">
+    <div className="px-1.5 py-2">
       <div className="group relative">
         <button
           type="button"
-          className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-left transition hover:bg-app-surface-muted/50"
+          className="flex w-full items-center gap-2.5 rounded-xl px-2 py-2 text-left transition hover:bg-app-surface-muted/70"
           aria-label="Account menu"
         >
-          <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-app-charcoal text-[11px] font-semibold text-white">
+          <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-app-surface-muted text-[11px] font-semibold text-app-ink">
             {userInitials(user)}
           </span>
           <span className="min-w-0 flex-1">
             <span className="block truncate text-[13px] font-medium text-app-ink">
-              {user.name?.trim() || user.email?.split("@")[0]}
+              {displayName}
             </span>
-            <span className="block truncate text-[11px] text-app-ink-mute">{user.email}</span>
+            <span className="block truncate text-[11px] text-app-ink-mute">{planLine}</span>
           </span>
           <svg
-            width="16"
-            height="16"
+            width="14"
+            height="14"
             viewBox="0 0 16 16"
             fill="none"
             aria-hidden
@@ -82,11 +85,11 @@ export default function SidebarUserCard({ collapsed = false }) {
             />
           </svg>
         </button>
-        <div className="invisible absolute bottom-full left-0 right-0 z-50 mb-2 rounded-lg border border-app-border bg-app-surface p-2 opacity-0 shadow-app-float transition-all group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100">
+        <div className="invisible absolute bottom-full left-0 right-0 z-50 mb-2 rounded-xl border border-app-border bg-app-surface p-2 opacity-0 shadow-app-float transition-all group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100">
           <button
             type="button"
             onClick={handleLogout}
-            className="w-full rounded-md px-3 py-2 text-left text-sm text-app-ink-dim hover:bg-app-surface-muted hover:text-app-ink"
+            className="w-full rounded-lg px-3 py-2 text-left text-sm text-app-ink-dim hover:bg-app-surface-muted hover:text-app-ink"
           >
             Log out
           </button>

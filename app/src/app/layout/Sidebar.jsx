@@ -1,17 +1,19 @@
-import { NavLink, useLocation, useSearchParams } from "react-router-dom";
+import { NavLink, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import Logo, { LogoMark } from "../../components/Logo";
 import { usePipelineList } from "../../entities/pipeline";
 import { derivePipelineCounts } from "../../shared/lib/pipelineCounts";
 import { useSidebarCollapsed } from "../../shared/hooks/useSidebarCollapsed";
 import { useNavExpanded } from "../../shared/hooks/useNavExpanded";
 import { useOrgNavigation } from "../../shared/routing/useOrgNavigation";
+import { useCodebaseCommandPalette } from "../../widgets/codebase-search/useCodebaseCommandPalette";
+import { focusDashboardComposer } from "../../shared/lib/chromeEvents";
 import SidebarUserCard from "./SidebarUserCard";
 
 function navItemClass(active, collapsed, { isGroupHeader = false, childActive = false } = {}) {
   const showActiveBg = Boolean(active && (collapsed || !isGroupHeader || !childActive));
   return [
     "group flex w-full items-center text-[13px] font-medium transition-colors duration-150",
-    collapsed ? "justify-center rounded-md px-2 py-1.5" : "gap-2 rounded-md px-2.5 py-1.5",
+    collapsed ? "justify-center rounded-lg px-2 py-1.5" : "gap-2 rounded-lg px-2.5 py-1.5",
     showActiveBg
       ? "bg-app-surface-muted text-app-ink"
       : active && isGroupHeader && childActive
@@ -22,7 +24,7 @@ function navItemClass(active, collapsed, { isGroupHeader = false, childActive = 
 
 function subNavItemClass(active) {
   return [
-    "flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-[12px] font-medium transition-colors",
+    "flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-[12px] font-medium transition-colors",
     active
       ? "bg-app-surface-muted text-app-ink"
       : "text-app-ink-dim hover:bg-app-surface-muted/60 hover:text-app-ink",
@@ -30,7 +32,7 @@ function subNavItemClass(active) {
 }
 
 function sectionLabelClass(collapsed) {
-  return collapsed ? "sr-only" : "mb-1 px-2.5 text-[11px] font-semibold text-app-ink-mute";
+  return collapsed ? "sr-only" : "mb-1 px-2.5 text-[11px] font-medium text-app-ink-mute";
 }
 
 const NAV_ICONS = {
@@ -54,10 +56,26 @@ export default function Sidebar() {
   const pipelineTab = pathMatches("pipelines")
     ? (searchParams.get("tab") ?? "active")
     : "active";
+  const navigate = useNavigate();
+  const { openPalette } = useCodebaseCommandPalette();
   const { collapsed, toggleCollapsed } = useSidebarCollapsed();
   const { isExpanded, toggle } = useNavExpanded(location.pathname);
   const { items: pipelines } = usePipelineList(undefined, { pollMs: 60_000 });
   const counts = derivePipelineCounts(pipelines);
+  const recentWork = [...(pipelines ?? [])]
+    .sort(
+      (a, b) =>
+        new Date(b.updatedAt ?? b.startedAt ?? b.completedAt ?? 0) -
+        new Date(a.updatedAt ?? a.startedAt ?? a.completedAt ?? 0)
+    )
+    .slice(0, 8);
+
+  function handleNew() {
+    if (location.pathname !== orgPath()) {
+      navigate(orgPath());
+    }
+    window.setTimeout(() => focusDashboardComposer(), 80);
+  }
 
   function agentIsActive(agent) {
     if (agent.id === "virin") {
@@ -78,28 +96,56 @@ export default function Sidebar() {
 
   return (
     <aside
-      className={`fixed inset-y-0 left-0 z-30 hidden flex-col border-r border-app-border bg-app-surface transition-[width,padding] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] md:flex ${
-        collapsed ? "w-14 px-1.5" : "w-[13.75rem] px-2"
+      className={`fixed inset-y-0 left-0 z-30 hidden flex-col bg-app-surface transition-[width,padding] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] md:flex ${
+        collapsed ? "w-14 px-1.5" : "w-64 px-2"
       }`}
     >
-      <button
-        type="button"
-        onClick={toggleCollapsed}
-        className="absolute -right-3 top-[4.5rem] z-40 flex size-6 items-center justify-center rounded-full border border-app-border bg-app-surface text-app-ink-dim shadow-app-card transition hover:border-indigo/30 hover:text-app-ink"
-        aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-        aria-expanded={!collapsed}
+      <div
+        className={`flex shrink-0 items-center py-3 ${
+          collapsed ? "flex-col gap-2" : "justify-between gap-1 px-1"
+        }`}
       >
-        <IconChevron collapsed={collapsed} />
-      </button>
-
-      <div className={`shrink-0 py-3 ${collapsed ? "flex justify-center px-0" : "px-1"}`}>
         {collapsed ? (
           <NavLink to={orgPath()} aria-label="AgentOX home" className="inline-flex">
-            <LogoMark size={26} />
+            <LogoMark size={24} />
           </NavLink>
         ) : (
           <Logo variant="light" href={orgPath()} />
         )}
+        <div className={`flex items-center ${collapsed ? "flex-col gap-1" : "gap-0.5"}`}>
+          <button
+            type="button"
+            onClick={toggleCollapsed}
+            className="flex size-8 items-center justify-center rounded-lg text-app-ink-dim transition hover:bg-app-surface-muted hover:text-app-ink"
+            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            aria-expanded={!collapsed}
+          >
+            <IconChevron collapsed={collapsed} />
+          </button>
+          <button
+            type="button"
+            onClick={openPalette}
+            className="flex size-8 items-center justify-center rounded-lg text-app-ink-dim transition hover:bg-app-surface-muted hover:text-app-ink"
+            aria-label="Search"
+            title="Search (⌘K)"
+          >
+            <IconSearch />
+          </button>
+        </div>
+      </div>
+
+      <div className={`shrink-0 pb-2 ${collapsed ? "px-0" : "px-0.5"}`}>
+        <button
+          type="button"
+          onClick={handleNew}
+          className={navItemClass(false, collapsed)}
+          title={collapsed ? "New" : undefined}
+        >
+          <span className="flex size-5 shrink-0 items-center justify-center text-app-ink-mute">
+            <IconPlus />
+          </span>
+          {!collapsed ? <span>New</span> : null}
+        </button>
       </div>
 
       <nav className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-0.5 py-1">
@@ -377,9 +423,54 @@ export default function Sidebar() {
             </ul>
           </div>
         ))}
+        {!collapsed && recentWork.length > 0 ? (
+          <div className="mt-5">
+            <p className={sectionLabelClass(false)}>Recent work</p>
+            <ul className="space-y-0.5">
+              {recentWork.map((item) => {
+                const to = orgPath("pipelines", item.id);
+                const active = location.pathname.startsWith(to);
+                const needsReview = ["PAUSED", "AWAITING_HUMAN"].includes(item.status);
+                return (
+                  <li key={item.id}>
+                    <NavLink to={to} className={subNavItemClass(active)} title={item.summary}>
+                      <span className="flex size-5 shrink-0 items-center justify-center" aria-hidden>
+                        <span
+                          className={`size-1.5 rounded-full ${
+                            needsReview ? "bg-warning" : "bg-current opacity-35"
+                          }`}
+                        />
+                      </span>
+                      <span className="min-w-0 flex-1 truncate">
+                        {item.jiraKey || item.summary || "Pipeline"}
+                      </span>
+                    </NavLink>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        ) : null}
       </nav>
       <SidebarUserCard collapsed={collapsed} />
     </aside>
+  );
+}
+
+function IconPlus() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
+      <path d="M8 3.5v9M3.5 8h9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function IconSearch() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 14 14" fill="none" aria-hidden>
+      <circle cx="6" cy="6" r="3.5" stroke="currentColor" />
+      <path d="M8.5 8.5L12 12" stroke="currentColor" />
+    </svg>
   );
 }
 
