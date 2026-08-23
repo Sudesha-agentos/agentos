@@ -29,7 +29,7 @@ export default function JiraIntakeOverviewWidget({ embedded = false }) {
       ) : error ? (
         <p className="text-[13px] leading-relaxed text-ink-dim">
           Could not load Jira setup. If Jira is not connected yet,{" "}
-          <Link to={orgPath("settings", "integrations", "jira")} className="text-indigo hover:underline">
+          <Link to={orgPath("integrations", "jira")} className="text-indigo hover:underline">
             connect it in Settings
           </Link>
           .
@@ -45,7 +45,7 @@ export default function JiraIntakeOverviewWidget({ embedded = false }) {
           </p>
           <PipelineQueueSummary setup={setup} />
           <div className="flex flex-wrap gap-4 text-[13px]">
-            <Link to={orgPath("settings", "integrations", "jira")} className="text-ink-dim transition-colors hover:text-indigo">
+            <Link to={orgPath("integrations", "jira")} className="text-ink-dim transition-colors hover:text-indigo">
               Jira pipeline setup →
             </Link>
             <Link

@@ -167,6 +167,7 @@ Output JSON:
   "action": "ask|ready|flag",
   "question": "required if action is ask — must reference last answer when turn > 1",
   "options": ["3-4 distinct answer choices when action is ask"],
+  "remainingQuestions": ["on the FIRST ask only: 2-6 short follow-ups you still expect to need — no filler"],
   "flag": "required if action is flag",
   "reason": "which gap this question fills OR why ready OR why flag — cite what is still unknown or what was already covered",
   "discoverySummary": "required if action is ready — a single plain-text string (NOT a nested JSON object) covering problem, user, evidence, success, MVP scope, and out of scope"

@@ -6,9 +6,6 @@ import { orgPathMatches } from "../../shared/routing/orgPaths";
 
 function tabActive(item, pathname, orgSlug) {
   if (pathname === item.to) return true;
-  if (item.id === "integrations" && orgPathMatches(pathname, orgSlug, "settings", "integrations")) {
-    return true;
-  }
   if (item.id === "company" && orgPathMatches(pathname, orgSlug, "settings", "company")) {
     return true;
   }

@@ -1,12 +1,15 @@
 import { NavLink, useLocation, useNavigate, useSearchParams } from "react-router-dom";
-import Logo, { LogoMark } from "../../components/Logo";
+import { LogoMark } from "../../components/Logo";
 import { usePipelineList } from "../../entities/pipeline";
 import { derivePipelineCounts } from "../../shared/lib/pipelineCounts";
 import { useSidebarCollapsed } from "../../shared/hooks/useSidebarCollapsed";
 import { useNavExpanded } from "../../shared/hooks/useNavExpanded";
 import { useOrgNavigation } from "../../shared/routing/useOrgNavigation";
 import { useCodebaseCommandPalette } from "../../widgets/codebase-search/useCodebaseCommandPalette";
-import { focusDashboardComposer } from "../../shared/lib/chromeEvents";
+import { openCreateNew } from "../../shared/lib/chromeEvents";
+import { useStoredChats } from "../../entities/chats";
+import { PRODUCT_TOUR_START_EVENT } from "../../features/product-tour/productTourStorage";
+import { useAuth } from "../../shared/providers/useAuth";
 import SidebarUserCard from "./SidebarUserCard";
 
 function navItemClass(active, collapsed, { isGroupHeader = false, childActive = false } = {}) {
@@ -32,7 +35,7 @@ function subNavItemClass(active) {
 }
 
 function sectionLabelClass(collapsed) {
-  return collapsed ? "sr-only" : "mb-1 px-2.5 text-[11px] font-medium text-app-ink-mute";
+  return collapsed ? "sr-only" : "mb-1 px-2.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-app-ink-mute";
 }
 
 const NAV_ICONS = {
@@ -43,10 +46,10 @@ const NAV_ICONS = {
   ananta: IconCodebase,
   neel: IconQa,
   roadmap: IconRoadmap,
-  costs: IconCosts,
   logs: IconAudit,
   audit: IconAudit,
   settings: IconSettings,
+  integrations: IconIntegrations,
 };
 
 export default function Sidebar() {
@@ -57,7 +60,9 @@ export default function Sidebar() {
     ? (searchParams.get("tab") ?? "active")
     : "active";
   const navigate = useNavigate();
+  const { organization } = useAuth();
   const { openPalette } = useCodebaseCommandPalette();
+  const workspaceLabel = organization?.name?.trim() || organization?.slug || "Workspace";
   const { collapsed, toggleCollapsed } = useSidebarCollapsed();
   const { isExpanded, toggle } = useNavExpanded(location.pathname);
   const { items: pipelines } = usePipelineList(undefined, { pollMs: 60_000 });
@@ -69,12 +74,14 @@ export default function Sidebar() {
         new Date(a.updatedAt ?? a.startedAt ?? a.completedAt ?? 0)
     )
     .slice(0, 8);
+  const chats = useStoredChats();
+  const activeChatId = searchParams.get("chat");
 
   function handleNew() {
     if (location.pathname !== orgPath()) {
-      navigate(orgPath());
+      navigate(`${orgPath()}?new=1`);
     }
-    window.setTimeout(() => focusDashboardComposer(), 80);
+    window.setTimeout(() => openCreateNew(), 80);
   }
 
   function agentIsActive(agent) {
@@ -97,12 +104,12 @@ export default function Sidebar() {
   return (
     <aside
       className={`fixed inset-y-0 left-0 z-30 hidden flex-col bg-app-surface transition-[width,padding] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] md:flex ${
-        collapsed ? "w-14 px-1.5" : "w-64 px-2"
+        collapsed ? "w-14 px-1.5" : "w-[17rem] px-3"
       }`}
     >
       <div
         className={`flex shrink-0 items-center py-3 ${
-          collapsed ? "flex-col gap-2" : "justify-between gap-1 px-1"
+          collapsed ? "flex-col gap-2" : "justify-between gap-2 px-1"
         }`}
       >
         {collapsed ? (
@@ -110,48 +117,67 @@ export default function Sidebar() {
             <LogoMark size={24} />
           </NavLink>
         ) : (
-          <Logo variant="light" href={orgPath()} />
+          <NavLink
+            to={orgPath()}
+            className="flex min-w-0 items-center gap-2 rounded-lg px-1 py-0.5 hover:bg-app-surface-muted/50"
+          >
+            <LogoMark size={22} />
+            <span className="min-w-0">
+              <span className="flex items-center gap-1.5">
+                <span className="truncate text-[13px] font-semibold text-app-ink">
+                  {workspaceLabel}
+                </span>
+                <span className="rounded-md border border-app-border px-1.5 py-px text-[10px] font-medium text-app-ink-mute">
+                  Free
+                </span>
+              </span>
+            </span>
+          </NavLink>
         )}
-        <div className={`flex items-center ${collapsed ? "flex-col gap-1" : "gap-0.5"}`}>
-          <button
-            type="button"
-            onClick={toggleCollapsed}
-            className="flex size-8 items-center justify-center rounded-lg text-app-ink-dim transition hover:bg-app-surface-muted hover:text-app-ink"
-            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-            aria-expanded={!collapsed}
-          >
-            <IconChevron collapsed={collapsed} />
-          </button>
-          <button
-            type="button"
-            onClick={openPalette}
-            className="flex size-8 items-center justify-center rounded-lg text-app-ink-dim transition hover:bg-app-surface-muted hover:text-app-ink"
-            aria-label="Search"
-            title="Search (⌘K)"
-          >
-            <IconSearch />
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={toggleCollapsed}
+          className="flex size-8 shrink-0 items-center justify-center rounded-lg text-app-ink-dim transition hover:bg-app-surface-muted hover:text-app-ink"
+          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          aria-expanded={!collapsed}
+        >
+          <IconChevron collapsed={collapsed} />
+        </button>
       </div>
 
-      <div className={`shrink-0 pb-2 ${collapsed ? "px-0" : "px-0.5"}`}>
+      <div className={`flex shrink-0 items-center gap-1.5 pb-3 ${collapsed ? "flex-col" : "px-0.5"}`}>
         <button
           type="button"
           onClick={handleNew}
-          className={navItemClass(false, collapsed)}
-          title={collapsed ? "New" : undefined}
+          className={
+            collapsed
+              ? "flex size-9 items-center justify-center rounded-xl bg-app-ink text-app-canvas"
+              : "flex h-10 flex-1 items-center justify-center gap-2 rounded-xl bg-app-ink text-[13px] font-semibold text-app-canvas"
+          }
+          title={collapsed ? "Create New" : undefined}
         >
-          <span className="flex size-5 shrink-0 items-center justify-center text-app-ink-mute">
-            <IconPlus />
-          </span>
-          {!collapsed ? <span>New</span> : null}
+          <IconPlus />
+          {!collapsed ? <span>Create New</span> : null}
+        </button>
+        <button
+          type="button"
+          onClick={openPalette}
+          className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-app-border text-app-ink-dim transition hover:bg-app-surface-muted hover:text-app-ink"
+          aria-label="Search"
+          title="Search (⌘K)"
+        >
+          <IconSearch />
         </button>
       </div>
 
       <nav className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-0.5 py-1">
         {sections.map((section, sectionIndex) => (
           <div key={section.id} className={sectionIndex > 0 ? "mt-4" : ""}>
-            <p className={sectionLabelClass(collapsed)}>{section.label}</p>
+            {section.id !== "workspace" ? (
+              <p className={sectionLabelClass(collapsed)}>
+                {section.id === "analytics" ? "Insights" : section.label}
+              </p>
+            ) : null}
             <ul className="space-y-0.5">
               {section.items.map((item) => {
                 if ("end" in item && item.end) {
@@ -188,6 +214,26 @@ export default function Sidebar() {
                       >
                         <span className="flex size-5 shrink-0 items-center justify-center text-app-ink-mute group-hover:text-app-ink">
                           <IconBoard />
+                        </span>
+                        {!collapsed ? <span className="min-w-0 truncate">{item.label}</span> : null}
+                      </NavLink>
+                    </li>
+                  );
+                }
+                if (item.navId === "integrations") {
+                  const integrationsActive =
+                    location.pathname.includes("/integrations") &&
+                    !location.pathname.includes("/settings/");
+                  return (
+                    <li key={item.to}>
+                      <NavLink
+                        to={item.to}
+                        data-tour="integrations"
+                        title={collapsed ? item.label : undefined}
+                        className={() => navItemClass(integrationsActive, collapsed)}
+                      >
+                        <span className="flex size-5 shrink-0 items-center justify-center text-app-ink-mute group-hover:text-app-ink">
+                          <IconIntegrations />
                         </span>
                         {!collapsed ? <span className="min-w-0 truncate">{item.label}</span> : null}
                       </NavLink>
@@ -393,11 +439,13 @@ export default function Sidebar() {
                       .toLowerCase()
                       .includes("log")
                       ? "logs"
-                      : String(item.to).includes("/costs")
-                        ? "costs"
-                        : String(item.to).includes("/audit")
+                      : String(item.to).includes("/projects")
+                        ? "pipelines"
+                      : String(item.to).includes("/audit")
                           ? "audit"
-                          : String(item.to).includes("/settings")
+                          : String(item.to).includes("/integrations")
+                        ? "integrations"
+                        : String(item.to).includes("/settings")
                             ? "settings"
                             : item.to;
                     const Icon = NAV_ICONS[iconKey] ?? IconSettings;
@@ -423,9 +471,30 @@ export default function Sidebar() {
             </ul>
           </div>
         ))}
+        {!collapsed && chats.length > 0 ? (
+          <div className="mt-5">
+            <p className={sectionLabelClass(false)}>Chats</p>
+            <ul className="space-y-0.5">
+              {chats.slice(0, 12).map((chat) => {
+                const to = `${orgPath()}?chat=${encodeURIComponent(chat.id)}`;
+                const active = location.pathname === orgPath() && activeChatId === chat.id;
+                return (
+                  <li key={chat.id}>
+                    <NavLink to={to} className={subNavItemClass(active)} title={chat.title}>
+                      <span className="flex size-5 shrink-0 items-center justify-center" aria-hidden>
+                        <IconChat />
+                      </span>
+                      <span className="min-w-0 flex-1 truncate">{chat.title || "Chat"}</span>
+                    </NavLink>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        ) : null}
         {!collapsed && recentWork.length > 0 ? (
           <div className="mt-5">
-            <p className={sectionLabelClass(false)}>Recent work</p>
+            <p className={sectionLabelClass(false)}>Projects</p>
             <ul className="space-y-0.5">
               {recentWork.map((item) => {
                 const to = orgPath("pipelines", item.id);
@@ -452,6 +521,19 @@ export default function Sidebar() {
           </div>
         ) : null}
       </nav>
+      <div className={`shrink-0 pb-1 ${collapsed ? "px-0" : "px-0.5"}`}>
+        <button
+          type="button"
+          onClick={() => window.dispatchEvent(new CustomEvent(PRODUCT_TOUR_START_EVENT))}
+          className={navItemClass(false, collapsed)}
+          title={collapsed ? "Help & Tour" : undefined}
+        >
+          <span className="flex size-5 shrink-0 items-center justify-center text-app-ink-mute">
+            <IconHelp />
+          </span>
+          {!collapsed ? <span>Help & Tour</span> : null}
+        </button>
+      </div>
       <SidebarUserCard collapsed={collapsed} />
     </aside>
   );
@@ -461,6 +543,30 @@ function IconPlus() {
   return (
     <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
       <path d="M8 3.5v9M3.5 8h9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function IconIntegrations() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 14 14" fill="none" aria-hidden>
+      <path d="M6 3.5h2.5a2 2 0 1 1 0 4H6" stroke="currentColor" />
+      <path d="M8 10.5H5.5a2 2 0 1 1 0-4H8" stroke="currentColor" />
+    </svg>
+  );
+}
+
+function IconHelp() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.6" />
+      <path
+        d="M9.6 9.3a2.5 2.5 0 0 1 4.86.83c0 1.67-2.46 2.08-2.46 3.37"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+      />
+      <circle cx="12" cy="16.6" r="0.9" fill="currentColor" />
     </svg>
   );
 }
@@ -580,10 +686,13 @@ function IconQa() {
     </svg>
   );
 }
-function IconCosts() {
+function IconChat() {
   return (
-    <svg width="16" height="16" viewBox="0 0 14 14" fill="none" aria-hidden>
-      <path d="M2 10V6M5 10V4M8 10V7M11 10V2" stroke="currentColor" />
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden>
+      <path
+        d="M3 3.2h8A1.3 1.3 0 0 1 12.3 4.5v4.2A1.3 1.3 0 0 1 11 10H7.2L4.4 12v-2H3A1.3 1.3 0 0 1 1.7 8.7V4.5A1.3 1.3 0 0 1 3 3.2Z"
+        stroke="currentColor"
+      />
     </svg>
   );
 }

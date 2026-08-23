@@ -86,7 +86,7 @@ export default function PmAgents() {
     missing: missingIntegrations,
   } = useCoreIntegrations();
   const { data: analysis, refetch: refetchAnalysis, isValidating } = usePmAnalysis(activeKey, {
-    pollMs: analyzing || activeKey ? 2500 : 0,
+    pollMs: activeKey ? 800 : 0,
   });
   const { data: intake } = usePipelineIntakeTickets(intakeReady, { pollMs: 30000 });
   const { data: syncedIssues } = useJiraSyncIssues(
@@ -277,7 +277,11 @@ export default function PmAgents() {
 
   return (
     <AnimatedAppPage wide>
-      <AgentPageWithChat domain="virin" contextKey={activeKey ?? ""}>
+      <AgentPageWithChat
+        domain="virin"
+        contextKey={activeKey ?? ""}
+        defaultOpen={needsAttention}
+      >
       <AgentPageHeader domain="virin" />
 
       {integrationsLoading ? (
@@ -487,8 +491,8 @@ export default function PmAgents() {
             No active session
           </p>
           <p className="mx-auto mt-2 max-w-md text-[14px] text-app-ink-dim">
-            Enter a Jira key above to start. {VIRIN_NAME} will classify the ticket, ask discovery
-            questions one at a time, analyze your codebase, and produce a PRD with engineering
+            Enter a Jira key above to start. {VIRIN_NAME} will classify the ticket, ask every
+            discovery question in chat, analyze your codebase, and produce a PRD with engineering
             tickets.
           </p>
           <ol className="mx-auto mt-8 grid max-w-lg gap-2 text-left sm:grid-cols-2">

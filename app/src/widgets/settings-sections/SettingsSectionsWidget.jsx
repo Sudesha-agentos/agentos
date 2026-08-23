@@ -31,11 +31,11 @@ export default function SettingsSectionsWidget({
             />
             <div className="grid gap-4 p-5 sm:grid-cols-2 sm:p-6">
               <IntegrationCard
-                to={orgPath("settings", "integrations", "jira")}
+                to={orgPath("integrations", "jira")}
                 title="Jira integration"
               />
               <IntegrationCard
-                to={orgPath("settings", "integrations", "github")}
+                to={orgPath("integrations", "github")}
                 title="GitHub integration"
               />
             </div>
@@ -56,10 +56,10 @@ export default function SettingsSectionsWidget({
             />
             <div className="px-5 py-4 sm:px-6">
               <Link
-                to={orgPath("settings", "integrations", "jira")}
+                to={orgPath("integrations", "jira")}
                 className="text-[13px] font-medium text-indigo hover:underline"
               >
-                Open Jira settings →
+                Open Jira integration →
               </Link>
             </div>
           </Panel>

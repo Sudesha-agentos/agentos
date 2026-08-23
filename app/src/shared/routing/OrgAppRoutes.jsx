@@ -7,6 +7,7 @@ const Pipelines = lazy(() => import("../../app/pages/Pipelines"));
 const PipelineDetail = lazy(() => import("../../app/pages/PipelineDetail"));
 const Override = lazy(() => import("../../app/pages/Override"));
 const SettingsRoutes = lazy(() => import("../../app/pages/SettingsRoutes"));
+const IntegrationsRoutes = lazy(() => import("../../app/pages/IntegrationsRoutes"));
 const AnantaWorkspace = lazy(() => import("../../app/pages/AnantaWorkspace"));
 const QaCenter = lazy(() => import("../../app/pages/QaCenter"));
 const CostIntelligence = lazy(() => import("../../app/pages/CostIntelligence"));
@@ -17,6 +18,7 @@ const PmAgents = lazy(() => import("../../app/pages/PmAgents"));
 const Roadmap = lazy(() => import("../../app/pages/Roadmap"));
 const CodebaseIntelligence = lazy(() => import("../../app/pages/CodebaseIntelligence"));
 const LogIntelligence = lazy(() => import("../../app/pages/LogIntelligence"));
+const ProjectsPage = lazy(() => import("../../app/pages/ProjectsPage"));
 const WorkBoard = lazy(() => import("../../app/pages/WorkBoard"));
 const OrgNotFound = lazy(() => import("../../app/pages/OrgNotFound"));
 
@@ -49,6 +51,7 @@ export const orgAppRouteElements = (
     <Route path="pipelines/:id/override" element={<Override />} />
     <Route path="codebase" element={<CodebaseIntelligence />} />
     <Route path="qa" element={<QaCenter />} />
+    <Route path="projects" element={<ProjectsPage />} />
     <Route path="logs" element={<LogIntelligence />} />
     <Route path="logs/patterns/:patternId" element={<LogIntelligence />} />
     <Route path="roadmap" element={<Roadmap />} />
@@ -57,10 +60,11 @@ export const orgAppRouteElements = (
     <Route path="company-intelligence" element={<RedirectTo segments={["settings", "company"]} />} />
     <Route path="costs" element={<CostIntelligence />} />
     <Route path="audit" element={<AuditTrail />} />
-    <Route path="git" element={<RedirectTo segments={["settings", "integrations", "github"]} />} />
-    <Route path="github" element={<RedirectTo segments={["settings", "integrations", "github"]} />} />
-    <Route path="jira" element={<RedirectTo segments={["settings", "integrations", "jira"]} />} />
+    <Route path="git" element={<RedirectTo segments={["integrations", "github"]} />} />
+    <Route path="github" element={<RedirectTo segments={["integrations", "github"]} />} />
+    <Route path="jira" element={<RedirectTo segments={["integrations", "jira"]} />} />
     <Route path="jira-search" element={<JiraSearch />} />
+    <Route path="integrations/*" element={<IntegrationsRoutes />} />
     <Route path="settings/*" element={<SettingsRoutes />} />
     <Route path="*" element={<OrgNotFound />} />
   </>

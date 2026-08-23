@@ -25,7 +25,7 @@ export default function GitHubIntegrationOverviewWidget({ embedded = false }) {
           <p className="text-[13px] leading-relaxed text-ink-dim">
             Could not load Git setup. If a repository is not connected yet,{" "}
             <Link
-              to={orgPath("settings", "integrations", "github")}
+              to={orgPath("integrations", "github")}
               className="text-indigo hover:underline"
             >
               connect GitHub
@@ -50,7 +50,7 @@ export default function GitHubIntegrationOverviewWidget({ embedded = false }) {
             ) : null}
             <div className="flex flex-wrap gap-4 text-[13px]">
               <Link
-                to={orgPath("settings", "integrations", "github")}
+                to={orgPath("integrations", "github")}
                 className="text-ink-dim transition-colors hover:text-indigo"
               >
                 Open GitHub integration →

@@ -1,35 +1,23 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import SettingsLayout from "../layout/SettingsLayout";
 import SettingsPlanPage from "./settings/SettingsPlanPage";
-import SettingsIntegrationsPage from "./settings/SettingsIntegrationsPage";
-import SettingsIntegrationDetailPage from "./settings/SettingsIntegrationDetailPage";
 import SettingsPipelinePage from "./settings/SettingsPipelinePage";
 import SettingsCodebaseIndexPage from "./settings/SettingsCodebaseIndexPage";
-import GitIntegration from "./GitIntegration";
-import JiraIntegration from "./JiraIntegration";
-import DatabaseIntegration from "./DatabaseIntegration";
-import SpreadsheetIntegration from "./settings/SpreadsheetIntegration";
 import CompanyIntelligence from "./CompanyIntelligence";
+import { RedirectSettingsIntegrations } from "./IntegrationsRoutes";
 
 export default function SettingsRoutes() {
   return (
     <Routes>
+      <Route path="integrations" element={<RedirectSettingsIntegrations />} />
+      <Route path="integrations/*" element={<RedirectSettingsIntegrations />} />
       <Route element={<SettingsLayout />}>
-        <Route index element={<Navigate to="integrations" replace />} />
+        <Route index element={<Navigate to="plan" replace />} />
         <Route path="plan" element={<SettingsPlanPage />} />
-        <Route path="integrations/github" element={<GitIntegration embedded />} />
-        <Route path="integrations/bitbucket" element={<GitIntegration embedded defaultTab="bitbucket" />} />
-        <Route path="integrations/jira" element={<JiraIntegration embedded />} />
-        <Route path="integrations/spreadsheet" element={<SpreadsheetIntegration embedded />} />
-        <Route path="integrations/postgresql" element={<DatabaseIntegration embedded defaultProvider="postgresql" />} />
-        <Route path="integrations/supabase" element={<DatabaseIntegration embedded defaultProvider="supabase" />} />
-        <Route path="integrations/mysql" element={<DatabaseIntegration embedded defaultProvider="mysql" />} />
-        <Route path="integrations" element={<SettingsIntegrationsPage />} />
-        <Route path="integrations/:integrationId" element={<SettingsIntegrationDetailPage />} />
         <Route path="codebase-index" element={<SettingsCodebaseIndexPage />} />
         <Route path="company" element={<CompanyIntelligence embedded />} />
         <Route path="pipeline" element={<SettingsPipelinePage />} />
-        <Route path="*" element={<Navigate to="../integrations" replace />} />
+        <Route path="*" element={<Navigate to="../plan" replace />} />
       </Route>
     </Routes>
   );

@@ -65,6 +65,8 @@ export interface QuestionModeState {
   maxTurns?: number;
   budgetRationale?: string;
   highImportance?: boolean;
+  /** Remaining questions Virin expects to ask — shown in chat immediately. */
+  plannedQuestions?: string[];
 }
 
 export interface CodebaseAnalysisOutput {
@@ -149,6 +151,7 @@ export interface VirinNextQuestionResult {
   flag?: string;
   reason?: string;
   discoverySummary?: string;
+  remainingQuestions?: string[];
 }
 
 export type CompetitorAnalysisDecision = "pending" | "run" | "skipped";

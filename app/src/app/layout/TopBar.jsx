@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import NotificationCenter from "../../shared/components/NotificationCenter";
 import { useAppTheme } from "../../shared/hooks/useAppTheme";
 import { useChromeTitle } from "../../shared/hooks/useChromeTitle";
@@ -7,15 +7,26 @@ import { PRODUCT_TOUR_START_EVENT } from "../../features/product-tour/productTou
 
 export default function TopBar() {
   const { orgPath } = useOrg();
+  const location = useLocation();
   const { isDark, toggleTheme } = useAppTheme();
   const title = useChromeTitle();
+  const onHome = location.pathname === orgPath();
 
   return (
     <header className="sticky top-0 z-20 flex h-14 items-center justify-between gap-3 bg-app-canvas px-4 sm:px-6">
       <div className="w-10 shrink-0 md:hidden" />
-      <h1 className="min-w-0 flex-1 truncate text-center text-[15px] font-medium text-app-ink">
-        {title}
-      </h1>
+      {onHome ? (
+        <Link
+          to={orgPath("settings", "plan")}
+          className="min-w-0 flex-1 truncate text-center text-[12px] text-app-ink-mute"
+        >
+          Free plan · <span className="font-medium text-app-ink">Upgrade</span>
+        </Link>
+      ) : (
+        <h1 className="min-w-0 flex-1 truncate text-center text-[15px] font-medium text-app-ink">
+          {title}
+        </h1>
+      )}
       <div className="flex shrink-0 items-center gap-1">
         <button
           type="button"

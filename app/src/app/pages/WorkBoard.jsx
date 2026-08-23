@@ -93,7 +93,7 @@ export default function WorkBoard() {
         title="Tickets without Jira"
         right={
           <Link
-            to={orgPath("settings", "integrations", "spreadsheet")}
+            to={orgPath("integrations", "spreadsheet")}
             className="rounded-full border border-app-border bg-app-surface px-3.5 py-1.5 text-[12px] text-app-ink-dim transition-colors hover:text-app-ink"
           >
             Spreadsheet setup

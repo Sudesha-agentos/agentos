@@ -1,21 +1,35 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import {
   ensureAgentChatThread,
   sendAgentChatMessage,
 } from "../../entities/agent-chat";
+import {
+  createChatRecord,
+  getStoredChat,
+  touchChat,
+} from "../../entities/chats";
+import { useAuth } from "../../shared/providers/useAuth";
+import { useOrgPathBuilder } from "../../shared/providers/OrgRouteProvider";
+import { FOCUS_DASHBOARD_COMPOSER, OPEN_CREATE_NEW } from "../../shared/lib/chromeEvents";
 import ConnectIntegrationFirst from "../../app/components/ConnectIntegrationFirst";
 import WeeklyTrendChart from "./WeeklyTrendChart";
 import AgentHealthPanel from "./AgentHealthPanel";
 import DashboardComposer from "./DashboardComposer";
 import DashboardStream, { buildDashboardStream } from "./DashboardStream";
+import CreateNewPanel from "./CreateNewPanel";
+import { answerVirinQuestion, usePmAnalysis } from "../../entities/pm-agents";
+import {
+  extractJiraKey,
+  mergeVirinDiscoveryMessages,
+} from "../pm-analysis/virinChatTranscript";
 
-const CHIP_TONE = {
-  running: "",
-  review: "text-warning",
-  success: "text-success",
-  neutral: "",
-};
+function dayGreeting() {
+  const hour = new Date().getHours();
+  if (hour < 12) return "Good morning";
+  if (hour < 17) return "Good afternoon";
+  return "Good evening";
+}
 
 export default function DashboardWorkspace({
   needsSetup,
@@ -32,50 +46,119 @@ export default function DashboardWorkspace({
   healthData,
   healthLoading,
 }) {
+  const { user } = useAuth();
+  const orgPath = useOrgPathBuilder();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const chatId = searchParams.get("chat");
   const [domain, setDomain] = useState("virin");
   const [thread, setThread] = useState(null);
   const [messages, setMessages] = useState([]);
   const [sending, setSending] = useState(false);
   const [chatError, setChatError] = useState(null);
+  const [createOpen, setCreateOpen] = useState(searchParams.get("new") === "1");
+  const [starter, setStarter] = useState("");
+  const skipReloadRef = useRef(false);
+  const [ticketKey, setTicketKey] = useState("");
+  const { data: virinAnalysis } = usePmAnalysis(ticketKey, {
+    pollMs: ticketKey && domain === "virin" ? 800 : 0,
+    skip: !ticketKey || domain !== "virin",
+  });
 
-  const loadThread = useCallback(async (nextDomain) => {
+  const firstName =
+    user?.name?.trim()?.split(/\s+/)[0] || user?.email?.split("@")[0] || "there";
+
+  const loadSession = useCallback(async (id) => {
+    const stored = getStoredChat(id);
+    const nextDomain = stored?.domain || "virin";
+    const contextKey = stored?.contextKey || `chat:${id}`;
+    setDomain(nextDomain);
     try {
-      const t = await ensureAgentChatThread(nextDomain, "dashboard");
+      const t = await ensureAgentChatThread(nextDomain, contextKey, stored?.title);
       setThread(t);
       setMessages(t.messages ?? []);
+      setStarter(t.messages?.length ? "" : stored?.starter || "");
+      touchChat(id, { threadId: t.id, domain: nextDomain, title: t.title || stored?.title });
     } catch (err) {
       setChatError(err instanceof Error ? err.message : "Could not load chat");
     }
   }, []);
 
   useEffect(() => {
-    void loadThread(domain);
-  }, [domain, loadThread]);
+    if (!chatId) {
+      setThread(null);
+      setMessages([]);
+      setStarter("");
+      return;
+    }
+    if (skipReloadRef.current) {
+      skipReloadRef.current = false;
+      return;
+    }
+    void loadSession(chatId);
+  }, [chatId, loadSession]);
 
-  async function handleSend(content) {
+  useEffect(() => {
+    function onCreate() {
+      setCreateOpen(true);
+    }
+    window.addEventListener(OPEN_CREATE_NEW, onCreate);
+    return () => window.removeEventListener(OPEN_CREATE_NEW, onCreate);
+  }, []);
+
+  async function ensureSession(nextDomain = domain) {
+    if (chatId) {
+      const stored = getStoredChat(chatId);
+      const contextKey = stored?.contextKey || `chat:${chatId}`;
+      const active = thread?.id
+        ? thread
+        : await ensureAgentChatThread(nextDomain, contextKey, stored?.title);
+      setThread(active);
+      return { id: chatId, thread: active, stored };
+    }
+    const created = createChatRecord({ domain: nextDomain, title: "New chat" });
+    const active = await ensureAgentChatThread(nextDomain, created.contextKey, created.title);
+    touchChat(created.id, { threadId: active.id });
+    setThread(active);
+    skipReloadRef.current = true;
+    navigate(`${orgPath()}?chat=${encodeURIComponent(created.id)}`, { replace: true });
+    return { id: created.id, thread: active, stored: created };
+  }
+
+  async function handleSend(content, extras = {}) {
     if (sending) return;
     setSending(true);
     setChatError(null);
-    let active = thread;
-    if (!active?.id) {
-      try {
-        active = await ensureAgentChatThread(domain, "dashboard");
-        setThread(active);
-      } catch (err) {
-        setChatError(err instanceof Error ? err.message : "Could not start chat");
-        setSending(false);
-        return;
-      }
-    }
-    const optimistic = {
-      id: `pending-${Date.now()}`,
-      role: "user",
-      content,
-      createdAt: new Date().toISOString(),
-    };
-    setMessages((prev) => [...prev, optimistic]);
+    const taggedKey =
+      extras.tags?.find((tag) => tag.kind === "ticket")?.label ||
+      extractJiraKey(content) ||
+      ticketKey;
+    if (taggedKey) setTicketKey(taggedKey);
     try {
-      const result = await sendAgentChatMessage(active.id, content);
+      if (
+        taggedKey &&
+        domain === "virin" &&
+        virinAnalysis?.status === "AWAITING_INPUT" &&
+        virinAnalysis.pendingQuestion
+      ) {
+        await answerVirinQuestion(taggedKey, content.replace(/^Context:[\s\S]*?\n\n/, "").trim() || content);
+      }
+      const session = await ensureSession(domain);
+      const optimistic = {
+        id: `pending-${Date.now()}`,
+        role: "user",
+        content,
+        createdAt: new Date().toISOString(),
+      };
+      setMessages((prev) => [...prev, optimistic]);
+      const result = await sendAgentChatMessage(session.thread.id, content);
+      const title =
+        content.length > 60 ? `${content.replace(/^Context:[\s\S]*?\n\n/, "").slice(0, 57)}…` : content;
+      touchChat(session.id, {
+        threadId: session.thread.id,
+        title: session.stored?.title && session.stored.title !== "New chat" ? session.stored.title : title,
+        updatedAt: new Date().toISOString(),
+      });
       setMessages((prev) => {
         const withoutPending = prev.filter((m) => m.id !== optimistic.id);
         return [
@@ -84,8 +167,9 @@ export default function DashboardWorkspace({
           result.assistantMessage,
         ];
       });
+      setStarter("");
     } catch (err) {
-      setMessages((prev) => prev.filter((m) => m.id !== optimistic.id));
+      setMessages((prev) => prev.filter((m) => !String(m.id).startsWith("pending-")));
       setChatError(err instanceof Error ? err.message : "Send failed");
     } finally {
       setSending(false);
@@ -94,9 +178,41 @@ export default function DashboardWorkspace({
 
   function handleDomainChange(next) {
     setDomain(next);
-    setThread(null);
-    setMessages([]);
+    if (chatId) {
+      touchChat(chatId, { domain: next });
+      setThread(null);
+      setMessages([]);
+      void loadSession(chatId);
+    }
   }
+
+  async function handleCreateSelect({ domain: nextDomain, title, operation, starter: nextStarter }) {
+    const created = createChatRecord({
+      domain: nextDomain,
+      title,
+      operation,
+      starter: nextStarter,
+    });
+    try {
+      const t = await ensureAgentChatThread(nextDomain, created.contextKey, title);
+      touchChat(created.id, { threadId: t.id });
+      setThread(t);
+      setMessages(t.messages ?? []);
+    } catch {
+      /* chat is still stored locally */
+    }
+    setCreateOpen(false);
+    setDomain(nextDomain);
+    setStarter(nextStarter);
+    skipReloadRef.current = true;
+    navigate(`${orgPath()}?chat=${encodeURIComponent(created.id)}`);
+    window.setTimeout(() => window.dispatchEvent(new CustomEvent(FOCUS_DASHBOARD_COMPOSER)), 80);
+  }
+
+  const chatMessages = useMemo(
+    () => mergeVirinDiscoveryMessages(messages, domain === "virin" ? virinAnalysis : null),
+    [messages, domain, virinAnalysis]
+  );
 
   const streamItems = useMemo(
     () =>
@@ -104,67 +220,131 @@ export default function DashboardWorkspace({
         reviewItems,
         events: events ?? [],
         completions,
-        messages,
+        messages: chatMessages,
       }),
-    [reviewItems, events, completions, messages]
+    [reviewItems, events, completions, chatMessages]
   );
 
+  const hasChat = Boolean(chatId) || messages.length > 0;
+  const attention = (reviewItems ?? []).slice(0, 2);
+
   return (
-    <div className="mx-auto flex min-h-[calc(100dvh-6.5rem)] w-full max-w-[46rem] flex-col">
+    <div className="mx-auto flex min-h-[calc(100dvh-6.5rem)] w-full max-w-[42rem] flex-col">
+      <CreateNewPanel
+        open={createOpen}
+        onClose={() => {
+          setCreateOpen(false);
+          if (searchParams.get("new") === "1") {
+            navigate(chatId ? `${orgPath()}?chat=${encodeURIComponent(chatId)}` : orgPath(), {
+              replace: true,
+            });
+          }
+        }}
+        onSelect={handleCreateSelect}
+      />
+
       {needsSetup ? (
-        <div className="mb-4">
+        <div className="mb-6">
           <ConnectIntegrationFirst
             integrations={missing}
             title="Connect integrations to start this workspace"
-            body="AgentOX runs from Jira tickets or a spreadsheet work board through your Git repository. Connect those in Settings, then Virin, Ananta, and pipelines will have something to work on."
+            body="AgentOX runs from Jira tickets or a spreadsheet work board through your Git repository. Connect those in Integrations, then Virin, Ananta, and pipelines will have something to work on."
           />
         </div>
       ) : null}
 
-      <div className="flex flex-wrap justify-center gap-2">
-        {metricsLoading && !statusMetrics?.length
-          ? Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className="h-8 w-24 animate-pulse rounded-full bg-app-surface-muted" />
-            ))
-          : (statusMetrics ?? []).map((metric) => (
-              <Link
-                key={metric.id}
-                to={metric.href}
-                className={`rounded-full border border-app-border bg-app-surface px-3 py-1.5 text-[12px] text-app-ink-dim transition hover:border-app-ink/15 hover:text-app-ink ${
-                  CHIP_TONE[metric.tone] ?? ""
-                }`}
-              >
-                <span className="font-medium text-app-ink">{metric.value}</span>{" "}
-                {metric.label}
-              </Link>
-            ))}
-      </div>
+      {hasChat ? (
+        <div className="min-h-0 flex-1">
+          <DashboardStream
+            items={streamItems.filter((row) => row.kind === "chat")}
+            domain={domain}
+            loadingChat={sending || virinAnalysis?.status === "RUNNING"}
+            loadingOps={false}
+            answering={sending}
+            onAnswerQuestion={
+              virinAnalysis?.status === "AWAITING_INPUT" && ticketKey
+                ? (answer) => handleSend(answer)
+                : undefined
+            }
+          />
+        </div>
+      ) : (
+        <div className="flex flex-1 flex-col items-center justify-center px-2 pb-8 pt-6 text-center">
+          <h2 className="text-[2.35rem] font-light tracking-[-0.03em] text-app-ink sm:text-[2.75rem]">
+            {dayGreeting()}, {firstName}.
+          </h2>
+          <p className="mt-3 text-[15px] text-app-ink-dim">
+            Ask Virin, Ananta, or Neel. Tag a ticket or GitHub file to ground the chat.
+          </p>
+          <div className="mt-10 w-full text-left">
+            <DashboardComposer
+              domain={domain}
+              onDomainChange={handleDomainChange}
+              onSend={handleSend}
+              busy={sending}
+              initialText={starter}
+            />
+          </div>
+          {attention.length > 0 ? (
+            <div className="mt-6 w-full space-y-2 text-left">
+              {attention.map((item) => (
+                <Link
+                  key={item.id}
+                  to={item.actionTo}
+                  className="flex items-center justify-between gap-3 rounded-2xl border border-app-border bg-app-surface px-4 py-3"
+                >
+                  <span className="min-w-0">
+                    <span className="block font-mono text-[11px] text-warning">{item.jiraKey}</span>
+                    <span className="mt-0.5 block truncate text-[13px] text-app-ink">
+                      {item.summary}
+                    </span>
+                  </span>
+                  <span className="shrink-0 text-[12px] font-medium text-app-ink-dim">
+                    {item.actionLabel}
+                  </span>
+                </Link>
+              ))}
+            </div>
+          ) : null}
+        </div>
+      )}
 
-      <div className="mt-2 min-h-0 flex-1">
-        <DashboardStream
-          items={streamItems}
-          domain={domain}
-          loadingChat={sending}
-          loadingOps={pipelinesLoading || eventsLoading}
-        />
-      </div>
+      {hasChat ? (
+        <div className="sticky bottom-0 z-10 bg-gradient-to-t from-app-canvas via-app-canvas to-transparent pb-3 pt-6">
+          <DashboardComposer
+            domain={domain}
+            onDomainChange={handleDomainChange}
+            onSend={handleSend}
+            busy={sending}
+            compact
+            initialText={starter}
+          />
+        </div>
+      ) : null}
 
       {chatError ? (
         <p className="mb-2 text-center text-[13px] text-danger">{chatError}</p>
       ) : null}
 
-      <DashboardComposer
-        domain={domain}
-        onDomainChange={handleDomainChange}
-        onSend={handleSend}
-        busy={sending}
-      />
+      <div className="mt-auto flex flex-wrap justify-center gap-2 pb-3">
+        {metricsLoading && !statusMetrics?.length
+          ? null
+          : (statusMetrics ?? []).map((metric) => (
+              <Link
+                key={metric.id}
+                to={metric.href}
+                className="rounded-full px-2.5 py-1 text-[11px] text-app-ink-mute hover:text-app-ink"
+              >
+                <span className="text-app-ink-dim">{metric.value}</span> {metric.label}
+              </Link>
+            ))}
+      </div>
 
-      <details className="mt-2 mb-4 rounded-2xl border border-app-border bg-app-surface/60">
-        <summary className="cursor-pointer px-4 py-3 text-[13px] font-medium text-app-ink-dim">
+      <details className="mb-2 rounded-2xl border border-app-border/70">
+        <summary className="cursor-pointer px-4 py-2.5 text-center text-[12px] text-app-ink-mute">
           Weekly trend and agent health
         </summary>
-        <div className="space-y-4 border-t border-app-border px-3 py-4">
+        <div className="space-y-4 border-t border-app-border px-3 py-4 text-left">
           <WeeklyTrendChart trend={trendData} loading={trendLoading} />
           <AgentHealthPanel agents={healthData?.agents} loading={healthLoading} />
         </div>

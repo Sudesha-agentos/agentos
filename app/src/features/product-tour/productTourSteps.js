@@ -50,17 +50,10 @@ export const PRODUCT_TOUR_STEPS = [
     body: "Neel generates happy-path, edge, error, and security tests, runs them in an isolated sandbox against the pushed branch, and maps failures to criteria.",
   },
   {
-    id: "costs",
-    target: "costs",
-    segment: "costs",
-    title: "Cost & ROI",
-    body: "Track what each pipeline run costs and what rework it saved. Payback and net benefit update live.",
-  },
-  {
     id: "integrations",
     target: "integrations",
     fallbackTarget: "settings",
-    segment: "settings/integrations",
+    segment: "integrations",
     title: "Integrations",
     body: "Connect Jira, GitHub, or Bitbucket here. That's all the agents need to start running pipelines on your tickets and repository.",
   },
@@ -69,7 +62,7 @@ export const PRODUCT_TOUR_STEPS = [
     target: "settings",
     segment: "settings",
     title: "Configuration",
-    body: "Billing, codebase indexing, quality gates, and team settings live here alongside integrations.",
+    body: "Billing, codebase indexing, quality gates, and team settings live here.",
   },
   {
     id: "done",

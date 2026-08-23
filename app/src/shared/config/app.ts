@@ -97,10 +97,15 @@ export function buildAppNav(slug: string) {
     { to: orgPath(slug), label: "Dashboard", breadcrumb: "Dashboard", end: true },
     { to: orgPath(slug, "board"), label: "Board", breadcrumb: "Board" },
     { to: orgPath(slug, "pipelines"), label: "Pipelines", breadcrumb: "Pipelines" },
+    {
+      to: orgPath(slug, "integrations"),
+      label: "Integrations",
+      breadcrumb: "Integrations",
+    },
     ...agentNav.map(({ to, label, breadcrumb }) => ({ to, label, breadcrumb })),
-    { to: orgPath(slug, "costs"), label: "Cost & ROI", breadcrumb: "Costs" },
+    { to: orgPath(slug, "projects"), label: "All projects", breadcrumb: "Projects" },
     { to: orgPath(slug, "logs"), label: "Log Intelligence", breadcrumb: "Logs" },
-    { to: orgPath(slug, "settings"), label: "Configuration", breadcrumb: "Settings" },
+    { to: orgPath(slug, "settings", "plan"), label: "Settings", breadcrumb: "Settings" },
     { to: orgPath(slug, "audit"), label: "Audit Trail", breadcrumb: "Audit" },
   ];
 }
@@ -151,6 +156,12 @@ export function buildAppNavSections(slug: string) {
       items: [
         { to: orgPath(slug), label: "Dashboard", breadcrumb: "Dashboard", end: true },
         { to: orgPath(slug, "board"), label: "Board", breadcrumb: "Board", navId: "board" },
+        {
+          to: orgPath(slug, "integrations"),
+          label: "Integrations",
+          breadcrumb: "Integrations",
+          navId: "integrations",
+        },
       ],
       pipelineGroup: true,
     },
@@ -170,7 +181,7 @@ export function buildAppNavSections(slug: string) {
       id: "analytics",
       label: "Analytics",
       items: [
-        { to: orgPath(slug, "costs"), label: "Cost & ROI", breadcrumb: "Costs" },
+        { to: orgPath(slug, "projects"), label: "All projects", breadcrumb: "Projects" },
         { to: orgPath(slug, "logs"), label: "Log Intelligence", breadcrumb: "Logs" },
       ],
     },
@@ -178,7 +189,7 @@ export function buildAppNavSections(slug: string) {
       id: "settings",
       label: "Settings",
       items: [
-        { to: orgPath(slug, "settings"), label: "Configuration", breadcrumb: "Settings" },
+        { to: orgPath(slug, "settings", "plan"), label: "Settings", breadcrumb: "Settings" },
         { to: orgPath(slug, "audit"), label: "Audit Trail", breadcrumb: "Audit" },
       ],
     },

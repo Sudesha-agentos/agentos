@@ -57,5 +57,5 @@ export function frontendIntegrationUrl(
 ): string {
   const base = frontendBaseUrl();
   if (!base || !orgSlug.trim()) return "";
-  return `${base}/${orgSlug.trim()}/settings/integrations/${integration}`;
+  return `${base}/${orgSlug.trim()}/integrations/${integration}`;
 }

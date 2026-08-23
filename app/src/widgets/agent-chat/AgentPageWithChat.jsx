@@ -12,9 +12,14 @@ export function AgentPageWithChat({
   domain,
   contextKey = "",
   disabled = false,
+  defaultOpen = false,
   children,
 }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
+
+  useEffect(() => {
+    if (defaultOpen) setOpen(true);
+  }, [defaultOpen]);
   const [mounted, setMounted] = useState(false);
   const config = getAgentChatConfig(domain);
 

@@ -12,7 +12,7 @@ function readStoredTheme() {
   } catch {
     /* ignore */
   }
-  return "light";
+  return "dark";
 }
 
 function applyThemeClass(theme) {

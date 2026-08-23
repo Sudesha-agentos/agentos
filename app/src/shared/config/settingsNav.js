@@ -3,7 +3,6 @@ import { orgPath } from "../routing/orgPaths";
 export function buildSettingsNav(slug) {
   return [
     { id: "plan", label: "Plan & billing", to: orgPath(slug, "settings", "plan") },
-    { id: "integrations", label: "Integrations", to: orgPath(slug, "settings", "integrations") },
     {
       id: "codebase-index",
       label: "Codebase indexing",

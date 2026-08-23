@@ -16,7 +16,7 @@ export function SettingsPageShell({
   children,
 }) {
   const orgPath = useOrgPathBuilder();
-  const resolvedBack = backTo ?? orgPath("settings", "integrations");
+  const resolvedBack = backTo ?? orgPath("integrations");
   if (embedded) {
     return (
       <div className={`space-y-6 ${className}`}>
