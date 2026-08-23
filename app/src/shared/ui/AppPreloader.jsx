@@ -7,6 +7,7 @@ export default function AppPreloader({
   tone = "default",
   size = "md",
   className = "",
+  children = null,
 }) {
   const loader = (
     <div
@@ -29,6 +30,7 @@ export default function AppPreloader({
       <div className="flex flex-col items-center justify-center gap-3">
         {loader}
         {label ? <p className="app-preloader-label">{label}</p> : null}
+        {children}
         <span className="sr-only">{label || "Loading…"}</span>
       </div>
     );
@@ -42,6 +44,7 @@ export default function AppPreloader({
     >
       {loader}
       {label ? <p className="app-preloader-label">{label}</p> : null}
+      {children}
     </div>
   );
 }

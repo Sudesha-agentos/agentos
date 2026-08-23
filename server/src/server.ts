@@ -39,9 +39,6 @@ async function bootstrap(): Promise<void> {
   await recoverPipelineStateOnBoot().catch((err) => {
     logger.warn({ err }, "startup pipeline queue recovery failed");
   });
-  await hydrateQueueFromDb().catch((err) => {
-    logger.warn({ err }, "startup queue drain failed");
-  });
 
   if (process.env.SENTRY_DSN) {
     Sentry.init({ dsn: process.env.SENTRY_DSN });
@@ -51,7 +48,15 @@ async function bootstrap(): Promise<void> {
   const app = createApp();
 
   const server = app.listen(port, () => {
-    logger.info({ port }, "agentos-server listening");
+    const mem = process.memoryUsage();
+    logger.info(
+      {
+        port,
+        rssMb: Math.round(mem.rss / 1024 / 1024),
+        heapMb: Math.round(mem.heapUsed / 1024 / 1024),
+      },
+      "agentos-server listening"
+    );
   });
 
   initCodebaseVizWebSocket(server);
@@ -76,6 +81,12 @@ async function bootstrap(): Promise<void> {
   process.on("SIGTERM", () => shutdown("SIGTERM"));
 }
 
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
 async function runDeferredStartupTasks(): Promise<void> {
   await restoreGitCredentialsFromPostgres().catch((err) => {
     logger.warn({ err }, "startup git credential restore failed");
@@ -96,6 +107,12 @@ async function runDeferredStartupTasks(): Promise<void> {
 
   startJiraSyncScheduler();
   startIntakePollScheduler();
+
+  await delay(8_000);
+
+  await hydrateQueueFromDb().catch((err) => {
+    logger.warn({ err }, "startup queue drain failed");
+  });
 
   await scanIntakeFromSyncedIssues().catch((err) => {
     logger.warn({ err }, "startup AI Worker intake scan failed");

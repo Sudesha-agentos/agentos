@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { DEMO_CREDENTIAL_HINT, getGoogleAuthStartUrl } from "../entities/auth";
 import MarketingGridBackground from "../marketing/agent-team/components/MarketingGridBackground";
+import ApiWakeNotice from "../shared/ui/ApiWakeNotice";
 import BrandLogo from "../shared/ui/BrandLogo";
 import { useAuth } from "../shared/providers/useAuth";
 import { DATA_MODE } from "../shared/config/app";
@@ -103,7 +104,11 @@ export default function Login() {
               : "Sign in to run pipelines, manage company context, and work with Virin, Ananta, and Neel."}
           </p>
 
-          <form onSubmit={onSubmit} className="mt-8 space-y-5">
+          <div className="mt-8">
+            <ApiWakeNotice />
+          </div>
+
+          <form onSubmit={onSubmit} className="space-y-5">
             <Field id="email" label="Email" type="email" value={email} onChange={setEmail} required />
             <Field
               id="password"

@@ -41,9 +41,23 @@ export interface PipelineBatchEnqueueResult {
 }
 
 const drainingByOrg = new Set<string>();
+const waitingOrgs = new Set<string>();
 let mirrorBackfillRunning = false;
 let canaryRunning = false;
 let activeCanaryRunId: string | null = null;
+
+/** One org at a time on the web dyno — parallel Ananta/index work OOMs Render. */
+const MAX_PARALLEL_ORG_DRAINS = Math.max(
+  1,
+  Number.parseInt(process.env.PIPELINE_MAX_CONCURRENT_ORGS ?? "1", 10) || 1
+);
+
+function kickWaitingOrgDrain(): void {
+  const nextOrg = waitingOrgs.values().next().value as string | undefined;
+  if (!nextOrg) return;
+  waitingOrgs.delete(nextOrg);
+  startDrainForOrganization(nextOrg);
+}
 
 /** Start or resume FIFO drain for an org when nothing is currently draining. */
 async function ensureOrgQueueDraining(
@@ -51,6 +65,15 @@ async function ensureOrgQueueDraining(
   options?: { resumePipelineId?: string; preferTicketId?: string }
 ): Promise<void> {
   if (drainingByOrg.has(organizationId)) return;
+  if (drainingByOrg.size >= MAX_PARALLEL_ORG_DRAINS) {
+    waitingOrgs.add(organizationId);
+    logger.info(
+      { organizationId, draining: drainingByOrg.size, cap: MAX_PARALLEL_ORG_DRAINS },
+      "pipeline drain deferred — at org concurrency cap"
+    );
+    return;
+  }
+  waitingOrgs.delete(organizationId);
 
   const active = await getActiveQueueItem(organizationId);
   if (active) {
@@ -261,6 +284,8 @@ async function drainQueue(item: QueueItem, resumePipelineId?: string): Promise<v
     const next = await dequeueNextPending(orgId);
     if (next) {
       await drainQueue(next);
+    } else {
+      kickWaitingOrgDrain();
     }
   }
 }

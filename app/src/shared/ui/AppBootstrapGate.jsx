@@ -1,99 +1,78 @@
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
+import { useLocation } from "react-router-dom";
 import { DATA_MODE, DATA_MODES } from "../config/app";
-import { waitForBackend } from "../lib/backendReady";
-import AppPreloader from "./AppPreloader";
-
-const MIN_BOOT_MS = 0;
-const SLOW_MS = 4000;
-const VERY_SLOW_MS = 25000;
+import {
+  isBackendReady,
+  retryWaitForBackend,
+  waitForBackend,
+} from "../lib/backendReady";
+import { opensWithoutApi } from "../routing/publicPaths";
+import BackendConnectingScreen from "./BackendConnectingScreen";
 
 function removeInitialLoader() {
   document.getElementById("app-initial-loader")?.remove();
   document.getElementById("root")?.classList.add("app-ready");
 }
 
-function bootLabel(apiReady, slow, verySlow) {
-  if (apiReady) return "Loading AgentOX";
-  if (verySlow) return "Still starting the backend — first visit can take a minute";
-  if (slow) return "Waking the AgentOX backend";
-  return "Loading AgentOX";
+function shouldSkipApiWait(pathname) {
+  if (typeof import.meta !== "undefined" && import.meta.env?.MODE === "test") {
+    return true;
+  }
+  if (DATA_MODE !== DATA_MODES.REST) return true;
+  return opensWithoutApi(pathname);
 }
 
 export default function AppBootstrapGate({ children }) {
-  const skipApiWait = DATA_MODE !== DATA_MODES.REST;
-  const [docReady, setDocReady] = useState(
-    () => document.readyState === "complete" || document.readyState === "interactive"
-  );
-  const [minElapsed, setMinElapsed] = useState(false);
-  const [apiReady, setApiReady] = useState(skipApiWait);
-  const [slow, setSlow] = useState(false);
-  const [verySlow, setVerySlow] = useState(false);
-  const [showApp, setShowApp] = useState(false);
-  const [overlayMounted, setOverlayMounted] = useState(true);
-  const [exiting, setExiting] = useState(false);
+  const { pathname } = useLocation();
+  const skipApiWait = shouldSkipApiWait(pathname);
+  const [apiReady, setApiReady] = useState(() => skipApiWait || isBackendReady());
+  const [elapsedSec, setElapsedSec] = useState(0);
 
-  useEffect(() => {
-    const timer = window.setTimeout(() => setMinElapsed(true), MIN_BOOT_MS);
-    return () => window.clearTimeout(timer);
-  }, []);
+  useLayoutEffect(() => {
+    if (skipApiWait || isBackendReady()) {
+      removeInitialLoader();
+      setApiReady(true);
+      return undefined;
+    }
 
-  useEffect(() => {
-    if (docReady) return undefined;
-    const markReady = () => setDocReady(true);
-    document.addEventListener("DOMContentLoaded", markReady, { once: true });
-    window.addEventListener("load", markReady, { once: true });
-    return () => {
-      document.removeEventListener("DOMContentLoaded", markReady);
-      window.removeEventListener("load", markReady);
-    };
-  }, [docReady]);
-
-  useEffect(() => {
-    if (skipApiWait) return undefined;
+    setApiReady(false);
+    setElapsedSec(0);
     let cancelled = false;
     void waitForBackend().then(() => {
-      if (!cancelled) setApiReady(true);
+      if (cancelled) return;
+      removeInitialLoader();
+      setApiReady(true);
     });
-    const slowTimer = window.setTimeout(() => setSlow(true), SLOW_MS);
-    const verySlowTimer = window.setTimeout(() => setVerySlow(true), VERY_SLOW_MS);
     return () => {
       cancelled = true;
-      window.clearTimeout(slowTimer);
-      window.clearTimeout(verySlowTimer);
     };
   }, [skipApiWait]);
 
-  const booting = !docReady || !minElapsed || !apiReady;
-
   useEffect(() => {
-    if (booting) return undefined;
+    if (apiReady || skipApiWait) return undefined;
+    const started = Date.now();
+    const timer = window.setInterval(() => {
+      setElapsedSec(Math.floor((Date.now() - started) / 1000));
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [apiReady, skipApiWait]);
 
-    setExiting(true);
-    const revealTimer = window.setTimeout(() => {
+  const onRetry = () => {
+    setElapsedSec(0);
+    void retryWaitForBackend().then(() => {
       removeInitialLoader();
-      setShowApp(true);
-    }, 120);
+      setApiReady(true);
+    });
+  };
 
-    const unmountTimer = window.setTimeout(() => {
-      setOverlayMounted(false);
-    }, 280);
+  if (!skipApiWait && !apiReady) {
+    return (
+      <>
+        <BackendConnectingScreen elapsedSec={elapsedSec} onRetry={onRetry} />
+        <div className="app-boot-hidden">{children}</div>
+      </>
+    );
+  }
 
-    return () => {
-      window.clearTimeout(revealTimer);
-      window.clearTimeout(unmountTimer);
-    };
-  }, [booting]);
-
-  return (
-    <>
-      {overlayMounted ? (
-        <AppPreloader
-          overlay
-          exiting={exiting}
-          label={bootLabel(apiReady, slow, verySlow)}
-        />
-      ) : null}
-      <div className={showApp ? "app-boot-visible" : "app-boot-hidden"}>{children}</div>
-    </>
-  );
+  return <div className="app-boot-visible">{children}</div>;
 }
