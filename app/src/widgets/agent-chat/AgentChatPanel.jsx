@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import {
   clearAgentChatThread,
   ensureAgentChatThread,
   sendAgentChatMessage,
 } from "../../entities/agent-chat";
 import { usePmAnalysis } from "../../entities/pm-agents";
+import { useOrgPathBuilder } from "../../shared/providers/OrgRouteProvider";
 import { mergeVirinDiscoveryMessages } from "../pm-analysis/virinChatTranscript";
 import { getAgentChatConfig } from "./agentChatConfig";
 import { AgentChatAvatar } from "./AgentChatAvatar";
@@ -19,6 +21,7 @@ export function AgentChatPanel({
   layout = "popup",
 }) {
   const config = getAgentChatConfig(domain);
+  const orgPath = useOrgPathBuilder();
   const [thread, setThread] = useState(null);
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -34,8 +37,8 @@ export function AgentChatPanel({
     analysis?.status === "AWAITING_INPUT" && analysis.pendingQuestion
   );
   const visibleMessages = useMemo(
-    () => mergeVirinDiscoveryMessages(messages, analysis),
-    [messages, analysis]
+    () => (isPopup ? messages : mergeVirinDiscoveryMessages(messages, analysis)),
+    [isPopup, messages, analysis]
   );
 
   const loadThread = useCallback(async () => {
@@ -111,15 +114,25 @@ export function AgentChatPanel({
             <div className="flex flex-wrap items-center gap-2">
               <p className="type-kicker">{config.role}</p>
               <span className="rounded-full border border-app-border bg-app-surface-muted/60 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-app-ink-mute">
-                {awaitingQuestion ? "Asking in chat" : "Chat"}
+                {awaitingQuestion ? (isPopup ? "On Home" : "Asking in chat") : "Chat"}
               </span>
             </div>
             <h3 className="mt-0.5 text-[16px] font-semibold leading-tight text-app-ink">
               Chat with {config.displayName}
             </h3>
-            <p className="mt-1.5 text-[12px] leading-relaxed text-app-ink-mute">
-              {config.welcome}
-            </p>
+            {isPopup && awaitingQuestion ? (
+              <p className="mt-1.5 text-[12px] leading-relaxed text-app-ink-mute">
+                Discovery questions are in{" "}
+                <Link to={orgPath()} className="font-medium text-app-ink underline">
+                  Home chat
+                </Link>
+                .
+              </p>
+            ) : (
+              <p className="mt-1.5 text-[12px] leading-relaxed text-app-ink-mute">
+                {config.welcome}
+              </p>
+            )}
             {contextKey ? (
               <p className="mt-1 truncate text-[11px] text-app-ink-mute">
                 Context: <span className="font-mono">{contextKey}</span>
@@ -156,7 +169,7 @@ export function AgentChatPanel({
           loading={sending || analysis?.status === "RUNNING"}
           compact={isPopup}
           answering={sending}
-          onAnswerQuestion={awaitingQuestion ? handleSend : undefined}
+          onAnswerQuestion={!isPopup && awaitingQuestion ? handleSend : undefined}
         />
       )}
 

@@ -20,4 +20,22 @@ describe("buildDashboardStream", () => {
     expect(items.at(-1).kind).toBe("chat");
     expect(items.at(-1).message.content).toBe("hi");
   });
+
+  it("keeps Virin discovery questions in the chat stream", () => {
+    const items = buildDashboardStream({
+      messages: [
+        {
+          id: "virin-pending-PLT-42",
+          role: "assistant",
+          content: "Who is the primary user?",
+          createdAt: "2026-08-26T00:00:00.000Z",
+          metadata: { kind: "discovery_question", pending: true },
+        },
+      ],
+    });
+
+    expect(items).toHaveLength(1);
+    expect(items[0].kind).toBe("chat");
+    expect(items[0].message.metadata.kind).toBe("discovery_question");
+  });
 });
