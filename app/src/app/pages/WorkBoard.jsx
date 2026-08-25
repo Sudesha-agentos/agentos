@@ -58,7 +58,7 @@ export default function WorkBoard() {
     setActiveId(null);
     if (!over || !data) return;
     const item = items.find((i) => i.id === active.id);
-    if (!item) return;
+    if (!item || item.source === "jira") return;
 
     let destColumnId = item.columnId;
     if (String(over.id).startsWith("col:")) {
@@ -90,14 +90,23 @@ export default function WorkBoard() {
     <AnimatedAppPage wide>
       <PageIntro
         kicker="Work board"
-        title="Tickets without Jira"
+        title="Work board"
+        info="Jira tickets land here automatically and stay in sync with Jira status. Spreadsheet and manual cards stay local (WB-n)."
         right={
-          <Link
-            to={orgPath("integrations", "spreadsheet")}
-            className="rounded-full border border-app-border bg-app-surface px-3.5 py-1.5 text-[12px] text-app-ink-dim transition-colors hover:text-app-ink"
-          >
-            Spreadsheet setup
-          </Link>
+          <div className="flex flex-wrap items-center gap-2">
+            <Link
+              to={orgPath("integrations", "jira")}
+              className="rounded-full border border-app-border bg-app-surface px-3.5 py-1.5 text-[12px] text-app-ink-dim transition-colors hover:text-app-ink"
+            >
+              Jira sync
+            </Link>
+            <Link
+              to={orgPath("integrations", "spreadsheet")}
+              className="rounded-full border border-app-border bg-app-surface px-3.5 py-1.5 text-[12px] text-app-ink-dim transition-colors hover:text-app-ink"
+            >
+              Spreadsheet setup
+            </Link>
+          </div>
         }
       />
 
@@ -406,8 +415,10 @@ function BoardColumn({ column, selectedId, onSelect, onAdd }) {
 }
 
 function SortableCard({ item, selected, onSelect }) {
+  const jiraSynced = item.source === "jira";
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: item.id,
+    disabled: jiraSynced,
   });
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -415,13 +426,14 @@ function SortableCard({ item, selected, onSelect }) {
     opacity: isDragging ? 0.4 : 1,
   };
   return (
-    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+    <div ref={setNodeRef} style={style} {...(jiraSynced ? {} : { ...attributes, ...listeners })}>
       <BoardCard item={item} selected={selected} onSelect={onSelect} />
     </div>
   );
 }
 
 function BoardCard({ item, selected, onSelect, overlay = false }) {
+  const jiraSynced = item.source === "jira";
   return (
     <button
       type="button"
@@ -430,7 +442,14 @@ function BoardCard({ item, selected, onSelect, overlay = false }) {
         overlay ? "bg-app-surface" : "bg-app-surface"
       } ${selected ? "border-indigo/50 ring-1 ring-indigo/20" : "border-app-border"}`}
     >
-      <p className="font-mono text-[10px] text-indigo">{item.key}</p>
+      <div className="flex items-center justify-between gap-2">
+        <p className="font-mono text-[10px] text-indigo">{item.key}</p>
+        {jiraSynced ? (
+          <span className="rounded-full bg-indigo/10 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wide text-indigo">
+            Jira
+          </span>
+        ) : null}
+      </div>
       <p className="mt-1 text-[13px] font-medium text-app-ink">{item.summary}</p>
       <div className="mt-2 flex flex-wrap gap-1">
         <span className="rounded-full bg-app-surface-muted px-1.5 py-0.5 text-[10px] text-app-ink-dim">
@@ -447,6 +466,7 @@ function BoardCard({ item, selected, onSelect, overlay = false }) {
 }
 
 function ItemDrawer({ item, busy, orgPath, onClose, onSave, onAnalyze }) {
+  const jiraSynced = item.source === "jira";
   const [summary, setSummary] = useState(item.summary);
   const [description, setDescription] = useState(item.description ?? "");
   const [issueType, setIssueType] = useState(item.issueType ?? "Task");
@@ -461,12 +481,19 @@ function ItemDrawer({ item, busy, orgPath, onClose, onSave, onAnalyze }) {
         </button>
       </div>
       <div className="space-y-3 p-4">
+        {jiraSynced ? (
+          <p className="rounded-app-sm bg-app-surface-muted/60 px-3 py-2 text-[12px] text-app-ink-dim">
+            Synced from Jira. Status follows Jira — move the ticket to{" "}
+            <span className="font-medium text-app-ink">AI Worker</span> there to start Virin.
+          </p>
+        ) : null}
         <label className="block">
           <span className="type-kicker">Title</span>
           <input
             value={summary}
             onChange={(e) => setSummary(e.target.value)}
-            className="mt-1 w-full"
+            disabled={jiraSynced}
+            className="mt-1 w-full disabled:opacity-70"
           />
         </label>
         <label className="block">
@@ -474,7 +501,8 @@ function ItemDrawer({ item, busy, orgPath, onClose, onSave, onAnalyze }) {
           <textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            className="mt-1 w-full"
+            disabled={jiraSynced}
+            className="mt-1 w-full disabled:opacity-70"
             rows={6}
           />
         </label>
@@ -484,8 +512,12 @@ function ItemDrawer({ item, busy, orgPath, onClose, onSave, onAnalyze }) {
             <select
               value={issueType}
               onChange={(e) => setIssueType(e.target.value)}
-              className="mt-1 w-full"
+              disabled={jiraSynced}
+              className="mt-1 w-full disabled:opacity-70"
             >
+              {jiraSynced && issueType !== "Task" && issueType !== "Bug" ? (
+                <option>{issueType}</option>
+              ) : null}
               <option>Task</option>
               <option>Bug</option>
             </select>
@@ -495,18 +527,21 @@ function ItemDrawer({ item, busy, orgPath, onClose, onSave, onAnalyze }) {
             <input
               value={priority}
               onChange={(e) => setPriority(e.target.value)}
-              className="mt-1 w-full"
+              disabled={jiraSynced}
+              className="mt-1 w-full disabled:opacity-70"
             />
           </label>
         </div>
-        <button
-          type="button"
-          disabled={busy}
-          className="w-full rounded-full bg-app-ink py-2.5 text-sm font-medium text-app-canvas disabled:opacity-50"
-          onClick={() => onSave({ summary, description, issueType, priority })}
-        >
-          Save
-        </button>
+        {jiraSynced ? null : (
+          <button
+            type="button"
+            disabled={busy}
+            className="w-full rounded-full bg-app-ink py-2.5 text-sm font-medium text-app-canvas disabled:opacity-50"
+            onClick={() => onSave({ summary, description, issueType, priority })}
+          >
+            Save
+          </button>
+        )}
         <button
           type="button"
           disabled={busy}

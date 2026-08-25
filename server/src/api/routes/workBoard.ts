@@ -192,7 +192,7 @@ router.post("/items/:itemId/intake", async (req, res, next) => {
       const item = board.items.find((i) => i.id === req.params.itemId);
       if (!item) throw new ValidationError("Work item not found");
       const intakeCol = board.columns.find((c) => c.isIntake);
-      if (intakeCol && item.columnId !== intakeCol.id) {
+      if (item.source !== "jira" && intakeCol && item.columnId !== intakeCol.id) {
         await updateWorkItem(item.id, { columnId: intakeCol.id });
       }
       const result = await tryIntakeEnqueue(item.key, "manual");

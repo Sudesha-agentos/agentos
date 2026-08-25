@@ -67,7 +67,7 @@ const INTEGRATION_DEFS = [
     category: "issue_tracking",
     tag: "Project Management",
     description:
-      "Ingest tickets as work for Virin, Ananta, and Neel — from the AI Worker queue through writeback.",
+      "Tickets sync onto the work board. Move one to AI Worker to run Virin, Ananta, and Neel through writeback.",
     catalogStatus: "available",
     connectKind: "native",
     routeParts: ["integrations", "jira"],

@@ -2,6 +2,12 @@ import { prisma } from "../db/client";
 import { requireActiveOrganizationId } from "../organization/orgScope";
 import { ValidationError } from "../utils/errors";
 import type { PipelineJiraIssue } from "../pipeline/jira/ticketNormalizer";
+import { listJiraIssues } from "../jira-sync/issueRepository";
+import { getPipelineIntakeMapping } from "../pipeline/jira/intakeConfig";
+import { logger } from "../utils/logger";
+import { mapJiraStatusToColumnSlug } from "./jiraStatusMap";
+
+export { isJiraMirroredWorkItem, isLocalOnlyWorkItem, mapJiraStatusToColumnSlug } from "./jiraStatusMap";
 
 export const WORK_ITEM_KEY_RE = /^WB-\d+$/i;
 
@@ -14,7 +20,7 @@ export const DEFAULT_COLUMNS = [
   { slug: "done", name: "Done", sortOrder: 5, isIntake: false },
 ] as const;
 
-export type WorkItemSource = "excel" | "manual";
+export type WorkItemSource = "excel" | "manual" | "jira";
 
 function labelsFromJson(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
@@ -321,6 +327,169 @@ export async function moveWorkItemByKey(key: string, columnSlug: string): Promis
   });
 }
 
+export type JiraBoardIssueInput = {
+  jiraKey: string;
+  summary: string;
+  description?: string;
+  issueType?: string;
+  priority?: string | null;
+  assignee?: string | null;
+  labels?: string[];
+  status: string;
+};
+
+/**
+ * Mirror a Jira issue onto the work board using the Jira key (not WB-n).
+ * Jira status is source of truth for the column. Does not start Virin.
+ */
+export async function upsertWorkItemFromJiraIssue(
+  issue: JiraBoardIssueInput,
+  options?: { deleted?: boolean; organizationId?: string }
+): Promise<void> {
+  const orgId = options?.organizationId ?? requireActiveOrganizationId();
+  const key = issue.jiraKey.trim().toUpperCase();
+  if (!key) return;
+
+  if (options?.deleted) {
+    await prisma.workItem.deleteMany({
+      where: { organizationId: orgId, key, source: "jira" },
+    });
+    return;
+  }
+
+  let board = await prisma.workBoard.findUnique({
+    where: { organizationId: orgId },
+    include: { columns: { orderBy: { sortOrder: "asc" } } },
+  });
+  if (!board) {
+    const created = await getOrCreateWorkBoard(orgId);
+    board = created;
+  }
+  const existing = await prisma.workItem.findUnique({
+    where: { organizationId_key: { organizationId: orgId, key } },
+  });
+
+  if (existing && existing.source !== "jira") {
+    logger.warn(
+      { key, source: existing.source },
+      "skipping jira board mirror — key already used by a local work item"
+    );
+    return;
+  }
+
+  const mapping = getPipelineIntakeMapping();
+  const intakeStatuses = [
+    mapping.aiWorkerColumnName,
+    ...mapping.aiWorkerStatuses,
+  ].filter(Boolean);
+  const column = resolveColumnFromJiraStatus(board.columns, issue.status, intakeStatuses);
+  if (!column) return;
+
+  const summary = issue.summary.trim() || key;
+  const description = issue.description ?? "";
+  const issueType = (issue.issueType?.trim() || "Task").slice(0, 40);
+  const priority = issue.priority?.trim() || "Medium";
+  const assignee = issue.assignee?.trim() || null;
+  const labels = issue.labels ?? [];
+
+  if (existing) {
+    const moving = existing.columnId !== column.id;
+    await prisma.workItem.update({
+      where: { id: existing.id },
+      data: {
+        summary,
+        description,
+        issueType,
+        priority,
+        assignee,
+        labels,
+        source: "jira",
+        columnId: column.id,
+        sortOrder: moving ? await nextSortOrder(column.id) : existing.sortOrder,
+      },
+    });
+    return;
+  }
+
+  await prisma.workItem.create({
+    data: {
+      organizationId: orgId,
+      boardId: board.id,
+      columnId: column.id,
+      key,
+      summary,
+      description,
+      issueType,
+      priority,
+      assignee,
+      labels,
+      source: "jira",
+      sortOrder: await nextSortOrder(column.id),
+    },
+  });
+}
+
+export async function removeJiraMirroredWorkItem(
+  key: string,
+  organizationId?: string
+): Promise<void> {
+  const orgId = organizationId ?? requireActiveOrganizationId();
+  await prisma.workItem.deleteMany({
+    where: {
+      organizationId: orgId,
+      key: key.trim().toUpperCase(),
+      source: "jira",
+    },
+  });
+}
+
+/** Place every stored JiraIssue onto the work board (covers tickets unchanged since last incremental). */
+export async function backfillWorkBoardFromJiraIssues(
+  organizationId?: string
+): Promise<{ mirrored: number; removed: number }> {
+  const orgId = organizationId ?? requireActiveOrganizationId();
+  const pageSize = 200;
+  let offset = 0;
+  let mirrored = 0;
+  let removed = 0;
+
+  for (;;) {
+    const { items } = await listJiraIssues({
+      organizationId: orgId,
+      limit: pageSize,
+      offset,
+      includeDeleted: true,
+    });
+    if (items.length === 0) break;
+
+    for (const issue of items) {
+      const labels = Array.isArray(issue.labels)
+        ? (issue.labels as unknown[]).map((v) => String(v).trim()).filter(Boolean)
+        : [];
+      await upsertWorkItemFromJiraIssue(
+        {
+          jiraKey: issue.jiraKey,
+          summary: issue.summary,
+          description: issue.description,
+          issueType: issue.issueType,
+          priority: issue.priority,
+          assignee: issue.assignee,
+          labels,
+          status: issue.status,
+        },
+        { deleted: issue.isDeleted, organizationId: orgId }
+      );
+      if (issue.isDeleted) removed += 1;
+      else mirrored += 1;
+    }
+
+    offset += items.length;
+    if (items.length < pageSize) break;
+  }
+
+  return { mirrored, removed };
+}
+
 export function normalizeIssueType(value?: string): string {
   const v = value?.trim().toLowerCase() ?? "task";
   if (v === "bug") return "Bug";
@@ -427,4 +596,15 @@ function resolveColumn(
     if (matched) return matched;
   }
   return columns.find((c) => c.slug === "backlog") ?? columns[0];
+}
+
+function resolveColumnFromJiraStatus(
+  columns: Array<{ id: string; name: string; slug: string; isIntake: boolean }>,
+  status: string,
+  intakeStatuses: string[] = []
+) {
+  const matched = status.trim() ? matchColumn(columns, status) : undefined;
+  if (matched) return matched;
+  const slug = mapJiraStatusToColumnSlug(status, intakeStatuses);
+  return columns.find((c) => c.slug === slug) ?? columns.find((c) => c.slug === "backlog") ?? columns[0];
 }

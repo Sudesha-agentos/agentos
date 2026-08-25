@@ -75,9 +75,9 @@ export async function lookupJiraTicketForChat(
     : undefined;
 
   try {
-    const { findWorkItemByKey } = await import("../workBoard/service");
+    const { findWorkItemByKey, isLocalOnlyWorkItem } = await import("../workBoard/service");
     const local = await findWorkItemByKey(jiraKey);
-    if (local) {
+    if (local && isLocalOnlyWorkItem(local)) {
       return {
         jiraKey,
         found: true,
