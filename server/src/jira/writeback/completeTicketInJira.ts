@@ -42,9 +42,9 @@ export async function completeTicketInJira(
   payload: PipelineCompletionPayload,
   fullJsonOutput?: Record<string, unknown>
 ): Promise<JiraCompletionResult> {
-  const { findWorkItemByKey, moveWorkItemByKey } = await import("../../workBoard/service");
+  const { findWorkItemByKey, isLocalOnlyWorkItem, moveWorkItemByKey } = await import("../../workBoard/service");
   const local = await findWorkItemByKey(jiraKey);
-  if (local) {
+  if (local && isLocalOnlyWorkItem(local)) {
     await moveWorkItemByKey(jiraKey, "done");
     return {
       prdAttached: true,
@@ -191,6 +191,10 @@ export async function completeTicketInJira(
       result.errors.push(`Transition: ${msg}`);
       logger.warn({ err, jiraKey }, "JIRA_TRANSITION_FAILED");
     }
+  }
+
+  if (local) {
+    await moveWorkItemByKey(jiraKey, "done");
   }
 
   return result;

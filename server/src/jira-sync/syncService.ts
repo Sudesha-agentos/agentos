@@ -9,6 +9,10 @@ import {
   type FetchedJiraIssue,
 } from "./issueFetcher";
 import { upsertJiraIssueRecord } from "./issueRepository";
+import {
+  backfillWorkBoardFromJiraIssues,
+  upsertWorkItemFromJiraIssue,
+} from "../workBoard/service";
 import { requireActiveOrganizationId } from "../organization/orgScope";
 import { buildFullSyncJql, buildIncrementalSyncJql } from "./jql";
 import {
@@ -36,6 +40,11 @@ async function processIssue(
   }
 
   await upsertJiraIssueRecord(issue);
+  try {
+    await upsertWorkItemFromJiraIssue(issue);
+  } catch (err) {
+    logger.warn({ err, jiraKey: issue.jiraKey }, "work board jira mirror failed");
+  }
   let embedded = false;
   try {
     embedded = await embedSyncedIssue(issue);
@@ -141,6 +150,10 @@ export async function runJiraFullSync(options?: {
       logger.warn({ err }, "intake scan after full sync failed")
     );
 
+    await backfillWorkBoardFromJiraIssues(organizationId).catch((err) =>
+      logger.warn({ err }, "work board backfill after full sync failed")
+    );
+
     logger.info({ runId: run.id, ...result, jql }, "jira full sync complete");
     return { runId: run.id, ...result };
   } catch (err) {
@@ -190,6 +203,10 @@ export async function runJiraIncrementalSync(options?: {
 
     await scanIntakeFromSyncedIssues().catch((err) =>
       logger.warn({ err }, "intake scan after incremental sync failed")
+    );
+
+    await backfillWorkBoardFromJiraIssues(organizationId).catch((err) =>
+      logger.warn({ err }, "work board backfill after incremental sync failed")
     );
 
     logger.info({ runId: run.id, ...result, jql }, "jira incremental sync complete");

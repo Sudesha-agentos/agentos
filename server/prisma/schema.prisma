@@ -436,7 +436,7 @@ model RoadmapItem {
   @@index([roadmapId, stageId])
 }
 
-/// Org-scoped Kanban for teams that do not use Jira. Keys are WB-n.
+/// Org-scoped Kanban. Local cards use WB-n keys; Jira-synced cards use the Jira key.
 model WorkBoard {
   id             String            @id @default(cuid())
   organizationId String            @unique

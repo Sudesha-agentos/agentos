@@ -34,8 +34,8 @@ export default function SpreadsheetIntegration({ embedded = false }) {
         />
         <div className="space-y-3 px-5 py-4 sm:px-6">
           <p className="text-sm text-app-ink-dim">
-            For teams that do not use Jira. Import a spreadsheet, manage cards on the board, and
-            start Virin from the AI Worker column.
+            Import a spreadsheet for tickets that are not in Jira. Jira-connected workspaces also
+            mirror Jira tickets onto the same board and keep them in sync.
           </p>
           <Link to={orgPath("board")} className="inline-flex text-sm font-medium text-indigo hover:underline">
             Open work board →

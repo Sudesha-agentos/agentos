@@ -36,7 +36,7 @@ import {
   recordIntakeEvent,
   type IntakeEventSource,
 } from "../../db/repositories/intakeEventRepo";
-import { findWorkItemIssue, moveWorkItemByKey } from "../../workBoard/service";
+import { findWorkItemIssue, isLocalOnlyWorkItem, moveWorkItemByKey, upsertWorkItemFromJiraIssue } from "../../workBoard/service";
 
 export interface IntakeEnqueueResult {
   sourceKey: string;
@@ -111,7 +111,7 @@ async function recordFailure(
 
 async function syncJiraIssueFromFetch(issue: PipelineJiraIssue): Promise<void> {
   const local = await findWorkItemIssue(issue.key);
-  if (local) return;
+  if (local && isLocalOnlyWorkItem(local.item)) return;
   const fetched = mapJiraApiIssue(
     {
       id: issue.id,
@@ -121,6 +121,7 @@ async function syncJiraIssueFromFetch(issue: PipelineJiraIssue): Promise<void> {
     15
   );
   await upsertJiraIssueRecord(fetched);
+  await upsertWorkItemFromJiraIssue(fetched).catch(() => undefined);
 }
 
 export async function tryIntakeEnqueueFromWebhook(
@@ -138,23 +139,24 @@ export async function tryIntakeEnqueue(
 ): Promise<IntakeEnqueueResult> {
   try {
     const local = await findWorkItemIssue(jiraKey);
-    const rootIssue = local ? local.issue : await fetchJiraPipelineIssue(jiraKey);
-    if (!local) await syncJiraIssueFromFetch(rootIssue);
+    const localOnly = Boolean(local && isLocalOnlyWorkItem(local.item));
+    const rootIssue = localOnly && local ? local.issue : await fetchJiraPipelineIssue(jiraKey);
+    if (!localOnly) await syncJiraIssueFromFetch(rootIssue);
 
     const rootStatus =
       (rootIssue.fields as { status?: { name?: string } }).status?.name ?? "";
     const engineeringIntake = Boolean(pmContext);
-    const configuredStatuses = engineeringIntake || local ? [] : await getAiWorkerIntakeStatusesLive();
-    const liveColumnStatuses = engineeringIntake || local ? [] : await getLiveAiWorkerColumnStatuses();
+    const configuredStatuses = engineeringIntake || localOnly ? [] : await getAiWorkerIntakeStatusesLive();
+    const liveColumnStatuses = engineeringIntake || localOnly ? [] : await getLiveAiWorkerColumnStatuses();
 
     if (!engineeringIntake) {
-      const inIntake = local ? local.isIntake : await isIssueInAiWorkerIntake(rootStatus);
+      const inIntake = localOnly && local ? local.isIntake : await isIssueInAiWorkerIntake(rootStatus);
       if (!inIntake) {
         await recordSkip(
           jiraKey,
           source,
           "not_in_intake_status",
-          local
+          localOnly
             ? `${jiraKey} is in "${rootStatus}" — move it to the AI Worker column to start Virin`
             : formatIntakeStatusSkipMessage(
                 jiraKey,
@@ -173,7 +175,7 @@ export async function tryIntakeEnqueue(
       }
     }
 
-    const decomposed = engineeringIntake || local
+    const decomposed = engineeringIntake || localOnly
       ? decomposeFromPipelineIssue(rootIssue)
       : await decomposeForPipelineIntake(jiraKey);
     if (decomposed.groups.length === 0) {
@@ -244,7 +246,7 @@ export async function tryIntakeEnqueue(
 
         const issueStatus =
           (issue.fields as { status?: { name?: string } }).status?.name ?? "";
-        if (!engineeringIntake && !local && !(await isIssueInAiWorkerIntake(issueStatus))) {
+        if (!engineeringIntake && !localOnly && !(await isIssueInAiWorkerIntake(issueStatus))) {
           skipped += 1;
           await recordSkip(
             taskKey,
@@ -432,7 +434,7 @@ async function fetchJiraPipelineIssue(jiraKey: string): Promise<PipelineJiraIssu
 
 async function fetchPipelineIssue(jiraKey: string): Promise<PipelineJiraIssue> {
   const local = await findWorkItemIssue(jiraKey);
-  if (local) return local.issue;
+  if (local && isLocalOnlyWorkItem(local.item)) return local.issue;
   return fetchJiraPipelineIssue(jiraKey);
 }
 
