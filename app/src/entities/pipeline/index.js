@@ -162,6 +162,10 @@ export function usePipelineDetail(id, options = {}) {
   };
 }
 
+export function resumePipeline(pipelineId) {
+  return pipelineAdapter.resume(pipelineId);
+}
+
 export function usePipelineLive(options = {}) {
   const pollMs = options.pollMs ?? 3000;
   const jiraKey = options.jiraKey?.trim().toUpperCase() || undefined;

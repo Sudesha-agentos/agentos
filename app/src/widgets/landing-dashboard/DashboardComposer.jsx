@@ -12,7 +12,7 @@ const AGENTS = [
   { id: "neel", label: AGENT_NAMES.NEEL, hint: "QA" },
 ];
 
-const PLACEHOLDER = "Describe a feature, or tag a ticket / GitHub file…";
+const PLACEHOLDER = "Tag a ticket and describe the requirement to start a release…";
 
 export default function DashboardComposer({
   domain,
