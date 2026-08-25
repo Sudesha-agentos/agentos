@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { completeGoogleAuth } from "../entities/auth";
+import { identifyUser } from "../shared/analytics/mixpanel";
 import { useAuth } from "../shared/providers/useAuth";
 import { sessionHomePath, migrateAppPath } from "../shared/routing/orgPaths";
 import Spinner from "../app/components/Spinner";
@@ -44,6 +45,10 @@ export default function GoogleAuthCallback() {
     async function finish() {
       try {
         const session = await completeGoogleAuth(handoffCode);
+        identifyUser(session, {
+          isNewSignup: session.isNewUser === true,
+          signUpMethod: "google",
+        });
         await refresh();
 
         if (cancelled) return;

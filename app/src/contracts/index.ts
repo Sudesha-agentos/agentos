@@ -234,6 +234,7 @@ export const AuthSessionSchema = z.object({
   user: AuthUserSchema,
   organization: OrganizationSchema.optional(),
   onboardingCompleted: z.boolean().optional(),
+  isNewUser: z.boolean().optional(),
 });
 
 export const LoginRequestSchema = z.object({
