@@ -6,6 +6,7 @@ import {
 } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import { authAdapter, hasStoredAuthToken, readStoredSession } from "../../entities/auth";
+import { identifyUser, resetAnalytics } from "../analytics/mixpanel";
 import AppPreloader from "../ui/AppPreloader";
 import { AuthContext, useAuth } from "./useAuth";
 import { sessionHomePath, migrateAppPath } from "../routing/orgPaths";
@@ -47,19 +48,26 @@ export function AuthProvider({ children }) {
     };
   }, [refresh]);
 
+  useEffect(() => {
+    if (session?.user?.id) identifyUser(session);
+  }, [session]);
+
   const login = useCallback(async (payload) => {
     const next = await authAdapter.login(payload);
+    identifyUser(next);
     setSession(next);
     return next;
   }, []);
 
   const signup = useCallback(async (payload) => {
     const next = await authAdapter.signup(payload);
+    identifyUser(next, { isNewSignup: true, signUpMethod: "email" });
     setSession(next);
     return next;
   }, []);
 
   const logout = useCallback(async () => {
+    resetAnalytics();
     navigate("/", { replace: true });
     await authAdapter.logout();
     setSession(null);

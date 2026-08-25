@@ -3,6 +3,7 @@ import { apiPath } from "../../shared/config/apiBase";
 import { fetchJson } from "../../shared/lib/fetchJson";
 import { authHeaders } from "../../shared/lib/authHeaders";
 import { useResource } from "../../shared/lib/useResource";
+import { useTrackPrdCompleted } from "../../shared/analytics/useTrackPrdCompleted";
 import { mockApi } from "../../app/api/mock";
 
 export const VIRIN_NAME = "Virin";
@@ -278,7 +279,7 @@ export function usePmAnalysis(ticketId, options = {}) {
   const poll =
     options.pollMs ??
     (ticketId ? 2500 : 0);
-  return useResource(
+  const resource = useResource(
     () => (ticketId && !options.skip ? getPmAnalysis(ticketId) : Promise.resolve(null)),
     [ticketId, options.skip],
     {
@@ -286,4 +287,6 @@ export function usePmAnalysis(ticketId, options = {}) {
       skip: options.skip || !ticketId,
     }
   );
+  useTrackPrdCompleted(resource.data);
+  return resource;
 }

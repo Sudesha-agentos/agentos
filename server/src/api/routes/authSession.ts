@@ -32,6 +32,7 @@ export type AuthSessionResponse = {
     role: OrgRole;
   };
   onboardingCompleted: boolean;
+  isNewUser?: boolean;
 };
 
 function buildSessionResponse(

@@ -105,9 +105,9 @@ router.get("/callback", async (req, res) => {
   try {
     const tokens = await exchangeGoogleCode(code, redirectUri);
     const profile = await fetchGoogleUserProfile(tokens.access_token);
-    const user = await findOrCreateGoogleUser(profile);
+    const { user, isNewUser } = await findOrCreateGoogleUser(profile);
     const session = await buildSessionForGoogleUser(user.id);
-    const handoff = createGoogleAuthHandoffCode(JSON.stringify(session));
+    const handoff = createGoogleAuthHandoffCode(JSON.stringify({ ...session, isNewUser }));
 
     const params = new URLSearchParams({ code: handoff });
     if (state.returnTo) {
