@@ -20,7 +20,6 @@ import { getRepoContext } from "../../git-integration/gitCredentialsStore";
 import { resolveRepoIndexBranch } from "../../git-integration/resolveRepoBranch";
 import {
   checkInstallationPermissions,
-  githubAppInstallUrl,
   resolveGithubAppInstallUrl,
   githubAppManifestCreateUrl,
   githubAppPublicConfig,
@@ -102,7 +101,7 @@ router.get("/integration/setup", async (req, res, next) => {
 
       const base = publicApiBase(req);
       const githubApp = githubAppPublicConfig();
-      const installUrl = githubAppInstallUrl();
+      const installUrl = await resolveGithubAppInstallUrl();
       const callbackUrl = `${base}/git-integration/oauth/github/callback`;
       const setupUrl = frontendGitUrl(orgSlug) || undefined;
       const webhookUrl = `${base}/webhooks/github`;

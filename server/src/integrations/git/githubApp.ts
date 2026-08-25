@@ -19,13 +19,40 @@ const API_BASE = "https://api.github.com";
 function appConfig() {
   const appId = process.env.GITHUB_APP_ID?.trim();
   const privateKey = normalizePrivateKey(process.env.GITHUB_APP_PRIVATE_KEY);
-  const appSlug = process.env.GITHUB_APP_SLUG?.trim();
+  const appSlug = normalizeGithubAppSlug(process.env.GITHUB_APP_SLUG);
   if (!appId || !privateKey) return null;
   return { appId, privateKey, appSlug };
 }
 
 export function isGithubAppConfigured(): boolean {
   return appConfig() !== null;
+}
+
+/** Accepts a slug, App name, or https://github.com/apps/{slug} public link. */
+export function normalizeGithubAppSlug(raw?: string | null): string | null {
+  if (!raw?.trim()) return null;
+  let value = raw.trim().replace(/^["']|["']$/g, "");
+  try {
+    const href = value.includes("://") ? value : value.includes("github.com/apps/") ? `https://${value}` : "";
+    if (href) {
+      const path = new URL(href).pathname;
+      const match = path.match(/\/apps\/([^/]+)/i);
+      if (match?.[1]) value = match[1];
+    }
+  } catch {
+    /* keep value */
+  }
+  value = decodeURIComponent(value).replace(/^\/+|\/+$/g, "").split("/")[0] ?? "";
+  value = value.toLowerCase();
+  if (!/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/.test(value)) return null;
+  if (/^\d+$/.test(value)) return null;
+  return value;
+}
+
+function buildInstallUrl(slug: string, state?: string): string {
+  const oauthState = state ?? createOAuthState();
+  const params = new URLSearchParams({ state: oauthState });
+  return `https://github.com/apps/${encodeURIComponent(slug)}/installations/new?${params.toString()}`;
 }
 
 function normalizePrivateKey(raw?: string): string | null {
@@ -161,28 +188,24 @@ export async function listInstallationRepositories(
 export function githubAppInstallUrl(state?: string): string | null {
   const config = appConfig();
   if (!config?.appSlug) return null;
-  const oauthState = state ?? createOAuthState();
-  const params = new URLSearchParams({ state: oauthState });
-  return `https://github.com/apps/${config.appSlug}/installations/new?${params.toString()}`;
+  return buildInstallUrl(config.appSlug, state);
 }
 
 export async function resolveGithubAppInstallUrl(state?: string): Promise<string | null> {
-  const direct = githubAppInstallUrl(state);
-  if (direct) return direct;
-
   const config = appConfig();
   if (!config) return null;
 
   try {
-    const data = await appFetch<{ slug?: string }>("/app");
-    const slug = data.slug?.trim();
-    if (!slug) return null;
-    const oauthState = state ?? createOAuthState();
-    const params = new URLSearchParams({ state: oauthState });
-    return `https://github.com/apps/${slug}/installations/new?${params.toString()}`;
+    const data = await appFetch<{ slug?: string; html_url?: string }>("/app");
+    const slug =
+      normalizeGithubAppSlug(data.slug) ||
+      normalizeGithubAppSlug(data.html_url);
+    if (slug) return buildInstallUrl(slug, state);
   } catch {
-    return null;
+    /* env slug is a fallback when GitHub is unreachable */
   }
+
+  return githubAppInstallUrl(state);
 }
 
 export type AppInstallationSummary = {
