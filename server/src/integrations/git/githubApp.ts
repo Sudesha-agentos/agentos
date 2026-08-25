@@ -166,6 +166,25 @@ export function githubAppInstallUrl(state?: string): string | null {
   return `https://github.com/apps/${config.appSlug}/installations/new?${params.toString()}`;
 }
 
+export async function resolveGithubAppInstallUrl(state?: string): Promise<string | null> {
+  const direct = githubAppInstallUrl(state);
+  if (direct) return direct;
+
+  const config = appConfig();
+  if (!config) return null;
+
+  try {
+    const data = await appFetch<{ slug?: string }>("/app");
+    const slug = data.slug?.trim();
+    if (!slug) return null;
+    const oauthState = state ?? createOAuthState();
+    const params = new URLSearchParams({ state: oauthState });
+    return `https://github.com/apps/${slug}/installations/new?${params.toString()}`;
+  } catch {
+    return null;
+  }
+}
+
 export type AppInstallationSummary = {
   id: number;
   accountLogin: string;
