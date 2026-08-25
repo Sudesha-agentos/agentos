@@ -76,18 +76,19 @@ function GitIntegrationContent({ setup, refetch, embedded = false, defaultTab = 
   );
   const [selectedRepo, setSelectedRepo] = useState("");
   const [installPending, setInstallPending] = useState(false);
+  const [githubRedirecting, setGithubRedirecting] = useState(false);
   const [selectPending, setSelectPending] = useState(false);
   const [disconnectPending, setDisconnectPending] = useState(false);
   const [disconnected, setDisconnected] = useState(false);
+  const completeAttemptedRef = useRef(false);
   const [err, setErr] = useState(() => {
     const githubCode = searchParams.get("github_error");
     if (githubCode === "invalid_state") {
       return "GitHub install session expired or was invalid. Try Connect with GitHub again.";
     }
 
-    if (code === "install_failed") {
+    if (githubCode === "install_failed") {
       return "GitHub App installed on GitHub, but the server could not save it. After switching Supabase projects: sign out, sign in again, complete workspace onboarding, then reconnect GitHub. Also verify Render DATABASE_URL points to the new Supabase project.";
-
     }
     const bbCode = searchParams.get("bitbucket_error");
     if (bbCode === "invalid_state") {
@@ -135,7 +136,10 @@ function GitIntegrationContent({ setup, refetch, embedded = false, defaultTab = 
       return;
     }
     clearedGithubError.current = true;
-    setSearchParams({}, { replace: true });
+    const next = new URLSearchParams(searchParams);
+    next.delete("github_error");
+    next.delete("bitbucket_error");
+    setSearchParams(next, { replace: true });
   }, [searchParams, setSearchParams]);
 
   useEffect(() => {
@@ -223,8 +227,9 @@ function GitIntegrationContent({ setup, refetch, embedded = false, defaultTab = 
   useEffect(() => {
     if (searchParams.get("installation_id")) return;
     if (!activeInstallationId || (git?.workspace && git?.repoSlug)) return;
-    if (repos.length > 0 || installPending) return;
+    if (repos.length > 0 || installPending || completeAttemptedRef.current) return;
 
+    completeAttemptedRef.current = true;
     let cancelled = false;
     (async () => {
       setInstallPending(true);
@@ -260,6 +265,18 @@ function GitIntegrationContent({ setup, refetch, embedded = false, defaultTab = 
     installPending,
     searchParams,
   ]);
+
+  async function onConnectGithub() {
+    if (githubRedirecting) return;
+    setGithubRedirecting(true);
+    setErr("");
+    try {
+      await startGithubAppInstall();
+    } catch (e) {
+      setGithubRedirecting(false);
+      setErr(formatGitIntegrationError(e));
+    }
+  }
 
   const connectedLabel = useMemo(() => {
     if (!connected || !git?.workspace || !git?.repoSlug) return null;
@@ -506,16 +523,11 @@ function GitIntegrationContent({ setup, refetch, embedded = false, defaultTab = 
                   ) : null}
                   <button
                     type="button"
-                    disabled={!githubAppEnabled || installPending}
-                    onClick={() => {
-                      setErr("");
-                      startGithubAppInstall().catch((e) => {
-                        setErr(formatGitIntegrationError(e));
-                      });
-                    }}
+                    disabled={githubRedirecting}
+                    onClick={() => void onConnectGithub()}
                     className="rounded-full bg-indigo px-8 py-3 font-mono text-[11px] uppercase tracking-[0.18em] text-white disabled:opacity-50"
                   >
-                    {installPending ? "Finishing install…" : "Connect with GitHub"}
+                    {githubRedirecting ? "Redirecting to GitHub…" : "Connect with GitHub"}
                   </button>
                   {needsRepoPick || setup?.installationDetected ? (
                     <button
@@ -532,15 +544,11 @@ function GitIntegrationContent({ setup, refetch, embedded = false, defaultTab = 
                 <div className="flex flex-wrap items-center gap-3">
                   <button
                     type="button"
-                    onClick={() => {
-                      setErr("");
-                      startGithubAppInstall().catch((e) => {
-                        setErr(formatGitIntegrationError(e));
-                      });
-                    }}
-                    className="rounded-full border border-hairline px-4 py-2 font-mono text-[10.5px] uppercase tracking-[0.16em] text-ink-dim"
+                    disabled={githubRedirecting}
+                    onClick={() => void onConnectGithub()}
+                    className="rounded-full border border-hairline px-4 py-2 font-mono text-[10.5px] uppercase tracking-[0.16em] text-ink-dim disabled:opacity-50"
                   >
-                    Reconfigure installation
+                    {githubRedirecting ? "Redirecting to GitHub…" : "Reconfigure installation"}
                   </button>
                   <button
                     type="button"

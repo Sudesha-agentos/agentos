@@ -21,6 +21,7 @@ import { resolveRepoIndexBranch } from "../../git-integration/resolveRepoBranch"
 import {
   checkInstallationPermissions,
   githubAppInstallUrl,
+  resolveGithubAppInstallUrl,
   githubAppManifestCreateUrl,
   githubAppPublicConfig,
   isGithubAppConfigured,
@@ -288,7 +289,7 @@ router.get("/oauth/github/install-url", async (req, res) => {
   if (!user?.organizationId) return;
 
   const slug = await resolveOrgSlug(user.organizationId, user.organizationSlug);
-  const url = githubAppInstallUrl(createOAuthState(user.organizationId, slug));
+  const url = await resolveGithubAppInstallUrl(createOAuthState(user.organizationId, slug));
   if (!url) {
     res.status(503).json({
       error: "github_app_not_configured",
@@ -299,8 +300,8 @@ router.get("/oauth/github/install-url", async (req, res) => {
   res.json({ url });
 });
 
-router.get("/oauth/github/install", (_req, res) => {
-  const url = githubAppInstallUrl();
+router.get("/oauth/github/install", async (_req, res) => {
+  const url = await resolveGithubAppInstallUrl();
   if (!url) {
     res.status(503).json({
       error: "github_app_not_configured",

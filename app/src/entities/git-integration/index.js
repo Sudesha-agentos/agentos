@@ -115,7 +115,7 @@ export async function startGithubAppInstall() {
       "GitHub App is not configured on the server (GITHUB_APP_ID, GITHUB_APP_PRIVATE_KEY, GITHUB_APP_SLUG)."
     );
   }
-  window.location.href = url;
+  window.location.assign(url);
 }
 
 export async function startBitbucketOAuth() {
