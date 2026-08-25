@@ -6,6 +6,7 @@ import {
 } from "../../entities/agent-chat";
 import {
   createChatRecord,
+  findStoredChatByContextKey,
   getStoredChat,
   touchChat,
 } from "../../entities/chats";
@@ -18,7 +19,7 @@ import AgentHealthPanel from "./AgentHealthPanel";
 import DashboardComposer from "./DashboardComposer";
 import DashboardStream, { buildDashboardStream } from "./DashboardStream";
 import CreateNewPanel from "./CreateNewPanel";
-import { answerVirinQuestion, usePmAnalysis } from "../../entities/pm-agents";
+import { answerVirinQuestion, usePmAnalyses, usePmAnalysis } from "../../entities/pm-agents";
 import {
   extractJiraKey,
   mergeVirinDiscoveryMessages,
@@ -60,6 +61,16 @@ export default function DashboardWorkspace({
   const [starter, setStarter] = useState("");
   const skipReloadRef = useRef(false);
   const [ticketKey, setTicketKey] = useState("");
+  const { data: analysesList } = usePmAnalyses({ pollMs: 5000 });
+  const awaitingVirin = useMemo(() => {
+    const items = analysesList?.items ?? [];
+    return (
+      items
+        .filter((item) => item.status === "AWAITING_INPUT")
+        .sort((a, b) => String(b.startedAt ?? "").localeCompare(String(a.startedAt ?? "")))[0] ??
+      null
+    );
+  }, [analysesList]);
   const { data: virinAnalysis } = usePmAnalysis(ticketKey, {
     pollMs: ticketKey && domain === "virin" ? 800 : 0,
     skip: !ticketKey || domain !== "virin",
@@ -73,6 +84,8 @@ export default function DashboardWorkspace({
     const nextDomain = stored?.domain || "virin";
     const contextKey = stored?.contextKey || `chat:${id}`;
     setDomain(nextDomain);
+    const fromContext = extractJiraKey(contextKey) || extractJiraKey(stored?.title);
+    if (fromContext) setTicketKey(fromContext);
     try {
       const t = await ensureAgentChatThread(nextDomain, contextKey, stored?.title);
       setThread(t);
@@ -83,6 +96,24 @@ export default function DashboardWorkspace({
       setChatError(err instanceof Error ? err.message : "Could not load chat");
     }
   }, []);
+
+  useEffect(() => {
+    const key = awaitingVirin?.jiraKey?.trim().toUpperCase();
+    if (!key) return;
+    const existing = findStoredChatByContextKey(key);
+    const chat =
+      existing ??
+      createChatRecord({
+        domain: "virin",
+        title: key,
+        contextKey: key,
+      });
+    if (chatId) return;
+    setDomain("virin");
+    setTicketKey(key);
+    skipReloadRef.current = false;
+    navigate(`${orgPath()}?chat=${encodeURIComponent(chat.id)}`, { replace: true });
+  }, [awaitingVirin, chatId, navigate, orgPath]);
 
   useEffect(() => {
     if (!chatId) {
@@ -116,7 +147,15 @@ export default function DashboardWorkspace({
       setThread(active);
       return { id: chatId, thread: active, stored };
     }
-    const created = createChatRecord({ domain: nextDomain, title: "New chat" });
+    const reuseKey = nextDomain === "virin" ? ticketKey : "";
+    const existing = reuseKey ? findStoredChatByContextKey(reuseKey) : null;
+    const created =
+      existing ??
+      createChatRecord({
+        domain: nextDomain,
+        title: reuseKey || "New chat",
+        contextKey: reuseKey || undefined,
+      });
     const active = await ensureAgentChatThread(nextDomain, created.contextKey, created.title);
     touchChat(created.id, { threadId: active.id });
     setThread(active);
@@ -135,15 +174,20 @@ export default function DashboardWorkspace({
       ticketKey;
     if (taggedKey) setTicketKey(taggedKey);
     try {
+      const session = await ensureSession(domain);
+      const threadTicket = extractJiraKey(session.stored?.contextKey || session.thread?.contextKey);
       if (
         taggedKey &&
         domain === "virin" &&
         virinAnalysis?.status === "AWAITING_INPUT" &&
-        virinAnalysis.pendingQuestion
+        virinAnalysis.pendingQuestion &&
+        threadTicket !== taggedKey
       ) {
-        await answerVirinQuestion(taggedKey, content.replace(/^Context:[\s\S]*?\n\n/, "").trim() || content);
+        await answerVirinQuestion(
+          taggedKey,
+          content.replace(/^Context:[\s\S]*?\n\n/, "").trim() || content
+        );
       }
-      const session = await ensureSession(domain);
       const optimistic = {
         id: `pending-${Date.now()}`,
         role: "user",

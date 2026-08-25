@@ -280,7 +280,7 @@ export default function PmAgents() {
       <AgentPageWithChat
         domain="virin"
         contextKey={activeKey ?? ""}
-        defaultOpen={needsAttention}
+        defaultOpen={false}
       >
       <AgentPageHeader domain="virin" />
 

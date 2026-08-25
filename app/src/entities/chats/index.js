@@ -57,13 +57,14 @@ export function createChatRecord({
   title = "New chat",
   operation = null,
   starter = "",
+  contextKey,
 } = {}) {
   const id = newId();
   const now = new Date().toISOString();
   return upsertStoredChat({
     id,
     domain,
-    contextKey: `chat:${id}`,
+    contextKey: contextKey || `chat:${id}`,
     title,
     operation,
     starter,
@@ -71,6 +72,16 @@ export function createChatRecord({
     createdAt: now,
     updatedAt: now,
   });
+}
+
+export function findStoredChatByContextKey(contextKey) {
+  const key = String(contextKey ?? "").trim();
+  if (!key) return null;
+  return (
+    listStoredChats().find(
+      (chat) => String(chat.contextKey ?? "").trim().toUpperCase() === key.toUpperCase()
+    ) ?? null
+  );
 }
 
 export function touchChat(id, patch = {}) {
