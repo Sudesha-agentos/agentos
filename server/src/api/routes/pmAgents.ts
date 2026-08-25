@@ -227,6 +227,7 @@ router.post("/analyze/:ticketId", async (req, res, next) => {
     const body = req.body as {
       ticket?: Partial<PmTicketInput>;
       mode?: "interactive" | "auto";
+      customerNotes?: string;
     } | undefined;
     clearPipelineCancelByJiraKey(jiraKey);
     startPmAnalysisInBackground(
@@ -236,6 +237,7 @@ router.post("/analyze/:ticketId", async (req, res, next) => {
           jiraKey,
           ticket: body?.ticket,
           mode: body?.mode ?? "interactive",
+          customerNotes: body?.customerNotes,
         }),
       { organizationId: user.organizationId }
     );

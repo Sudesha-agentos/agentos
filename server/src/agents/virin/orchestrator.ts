@@ -528,11 +528,22 @@ export function getVirinResumeStage(record: PmAnalysisRecord): VirinStageId | nu
   return (failed?.stage as VirinStageId) ?? null;
 }
 
+function appendCustomerNotes(ticket: PmTicketInput, notes?: string): PmTicketInput {
+  const note = notes?.trim();
+  if (!note) return ticket;
+  const existing = ticket.description?.trim();
+  return {
+    ...ticket,
+    description: existing ? `${existing}\n\n---\nNotes from chat:\n${note}` : note,
+  };
+}
+
 export async function runVirinPipeline(input: {
   jiraKey: string;
   ticket?: Partial<PmTicketInput>;
   resumeFrom?: VirinStageId;
   mode?: VirinRunMode;
+  customerNotes?: string;
 }): Promise<PmAnalysisRecord> {
   const jiraKey = input.jiraKey.toUpperCase();
   const mode = input.mode ?? "interactive";
@@ -577,6 +588,7 @@ export async function runVirinPipeline(input: {
     record = updated;
   } else {
     ticket = await resolveTicketInput(jiraKey, input.ticket);
+    ticket = appendCustomerNotes(ticket, input.customerNotes);
     ctx = await gatherPmContext(ticket);
     record = pmAnalysisStore.create({
       jiraKey,

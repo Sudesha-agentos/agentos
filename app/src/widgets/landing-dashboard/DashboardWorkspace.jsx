@@ -19,11 +19,33 @@ import AgentHealthPanel from "./AgentHealthPanel";
 import DashboardComposer from "./DashboardComposer";
 import DashboardStream, { buildDashboardStream } from "./DashboardStream";
 import CreateNewPanel from "./CreateNewPanel";
-import { answerVirinQuestion, usePmAnalyses, usePmAnalysis } from "../../entities/pm-agents";
 import {
-  extractJiraKey,
-  mergeVirinDiscoveryMessages,
-} from "../pm-analysis/virinChatTranscript";
+  analyzePmTicket,
+  answerVirinQuestion,
+  confirmVirinDirection,
+  getPmAnalysis,
+  getPmResumeStage,
+  resumePmAnalysis,
+  startPmCodingPipeline,
+  usePmAnalyses,
+  usePmAnalysis,
+} from "../../entities/pm-agents";
+import { resumePipeline, usePipelineLive } from "../../entities/pipeline";
+import {
+  useEngineeringCodingEvents,
+  useEngineeringRun,
+} from "../../entities/engineering-agent";
+import { useQaPipelineReport } from "../../entities/qa";
+import { extractJiraKey } from "../pm-analysis/virinChatTranscript";
+import {
+  liveThinkingAgent,
+  liveThinkingLines,
+  mergeReleaseMessages,
+  releaseProgress,
+  shouldStartAnantaHandoff,
+  shouldStartVirinRelease,
+  stripChatContext,
+} from "./releaseTranscript";
 
 function dayGreeting() {
   const hour = new Date().getHours();
@@ -61,6 +83,8 @@ export default function DashboardWorkspace({
   const [starter, setStarter] = useState("");
   const skipReloadRef = useRef(false);
   const [ticketKey, setTicketKey] = useState("");
+  const [startingHandoff, setStartingHandoff] = useState(false);
+  const [releaseKickoff, setReleaseKickoff] = useState(false);
   const { data: analysesList } = usePmAnalyses({ pollMs: 5000 });
   const awaitingVirin = useMemo(() => {
     const items = analysesList?.items ?? [];
@@ -71,9 +95,31 @@ export default function DashboardWorkspace({
       null
     );
   }, [analysesList]);
-  const { data: virinAnalysis } = usePmAnalysis(ticketKey, {
-    pollMs: ticketKey && domain === "virin" ? 800 : 0,
-    skip: !ticketKey || domain !== "virin",
+  const { data: virinAnalysis, refetch: refetchAnalysis } = usePmAnalysis(ticketKey, {
+    pollMs: ticketKey ? 800 : 0,
+    skip: !ticketKey,
+  });
+  const { active: livePipeline } = usePipelineLive({
+    jiraKey: ticketKey,
+    pollMs: ticketKey ? 3000 : 0,
+    skip: !ticketKey,
+  });
+  const pipelineId = livePipeline?.pipelineId || virinAnalysis?.engineeringHandoff?.pipelineId || "";
+  const { run: engineeringRun } = useEngineeringRun(pipelineId, {
+    pollMs: pipelineId ? 2500 : 0,
+    live: Boolean(livePipeline?.status === "RUNNING"),
+  });
+  const { data: qaReport } = useQaPipelineReport(pipelineId, {
+    pollMs: pipelineId ? 4000 : undefined,
+  });
+  const [codingThoughts, setCodingThoughts] = useState([]);
+  useEngineeringCodingEvents(pipelineId, {
+    enabled: Boolean(pipelineId && livePipeline?.status === "RUNNING"),
+    onEvent: (event) => {
+      const line = event?.displayLabel || event?.tool || event?.type;
+      if (!line) return;
+      setCodingThoughts((prev) => [...prev.slice(-7), String(line)]);
+    },
   });
 
   const firstName =
@@ -130,6 +176,12 @@ export default function DashboardWorkspace({
   }, [chatId, loadSession]);
 
   useEffect(() => {
+    if (virinAnalysis?.status && virinAnalysis.status !== "RUNNING") {
+      setReleaseKickoff(false);
+    }
+  }, [virinAnalysis?.status]);
+
+  useEffect(() => {
     function onCreate() {
       setCreateOpen(true);
     }
@@ -137,7 +189,7 @@ export default function DashboardWorkspace({
     return () => window.removeEventListener(OPEN_CREATE_NEW, onCreate);
   }, []);
 
-  async function ensureSession(nextDomain = domain) {
+  async function ensureSession(nextDomain = domain, reuseTicket = ticketKey) {
     if (chatId) {
       const stored = getStoredChat(chatId);
       const contextKey = stored?.contextKey || `chat:${chatId}`;
@@ -147,7 +199,7 @@ export default function DashboardWorkspace({
       setThread(active);
       return { id: chatId, thread: active, stored };
     }
-    const reuseKey = nextDomain === "virin" ? ticketKey : "";
+    const reuseKey = nextDomain === "virin" ? reuseTicket : "";
     const existing = reuseKey ? findStoredChatByContextKey(reuseKey) : null;
     const created =
       existing ??
@@ -173,20 +225,37 @@ export default function DashboardWorkspace({
       extractJiraKey(content) ||
       ticketKey;
     if (taggedKey) setTicketKey(taggedKey);
+    const notes = stripChatContext(content) || content;
     try {
-      const session = await ensureSession(domain);
+      const session = await ensureSession(domain, taggedKey);
       const threadTicket = extractJiraKey(session.stored?.contextKey || session.thread?.contextKey);
-      if (
+      let snapshot = virinAnalysis;
+      if (taggedKey && (domain === "virin" || domain === "ananta")) {
+        try {
+          snapshot = await getPmAnalysis(taggedKey);
+        } catch {
+          snapshot = null;
+        }
+      }
+      const startRelease = shouldStartVirinRelease(snapshot, domain, taggedKey);
+      if (startRelease) {
+        setReleaseKickoff(true);
+        await analyzePmTicket(taggedKey, {
+          mode: "interactive",
+          customerNotes: notes && notes !== taggedKey ? notes : undefined,
+        });
+        void refetchAnalysis();
+      } else if (shouldStartAnantaHandoff(snapshot, domain, taggedKey)) {
+        await startPmCodingPipeline(taggedKey);
+        void refetchAnalysis();
+      } else if (
         taggedKey &&
         domain === "virin" &&
-        virinAnalysis?.status === "AWAITING_INPUT" &&
-        virinAnalysis.pendingQuestion &&
+        snapshot?.status === "AWAITING_INPUT" &&
+        snapshot.pendingQuestion &&
         threadTicket !== taggedKey
       ) {
-        await answerVirinQuestion(
-          taggedKey,
-          content.replace(/^Context:[\s\S]*?\n\n/, "").trim() || content
-        );
+        await answerVirinQuestion(taggedKey, notes);
       }
       const optimistic = {
         id: `pending-${Date.now()}`,
@@ -195,9 +264,21 @@ export default function DashboardWorkspace({
         createdAt: new Date().toISOString(),
       };
       setMessages((prev) => [...prev, optimistic]);
+      const title = taggedKey
+        ? taggedKey
+        : notes.length > 60
+          ? `${notes.slice(0, 57)}…`
+          : notes;
+      if (startRelease) {
+        touchChat(session.id, {
+          threadId: session.thread.id,
+          title: session.stored?.title && session.stored.title !== "New chat" ? session.stored.title : title,
+          updatedAt: new Date().toISOString(),
+        });
+        setStarter("");
+        return;
+      }
       const result = await sendAgentChatMessage(session.thread.id, content);
-      const title =
-        content.length > 60 ? `${content.replace(/^Context:[\s\S]*?\n\n/, "").slice(0, 57)}…` : content;
       touchChat(session.id, {
         threadId: session.thread.id,
         title: session.stored?.title && session.stored.title !== "New chat" ? session.stored.title : title,
@@ -205,11 +286,9 @@ export default function DashboardWorkspace({
       });
       setMessages((prev) => {
         const withoutPending = prev.filter((m) => m.id !== optimistic.id);
-        return [
-          ...withoutPending,
-          result.userMessage ?? optimistic,
-          result.assistantMessage,
-        ];
+        const next = [...withoutPending, result.userMessage ?? optimistic];
+        if (result.assistantMessage) next.push(result.assistantMessage);
+        return next;
       });
       setStarter("");
     } catch (err) {
@@ -253,9 +332,71 @@ export default function DashboardWorkspace({
     window.setTimeout(() => window.dispatchEvent(new CustomEvent(FOCUS_DASHBOARD_COMPOSER)), 80);
   }
 
+  async function handleConfirm(body) {
+    if (!ticketKey) return;
+    setSending(true);
+    setChatError(null);
+    try {
+      await confirmVirinDirection(ticketKey, body);
+      void refetchAnalysis();
+    } catch (err) {
+      setChatError(err instanceof Error ? err.message : "Could not continue");
+    } finally {
+      setSending(false);
+    }
+  }
+
+  async function handleResume(resumeFrom) {
+    if (!ticketKey) return;
+    setSending(true);
+    setChatError(null);
+    try {
+      await resumePmAnalysis(ticketKey, {
+        resumeFrom: resumeFrom || getPmResumeStage(virinAnalysis),
+      });
+      void refetchAnalysis();
+    } catch (err) {
+      setChatError(err instanceof Error ? err.message : "Could not resume");
+    } finally {
+      setSending(false);
+    }
+  }
+
+  async function handleResumePipeline(id) {
+    if (!id) return;
+    setSending(true);
+    setChatError(null);
+    try {
+      await resumePipeline(id);
+    } catch (err) {
+      setChatError(err instanceof Error ? err.message : "Could not resume pipeline");
+    } finally {
+      setSending(false);
+    }
+  }
+
+  async function handleStartHandoff() {
+    if (!ticketKey) return;
+    setStartingHandoff(true);
+    setChatError(null);
+    try {
+      await startPmCodingPipeline(ticketKey);
+      void refetchAnalysis();
+    } catch (err) {
+      setChatError(err instanceof Error ? err.message : "Could not start coding pipeline");
+    } finally {
+      setStartingHandoff(false);
+    }
+  }
+
   const chatMessages = useMemo(
-    () => mergeVirinDiscoveryMessages(messages, domain === "virin" ? virinAnalysis : null),
-    [messages, domain, virinAnalysis]
+    () =>
+      mergeReleaseMessages(messages, virinAnalysis, livePipeline, {
+        engineeringRun,
+        qaReport,
+        codingThoughts,
+      }),
+    [messages, virinAnalysis, livePipeline, engineeringRun, qaReport, codingThoughts]
   );
 
   const streamItems = useMemo(
@@ -271,6 +412,14 @@ export default function DashboardWorkspace({
 
   const hasChat = Boolean(chatId) || messages.length > 0;
   const attention = (reviewItems ?? []).slice(0, 2);
+  const thinking =
+    sending ||
+    releaseKickoff ||
+    virinAnalysis?.status === "RUNNING" ||
+    livePipeline?.status === "RUNNING" ||
+    engineeringRun?.status === "RUNNING";
+  const thinkingAgent = liveThinkingAgent(virinAnalysis, livePipeline);
+  const progress = releaseProgress(virinAnalysis, livePipeline, engineeringRun);
 
   return (
     <div className="mx-auto flex min-h-[calc(100dvh-6.5rem)] w-full max-w-[42rem] flex-col">
@@ -302,7 +451,7 @@ export default function DashboardWorkspace({
           <DashboardStream
             items={streamItems.filter((row) => row.kind === "chat")}
             domain={domain}
-            loadingChat={sending || virinAnalysis?.status === "RUNNING"}
+            loadingChat={thinking}
             loadingOps={false}
             answering={sending}
             onAnswerQuestion={
@@ -310,6 +459,24 @@ export default function DashboardWorkspace({
                 ? (answer) => handleSend(answer)
                 : undefined
             }
+            onConfirm={
+              virinAnalysis?.status === "AWAITING_CONFIRMATION" ? handleConfirm : undefined
+            }
+            onStartHandoff={handleStartHandoff}
+            onResume={handleResume}
+            onResumePipeline={handleResumePipeline}
+            startingHandoff={startingHandoff}
+            liveThinking={liveThinkingLines(virinAnalysis, livePipeline, {
+              engineeringRun,
+              qaReport,
+              codingThoughts,
+            })}
+            liveThinkingLabel={
+              livePipeline?.currentAction ||
+              (progress ? `Thinking · ${progress.label}` : undefined)
+            }
+            liveThinkingDomain={thinkingAgent}
+            progress={progress}
           />
         </div>
       ) : (
@@ -318,7 +485,7 @@ export default function DashboardWorkspace({
             {dayGreeting()}, {firstName}.
           </h2>
           <p className="mt-3 text-[15px] text-app-ink-dim">
-            Ask Virin, Ananta, or Neel. Tag a ticket or GitHub file to ground the chat.
+            Ask Virin, Ananta, or Neel. Tag a ticket and describe the requirement to run the whole release in this chat.
           </p>
           <div className="mt-10 w-full text-left">
             <DashboardComposer

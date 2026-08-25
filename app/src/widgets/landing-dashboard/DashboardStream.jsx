@@ -1,9 +1,18 @@
+import { useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import { useOrgPathBuilder } from "../../shared/providers/OrgRouteProvider";
 import { formatRelativeTime } from "../../shared/lib/format";
 import { AgentChatAvatar } from "../agent-chat/AgentChatAvatar";
 import { getAgentChatConfig } from "../agent-chat/agentChatConfig";
 import DiscoveryQuestionCard from "../pm-analysis/DiscoveryQuestionCard";
+import ClaudeTurn from "./ClaudeTurn";
+import {
+  ConfirmCard,
+  HandoffCard,
+  IssueCard,
+  PipelineCard,
+  ProgressHeader,
+} from "./ReleaseCards";
 
 export function buildDashboardStream({
   reviewItems = [],
@@ -56,9 +65,23 @@ export default function DashboardStream({
   loadingOps,
   onAnswerQuestion,
   answering = false,
+  onConfirm,
+  onStartHandoff,
+  onResume,
+  onResumePipeline,
+  startingHandoff = false,
+  liveThinking = [],
+  liveThinkingLabel,
+  liveThinkingDomain,
+  progress,
 }) {
   const orgPath = useOrgPathBuilder();
   const config = getAgentChatConfig(domain);
+  const endRef = useRef(null);
+
+  useEffect(() => {
+    endRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }, [items, loadingChat, liveThinkingLabel]);
 
   if (loadingOps && items.length === 0) {
     return (
@@ -70,15 +93,15 @@ export default function DashboardStream({
     );
   }
 
-  if (items.length === 0) {
+  if (items.length === 0 && !loadingChat) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center px-4 py-16 text-center">
         <h2 className="text-[1.65rem] font-medium tracking-tight text-app-ink sm:text-[1.85rem]">
           What should we work on?
         </h2>
         <p className="mt-3 max-w-md text-[15px] leading-relaxed text-app-ink-dim">
-          Ask {config.displayName} about a ticket, or open something that needs review. Pipelines,
-          activity, and completions will show up here.
+          Tag a ticket and describe the requirement. {config.displayName} will run discovery,
+          questions, handover, and the coding pipeline in this chat.
         </p>
       </div>
     );
@@ -86,6 +109,7 @@ export default function DashboardStream({
 
   return (
     <div className="flex flex-col gap-5 py-4">
+      <ProgressHeader progress={progress} />
       {items.map((row) => {
         if (row.kind === "review") {
           const item = row.item;
@@ -174,10 +198,13 @@ export default function DashboardStream({
           );
         }
 
-        if (msg.metadata?.kind === "discovery_plan") {
+        const agentDomain = msg.metadata?.domain || domain;
+        const kind = msg.metadata?.kind;
+
+        if (kind === "discovery_plan") {
           return (
             <div key={row.id} className="flex items-start gap-3">
-              <AgentChatAvatar domain={domain} size={28} className="mt-0.5" />
+              <AgentChatAvatar domain={agentDomain} size={28} className="mt-0.5" />
               <div className="min-w-0 max-w-[92%] rounded-2xl border border-app-border bg-app-surface px-4 py-3">
                 <p className="text-[14px] text-app-ink">{msg.content}</p>
                 <ol className="mt-2 space-y-1">
@@ -192,10 +219,10 @@ export default function DashboardStream({
           );
         }
 
-        if (msg.metadata?.kind === "discovery_question") {
+        if (kind === "discovery_question") {
           return (
             <div key={row.id} className="flex items-start gap-3">
-              <AgentChatAvatar domain={domain} size={28} className="mt-0.5" />
+              <AgentChatAvatar domain={agentDomain} size={28} className="mt-0.5" />
               <DiscoveryQuestionCard
                 prompt={msg.content}
                 options={msg.metadata.options}
@@ -209,21 +236,92 @@ export default function DashboardStream({
           );
         }
 
-        return (
-          <div key={row.id} className="flex items-start gap-3">
-            <AgentChatAvatar domain={domain} size={28} className="mt-0.5" />
-            <div className="min-w-0 max-w-[92%]">
-              <p className="mb-1 text-[11px] text-app-ink-mute">{config.displayName}</p>
-              <p className="whitespace-pre-wrap text-[15px] leading-relaxed text-app-ink">
-                {msg.content}
-              </p>
+        if (kind === "issue") {
+          return (
+            <div key={row.id} className="flex items-start gap-3">
+              <AgentChatAvatar domain={agentDomain} size={28} className="mt-0.5" />
+              <IssueCard
+                title={msg.metadata.title}
+                content={msg.content}
+                tone={msg.metadata.tone}
+                pipelineId={msg.metadata.pipelineId}
+                resumeFrom={msg.metadata.resumeFrom}
+                resumeKind={msg.metadata.resumeKind}
+                onResume={onResume}
+                onResumePipeline={onResumePipeline}
+                busy={answering}
+              />
             </div>
-          </div>
+          );
+        }
+
+        if (kind === "confirm") {
+          return (
+            <div key={row.id} className="flex items-start gap-3">
+              <AgentChatAvatar domain={agentDomain} size={28} className="mt-0.5" />
+              <ConfirmCard
+                title={msg.metadata.title}
+                problem={msg.metadata.problem}
+                content={msg.content}
+                variant={msg.metadata.variant}
+                onConfirm={onConfirm}
+                busy={answering}
+              />
+            </div>
+          );
+        }
+
+        if (kind === "handoff") {
+          return (
+            <div key={row.id} className="flex items-start gap-3">
+              <AgentChatAvatar domain={agentDomain} size={28} className="mt-0.5" />
+              <HandoffCard
+                content={msg.content}
+                tickets={msg.metadata.tickets}
+                handoffStatus={msg.metadata.handoffStatus}
+                jiraKey={msg.metadata.jiraKey}
+                onStartHandoff={onStartHandoff}
+                busy={startingHandoff}
+              />
+            </div>
+          );
+        }
+
+        if (kind === "pipeline") {
+          return (
+            <div key={row.id} className="flex items-start gap-3">
+              <AgentChatAvatar domain={agentDomain} size={28} className="mt-0.5" />
+              <PipelineCard
+                currentStage={msg.metadata.currentStage}
+                status={msg.metadata.status}
+                currentStageLabel={msg.metadata.currentStageLabel}
+                content={msg.content}
+                pipelineId={msg.metadata.pipelineId}
+              />
+            </div>
+          );
+        }
+
+        return (
+          <ClaudeTurn
+            key={row.id}
+            domain={agentDomain}
+            content={msg.content}
+            thinking={msg.metadata?.thinking}
+            thinkingLabel={msg.metadata?.thinkingLabel}
+            toolCallLog={msg.metadata?.toolCallLog ?? []}
+          />
         );
       })}
       {loadingChat ? (
-        <p className="text-[13px] text-app-ink-mute">{config.displayName} is thinking…</p>
+        <ClaudeTurn
+          domain={liveThinkingDomain || domain}
+          thinking={liveThinking}
+          thinkingLive
+          thinkingLabel={liveThinkingLabel || `${config.displayName} is thinking`}
+        />
       ) : null}
+      <div ref={endRef} />
     </div>
   );
 }

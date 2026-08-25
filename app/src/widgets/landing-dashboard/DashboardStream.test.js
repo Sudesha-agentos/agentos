@@ -38,4 +38,27 @@ describe("buildDashboardStream", () => {
     expect(items[0].kind).toBe("chat");
     expect(items[0].message.metadata.kind).toBe("discovery_question");
   });
+
+  it("keeps issue and handoff messages in the chat stream", () => {
+    const items = buildDashboardStream({
+      messages: [
+        {
+          id: "release-issue-1",
+          role: "assistant",
+          content: "Need log access",
+          createdAt: "2026-08-26T00:00:00.000Z",
+          metadata: { kind: "issue", title: "Need log access", tone: "warning" },
+        },
+        {
+          id: "release-handoff-1",
+          role: "assistant",
+          content: "1. **ENG-1** — Export API",
+          createdAt: "2026-08-26T00:01:00.000Z",
+          metadata: { kind: "handoff", tickets: [], handoffStatus: "not_started" },
+        },
+      ],
+    });
+
+    expect(items.map((row) => row.message.metadata.kind)).toEqual(["issue", "handoff"]);
+  });
 });
