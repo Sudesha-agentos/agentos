@@ -6,6 +6,7 @@ import { AgentChatAvatar } from "../agent-chat/AgentChatAvatar";
 import { getAgentChatConfig } from "../agent-chat/agentChatConfig";
 import DiscoveryQuestionCard from "../pm-analysis/DiscoveryQuestionCard";
 import ClaudeTurn from "./ClaudeTurn";
+import { CodeWorkCard, PrdDocumentCard, QaWorkCard } from "./DashboardArtifactCards";
 import {
   ConfirmCard,
   HandoffCard,
@@ -13,6 +14,13 @@ import {
   PipelineCard,
   ProgressHeader,
 } from "./ReleaseCards";
+
+function lastLiveChatId(items) {
+  for (let i = items.length - 1; i >= 0; i -= 1) {
+    if (items[i]?.message?.metadata?.live) return items[i].id;
+  }
+  return null;
+}
 
 export function buildDashboardStream({
   reviewItems = [],
@@ -78,6 +86,7 @@ export default function DashboardStream({
   const orgPath = useOrgPathBuilder();
   const config = getAgentChatConfig(domain);
   const endRef = useRef(null);
+  const liveArtifactId = lastLiveChatId(items);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
@@ -302,23 +311,95 @@ export default function DashboardStream({
           );
         }
 
+        const isLiveTurn = Boolean(msg.metadata?.live && loadingChat && row.id === liveArtifactId);
+        const thinkingLines = isLiveTurn && liveThinking.length ? liveThinking : msg.metadata?.thinking;
+        const thinkingLabel = isLiveTurn
+          ? liveThinkingLabel || "Thinking"
+          : msg.metadata?.thinkingLabel;
+
+        if (kind === "prd") {
+          return (
+            <ClaudeTurn
+              key={row.id}
+              domain={agentDomain}
+              content={msg.content}
+              thinking={thinkingLines}
+              thinkingLive={isLiveTurn}
+              thinkingLabel={thinkingLabel}
+            >
+              <PrdDocumentCard prd={msg.metadata.prd} jiraKey={msg.metadata.jiraKey} />
+            </ClaudeTurn>
+          );
+        }
+
+        if (kind === "ananta") {
+          return (
+            <ClaudeTurn
+              key={row.id}
+              domain={agentDomain}
+              content={msg.content}
+              thinking={thinkingLines}
+              thinkingLive={isLiveTurn}
+              thinkingLabel={thinkingLabel}
+            >
+              <CodeWorkCard
+                files={msg.metadata.files}
+                plan={msg.metadata.plan}
+                liveSteps={msg.metadata.liveSteps}
+                status={msg.metadata.status}
+                currentAction={msg.metadata.currentAction}
+                jiraKey={msg.metadata.jiraKey}
+                pipelineId={msg.metadata.pipelineId}
+                prUrl={msg.metadata.prUrl}
+                prNumber={msg.metadata.prNumber}
+                live={isLiveTurn}
+              />
+            </ClaudeTurn>
+          );
+        }
+
+        if (kind === "qa") {
+          return (
+            <ClaudeTurn
+              key={row.id}
+              domain={agentDomain}
+              content={msg.content}
+              thinking={thinkingLines}
+              thinkingLive={isLiveTurn}
+              thinkingLabel={thinkingLabel}
+            >
+              <QaWorkCard
+                coverage={msg.metadata.coverage}
+                testRun={msg.metadata.testRun}
+                testCases={msg.metadata.testCases}
+                recommendation={msg.metadata.recommendation}
+                executionMessage={msg.metadata.executionMessage}
+                jiraKey={msg.metadata.jiraKey}
+                pipelineId={msg.metadata.pipelineId}
+                live={isLiveTurn}
+              />
+            </ClaudeTurn>
+          );
+        }
+
         return (
           <ClaudeTurn
             key={row.id}
             domain={agentDomain}
             content={msg.content}
-            thinking={msg.metadata?.thinking}
-            thinkingLabel={msg.metadata?.thinkingLabel}
+            thinking={thinkingLines}
+            thinkingLive={isLiveTurn}
+            thinkingLabel={thinkingLabel}
             toolCallLog={msg.metadata?.toolCallLog ?? []}
           />
         );
       })}
-      {loadingChat ? (
+      {loadingChat && !liveArtifactId ? (
         <ClaudeTurn
           domain={liveThinkingDomain || domain}
           thinking={liveThinking}
           thinkingLive
-          thinkingLabel={liveThinkingLabel || `${config.displayName} is thinking`}
+          thinkingLabel={liveThinkingLabel || "Thinking"}
         />
       ) : null}
       <div ref={endRef} />

@@ -5,6 +5,7 @@ import { FOCUS_DASHBOARD_COMPOSER } from "../../shared/lib/chromeEvents";
 import { useOrgPathBuilder } from "../../shared/providers/OrgRouteProvider";
 import { getAgentChatConfig } from "../agent-chat/agentChatConfig";
 import MentionPicker, { formatMentionContext } from "./MentionPicker";
+import ChatModelPicker from "./ChatModelPicker";
 
 const AGENTS = [
   { id: "virin", label: AGENT_NAMES.VIRIN, hint: "Product" },
@@ -164,35 +165,42 @@ export default function DashboardComposer({
         >
           <IconPlus />
         </button>
-        <Link
-          to={orgPath("board")}
-          className="inline-flex items-center gap-1.5 rounded-full border border-app-border px-2.5 py-1 text-[12px] font-medium text-app-ink-dim hover:text-app-ink"
-        >
-          <IconBoard />
-          Board
-        </Link>
-        <Link
-          to={orgPath("integrations")}
-          className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-medium text-app-ink-dim hover:bg-app-surface-muted hover:text-app-ink"
-        >
-          <IconGit />
-          Integrations
-        </Link>
-        <Link
-          to={orgPath("codebase")}
-          className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-medium text-app-ink-dim hover:bg-app-surface-muted hover:text-app-ink"
-        >
-          <IconSpark />
-          Codebase
-        </Link>
-        <button
-          type="submit"
-          disabled={busy || disabled || (!text.trim() && tags.length === 0)}
-          className="ml-auto flex size-9 items-center justify-center rounded-full bg-app-ink text-app-canvas transition disabled:opacity-25"
-          aria-label={busy ? "Sending" : "Send"}
-        >
-          <IconSend />
-        </button>
+        {compact ? null : (
+          <>
+            <Link
+              to={orgPath("board")}
+              className="inline-flex items-center gap-1.5 rounded-full border border-app-border px-2.5 py-1 text-[12px] font-medium text-app-ink-dim hover:text-app-ink"
+            >
+              <IconBoard />
+              Board
+            </Link>
+            <Link
+              to={orgPath("integrations")}
+              className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-medium text-app-ink-dim hover:bg-app-surface-muted hover:text-app-ink"
+            >
+              <IconGit />
+              Integrations
+            </Link>
+            <Link
+              to={orgPath("codebase")}
+              className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-medium text-app-ink-dim hover:bg-app-surface-muted hover:text-app-ink"
+            >
+              <IconSpark />
+              Codebase
+            </Link>
+          </>
+        )}
+        <div className="ml-auto flex items-center gap-1.5">
+          <ChatModelPicker domain={domain} disabled={busy} compact={compact} />
+          <button
+            type="submit"
+            disabled={busy || disabled || (!text.trim() && tags.length === 0)}
+            className="flex size-9 items-center justify-center rounded-full bg-app-ink text-app-canvas transition disabled:opacity-25"
+            aria-label={busy ? "Sending" : "Send"}
+          >
+            <IconSend />
+          </button>
+        </div>
       </div>
       <span className="sr-only">{config.placeholder}</span>
     </form>

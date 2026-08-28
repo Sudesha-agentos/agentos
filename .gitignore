@@ -25,11 +25,8 @@ dist-ssr
 *.sln
 *.sw?
 
-# Server generated / data
-server/dist
-server/src/generated
-server/data
-server/.env
+# Local AWS deploy secrets (never commit)
+server/infra/aws/secrets.json
 server/vendor/gitnexus-upstream
 server/vendor/LICENSE.GitNexus.tmp
 

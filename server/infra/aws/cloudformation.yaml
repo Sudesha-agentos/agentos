@@ -1,0 +1,187 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: AgentOS API on AWS App Runner (Render replacement). Postgres stays on Supabase.
+
+Parameters:
+  ImageReady:
+    Type: String
+    Default: "false"
+    AllowedValues: ["true", "false"]
+    Description: Set true after the first image has been pushed to ECR.
+  ImageTag:
+    Type: String
+    Default: latest
+  PublicApiUrl:
+    Type: String
+    Default: ""
+    Description: Public HTTPS origin of this API (App Runner URL or https://api.agentox.io).
+  FrontendUrl:
+    Type: String
+    Default: https://agentox.io
+  CorsOrigin:
+    Type: String
+    Default: https://agentox.io,https://www.agentox.io,https://agentos-blue.vercel.app
+  Cpu:
+    Type: String
+    Default: "1 vCPU"
+  Memory:
+    Type: String
+    Default: "2 GB"
+  SecretName:
+    Type: String
+    Default: agentos/api
+
+Conditions:
+  CreateService: !Equals [!Ref ImageReady, "true"]
+  HasPublicApiUrl: !Not [!Equals [!Ref PublicApiUrl, ""]]
+
+Resources:
+  EcrRepository:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: agentos-api
+      ImageScanningConfiguration:
+        ScanOnPush: true
+      ImageTagMutability: MUTABLE
+      LifecyclePolicy:
+        LifecyclePolicyText: |
+          {
+            "rules": [
+              {
+                "rulePriority": 1,
+                "description": "Keep last 15 images",
+                "selection": {
+                  "tagStatus": "any",
+                  "countType": "imageCountMoreThan",
+                  "countNumber": 15
+                },
+                "action": { "type": "expire" }
+              }
+            ]
+          }
+
+  AppSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: !Ref SecretName
+      Description: AgentOS API production environment (JSON keys). Do not set SecretString here — deploy.ps1 writes it.
+
+  EcrAccessRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Path: /agentos/
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - build.apprunner.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSAppRunnerServicePolicyForECRAccess
+
+  InstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Path: /agentos/
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - tasks.apprunner.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: agentos-runtime
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Sid: Bedrock
+                Effect: Allow
+                Action:
+                  - bedrock:InvokeModel
+                  - bedrock:InvokeModelWithResponseStream
+                Resource: "*"
+              - Sid: Secrets
+                Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                Resource: !Ref AppSecret
+              - Sid: Logs
+                Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                  - logs:DescribeLogStreams
+                  - logs:FilterLogEvents
+                Resource: "*"
+
+  AutoScalingConfig:
+    Type: AWS::AppRunner::AutoScalingConfiguration
+    Properties:
+      AutoScalingConfigurationName: agentos-api-single
+      MinSize: 1
+      MaxSize: 1
+      MaxConcurrency: 100
+
+  ApiService:
+    Type: AWS::AppRunner::Service
+    Condition: CreateService
+    Properties:
+      ServiceName: agentos-api
+      AutoScalingConfigurationArn: !GetAtt AutoScalingConfig.AutoScalingConfigurationArn
+      HealthCheckConfiguration:
+        Protocol: HTTP
+        Path: /healthz
+        Interval: 10
+        Timeout: 5
+        HealthyThreshold: 1
+        UnhealthyThreshold: 10
+      InstanceConfiguration:
+        Cpu: !Ref Cpu
+        Memory: !Ref Memory
+        InstanceRoleArn: !GetAtt InstanceRole.Arn
+      NetworkConfiguration:
+        EgressConfiguration:
+          EgressType: DEFAULT
+      SourceConfiguration:
+        AuthenticationConfiguration:
+          AccessRoleArn: !GetAtt EcrAccessRole.Arn
+        AutoDeploymentsEnabled: true
+        ImageRepository:
+          ImageIdentifier: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/agentos-api:${ImageTag}"
+          ImageRepositoryType: ECR
+          ImageConfiguration:
+            Port: "8080"
+            RuntimeEnvironmentVariables:
+              NODE_ENV: production
+              PORT: "8080"
+              AWS_REGION: !Ref AWS::Region
+              FRONTEND_URL: !Ref FrontendUrl
+              CORS_ORIGIN: !Ref CorsOrigin
+              PUBLIC_API_URL: !If
+                - HasPublicApiUrl
+                - !Ref PublicApiUrl
+                - "https://pending.invalid"
+              QA_OSS_ADAPTERS: "0"
+              CANARY_OSS_ADAPTERS: "0"
+              OSS_TOOLS_REQUIRED: "0"
+              ENGINEERING_SKIP_NPM_INSTALL: "1"
+              PIPELINE_MAX_CONCURRENT_ORGS: "1"
+              CODEBASE_GITNEXUS_GRAPH: "0"
+            RuntimeEnvironmentSecrets:
+              APP_SECRETS: !Ref AppSecret
+
+Outputs:
+  EcrUri:
+    Value: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/agentos-api"
+  SecretArn:
+    Value: !Ref AppSecret
+  ServiceArn:
+    Condition: CreateService
+    Value: !GetAtt ApiService.ServiceArn
+  ServiceUrl:
+    Condition: CreateService
+    Value: !Sub "https://${ApiService.ServiceUrl}"

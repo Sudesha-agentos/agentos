@@ -393,3 +393,28 @@ html.app-theme.app-theme-dark .shadow-app-nav-active {
     color: rgb(var(--app-ink));
   }
 }
+
+/* Claude-style thinking in the home chat */
+@keyframes claude-thinking-pulse {
+  0%,
+  100% {
+    opacity: 0.42;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.app-shell .claude-thinking-label {
+  font-weight: 500;
+}
+
+.app-shell .claude-thinking-live {
+  animation: claude-thinking-pulse 1.6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-shell .claude-thinking-live {
+    animation: none;
+  }
+}

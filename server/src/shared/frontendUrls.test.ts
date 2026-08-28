@@ -39,4 +39,23 @@ describe("frontendIntegrationUrl", () => {
       else process.env.FRONTEND_URL = prev;
     }
   });
+
+  it("defaults to agentox.io for App Runner PUBLIC_API_URL", () => {
+    const prevFrontend = process.env.FRONTEND_URL;
+    const prevApi = process.env.PUBLIC_API_URL;
+    const prevEnv = process.env.NODE_ENV;
+    delete process.env.FRONTEND_URL;
+    process.env.PUBLIC_API_URL = "https://abcd.us-east-1.awsapprunner.com";
+    process.env.NODE_ENV = "development";
+    try {
+      assert.equal(frontendBaseUrl(), "https://agentox.io");
+    } finally {
+      if (prevFrontend === undefined) delete process.env.FRONTEND_URL;
+      else process.env.FRONTEND_URL = prevFrontend;
+      if (prevApi === undefined) delete process.env.PUBLIC_API_URL;
+      else process.env.PUBLIC_API_URL = prevApi;
+      if (prevEnv === undefined) delete process.env.NODE_ENV;
+      else process.env.NODE_ENV = prevEnv;
+    }
+  });
 });

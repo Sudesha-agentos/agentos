@@ -43,7 +43,10 @@ export function frontendBaseUrl(): string {
   if (
     nodeEnv === "production" ||
     /onrender\.com/i.test(publicApi) ||
-    process.env.RENDER === "true"
+    /\.awsapprunner\.com/i.test(publicApi) ||
+    process.env.RENDER === "true" ||
+    Boolean(process.env.AWS_EXECUTION_ENV) ||
+    Boolean(process.env.ECS_CONTAINER_METADATA_URI)
   ) {
     return CANONICAL_PRODUCTION_FRONTEND;
   }

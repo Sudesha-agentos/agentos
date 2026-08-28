@@ -34,10 +34,10 @@ export default function JiraSetupGuide({
             <ul className="list-disc space-y-2 pl-5 text-[14px] leading-relaxed text-ink-dim">
               <li>
                 <strong className="text-ink">API must be reachable over HTTPS</strong> for
-                Jira webhooks. On Render set{" "}
+                Jira webhooks. Set{" "}
                 <code className="font-mono text-[12px] text-indigo">PUBLIC_API_URL</code> to
                 your API URL (e.g.{" "}
-                <code className="font-mono text-[12px]">https://your-app.onrender.com</code>
+                <code className="font-mono text-[12px]">https://xxxx.us-east-1.awsapprunner.com</code>
                 ).
               </li>
               <li>

@@ -471,10 +471,7 @@ export default function DashboardWorkspace({
               qaReport,
               codingThoughts,
             })}
-            liveThinkingLabel={
-              livePipeline?.currentAction ||
-              (progress ? `Thinking · ${progress.label}` : undefined)
-            }
+            liveThinkingLabel="Thinking"
             liveThinkingDomain={thinkingAgent}
             progress={progress}
           />

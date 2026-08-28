@@ -80,7 +80,7 @@ export function summarizeStage(analysis, stage) {
       );
     case "PRD":
       return analysis.generatedPrd
-        ? `PRD ready: **${analysis.generatedPrd.title}**.`
+        ? `Finished the PRD: **${analysis.generatedPrd.title}**.`
         : "PRD generated.";
     case "HANDOFF": {
       const tickets = analysis.handoffPackage?.engineeringTickets ?? [];
@@ -146,33 +146,37 @@ export function liveThinkingLines(analysis, livePipeline, extras = {}) {
 
 function buildAnantaMessages(key, engineeringRun, livePipeline) {
   const run = engineeringRun;
+  const codingStage = livePipeline?.currentStage || run?.currentStage;
+  const anantaLive =
+    pipelineMatchesAgentStage(codingStage, "ananta") &&
+    (run?.status === "RUNNING" || livePipeline?.status === "RUNNING");
   if (!run && !pipelineMatchesAgentStage(livePipeline?.currentStage, "ananta")) return [];
   const rows = [];
   const at = run?.recentEvents?.[0]?.timestamp || livePipeline?.startedAt || new Date().toISOString();
 
   if (run || livePipeline) {
     const files = run?.files ?? [];
-    const fileLines = files.slice(0, 8).map((file) => `- \`${file.path}\` (${file.change})`);
     const plan = asText(run?.implementationPlan?.summary || run?.implementationPlan?.approach);
     rows.push({
       id: `release-ananta-${key}-${run?.pipelineId || livePipeline?.pipelineId || "live"}`,
       role: "assistant",
-      content: [
-        livePipeline?.currentAction || `Ananta is on **${STAGE_LABELS[livePipeline?.currentStage] ?? run?.currentStageLabel ?? "implementation"}**.`,
-        plan ? clip(plan, 320) : null,
-        files.length ? `**Files**\n${fileLines.join("\n")}` : null,
-        files.length > 8 ? `+${files.length - 8} more` : null,
-      ]
-        .filter(Boolean)
-        .join("\n\n"),
+      content: "",
       createdAt: at,
       metadata: {
         kind: "ananta",
         domain: "ananta",
+        live: anantaLive,
+        files,
+        liveSteps: run?.liveSteps ?? [],
+        plan: plan ? clip(plan, 420) : "",
+        status: run?.status || livePipeline?.status,
+        currentAction: livePipeline?.currentAction || run?.currentStageLabel,
+        prUrl: run?.prUrl || run?.pr?.url,
+        prNumber: run?.prNumber,
         thinking: (run?.liveSteps ?? [])
           .filter((step) => step.status !== "pending")
           .map((step) => step.label),
-        thinkingLabel: "Thought · Ananta",
+        thinkingLabel: anantaLive ? "Thinking" : "Thought process",
         jiraKey: key,
         pipelineId: run?.pipelineId || livePipeline?.pipelineId,
       },
@@ -232,40 +236,35 @@ function buildAnantaMessages(key, engineeringRun, livePipeline) {
 }
 
 function buildNeelMessages(key, qaReport, livePipeline) {
-  const neelLive = pipelineMatchesAgentStage(livePipeline?.currentStage, "neel");
-  if (!qaReport && !neelLive) return [];
+  const neelStage = pipelineMatchesAgentStage(livePipeline?.currentStage, "neel");
+  const neelLive =
+    (neelStage && livePipeline?.status === "RUNNING") ||
+    qaReport?.inProgress ||
+    qaReport?.executionStatus === "running" ||
+    qaReport?.executionStatus === "pending";
+  if (!qaReport && !neelStage) return [];
   const rows = [];
   const at = qaReport?.completedAt || livePipeline?.startedAt || new Date().toISOString();
   const coverage = qaReport?.coverageReport;
   const failures = qaReport?.failureAnalysis ?? [];
   const run = qaReport?.testRun;
 
-  if (neelLive || qaReport) {
-    const coverageLine =
-      coverage && typeof coverage.coveragePercent === "number"
-        ? `Coverage **${coverage.coveragePercent}%** (${coverage.coveredCriteria ?? "—"}/${coverage.totalCriteria ?? "—"} criteria).`
-        : null;
-    const runLine =
-      run && typeof run.failed === "number"
-        ? `Tests: **${run.passed ?? 0}** passed, **${run.failed}** failed, **${run.skipped ?? 0}** skipped.`
-        : qaReport?.executionMessage || null;
+  if (neelStage || qaReport) {
     rows.push({
       id: `release-neel-${key}-${qaReport?.pipelineId || livePipeline?.pipelineId || "live"}`,
       role: "assistant",
-      content: [
-        livePipeline?.currentAction ||
-          (qaReport?.recommendation ? `QA recommendation: **${qaReport.recommendation}**.` : "Neel is running QA on this ticket."),
-        coverageLine,
-        runLine,
-        qaReport?.testSummary ? clip(qaReport.testSummary, 280) : null,
-      ]
-        .filter(Boolean)
-        .join("\n\n"),
+      content: "",
       createdAt: at,
       metadata: {
         kind: "qa",
         domain: "neel",
-        thinkingLabel: "Thought · Neel",
+        live: neelLive,
+        coverage,
+        testRun: run,
+        testCases: qaReport?.testCases ?? [],
+        recommendation: qaReport?.recommendation,
+        executionMessage: qaReport?.executionMessage || livePipeline?.currentAction,
+        thinkingLabel: neelLive ? "Thinking" : "Thought process",
         thinking: [qaReport?.executionMessage, livePipeline?.currentAction].filter(Boolean),
         jiraKey: key,
         pipelineId: qaReport?.pipelineId || livePipeline?.pipelineId,
@@ -294,7 +293,7 @@ function buildNeelMessages(key, qaReport, livePipeline) {
     });
   }
 
-  if (qaReport?.requiresHumanOverride || (neelLive && livePipeline?.status === "PAUSED")) {
+  if (qaReport?.requiresHumanOverride || (neelStage && livePipeline?.status === "PAUSED")) {
     rows.push({
       id: `release-qa-gate-${key}`,
       role: "assistant",
@@ -360,6 +359,7 @@ export function buildReleaseMessages(analysis, livePipeline = null, extras = {})
         continue;
       }
       if (meta.status !== "COMPLETED") continue;
+      if (meta.stage === "PRD" && analysis.generatedPrd) continue;
       rows.push({
         id: `release-stage-${key}-${meta.stage}`,
         role: "assistant",
@@ -369,7 +369,7 @@ export function buildReleaseMessages(analysis, livePipeline = null, extras = {})
           kind: "stage",
           stage: meta.stage,
           thinking: thinkingForStage(analysis, meta.stage),
-          thinkingLabel: `Thought · ${PM_STAGE_LABELS[meta.stage] ?? meta.stage}`,
+          thinkingLabel: "Thought process",
           domain: "virin",
           jiraKey: key,
         },
@@ -451,20 +451,24 @@ export function buildReleaseMessages(analysis, livePipeline = null, extras = {})
       }
     }
 
-    if (analysis.generatedPrd && analysis.status === "COMPLETED") {
+    if (analysis.generatedPrd) {
       const prd = analysis.generatedPrd;
+      const prdLive = analysis.status === "RUNNING" && analysis.currentStage === "PRD";
       rows.push({
         id: `release-prd-${key}`,
         role: "assistant",
-        content: [
-          `**${prd.title}**`,
-          prd.problemStatement,
-          prd.proposedSolution ? `Proposed: ${clip(prd.proposedSolution, 280)}` : null,
-        ]
-          .filter(Boolean)
-          .join("\n\n"),
+        content: "",
         createdAt: prd.createdAt ?? analysis.completedAt ?? analysis.updatedAt,
-        metadata: { kind: "prd", domain: "virin", jiraKey: key, title: prd.title },
+        metadata: {
+          kind: "prd",
+          domain: "virin",
+          jiraKey: key,
+          title: prd.title,
+          prd,
+          live: prdLive,
+          thinking: thinkingForStage(analysis, "PRD"),
+          thinkingLabel: prdLive ? "Thinking" : "Thought process",
+        },
       });
     }
 
@@ -593,7 +597,9 @@ export function mergeReleaseMessages(messages, analysis, livePipeline = null, ex
   );
   const extrasRows = release.filter((msg) => {
     if (seenIds.has(msg.id)) return false;
-    const key = `${msg.role}:${String(msg.content ?? "").replace(/\s+/g, " ").trim().toLowerCase()}`;
+    const text = String(msg.content ?? "").replace(/\s+/g, " ").trim().toLowerCase();
+    if (!text) return true;
+    const key = `${msg.role}:${text}`;
     if (seenText.has(key)) return false;
     seenText.add(key);
     return true;

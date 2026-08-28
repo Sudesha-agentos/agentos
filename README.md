@@ -14,7 +14,7 @@ agentos/
 | Folder | Host | Purpose |
 |--------|------|---------|
 | **app** | [Vercel](https://vercel.com) | Marketing site + product UI (`/app/*`) |
-| **server** | [Render](https://render.com) | API, webhooks, Jira intake, in-process indexing |
+| **server** | [AWS App Runner](https://aws.amazon.com/apprunner/) | API, webhooks, Jira intake, in-process indexing |
 
 ## Local development
 
@@ -37,18 +37,25 @@ In **app/.env** for local dev you can omit `VITE_API_URL` (Vite proxies `/api` a
 
 ## Production deployment
 
-### 1. Render (server)
+### 1. AWS App Runner (server)
 
-1. New **Web Service** → connect repo → **Root Directory**: `server`
-2. Build: `npm install && npm run build`  
-   Start: `npm start`  
-   Health check path: `/healthz`
-3. Add env from `server/.env.example` (Jira, Supabase, Redis, models, etc.)
-4. Set **`CORS_ORIGIN`** and **`FRONTEND_URL`** to your Vercel URL, e.g. `https://agentos-blue.vercel.app`
-5. Set **`PUBLIC_API_URL`** to your Render URL, e.g. `https://agentos-sc05.onrender.com`
-6. Optional: add **Background Worker** with root `server`, start `npm run worker`
+Postgres stays on Supabase. See **[docs/AWS_MIGRATION.md](./docs/AWS_MIGRATION.md)** for the full Render → AWS cutover.
 
-Copy your Render URL, e.g. `https://agentos-sc05.onrender.com`.
+```powershell
+cd server
+Copy-Item infra/aws/secrets.example.json infra/aws/secrets.json
+# fill secrets.json from the Render dashboard (keep AUTH_JWT_SECRET the same)
+.\infra\aws\deploy.ps1 -Region us-east-1
+```
+
+Then:
+
+1. Set **`PUBLIC_API_URL`** to the App Runner URL (the script does this).
+2. Set **`CORS_ORIGIN`** and **`FRONTEND_URL`** to `https://agentox.io`.
+3. Point Google / Jira / GitHub / Bitbucket OAuth callbacks at the new API host.
+4. On Vercel set `VITE_API_URL` to the same API origin and redeploy.
+
+Health checks: `/healthz` (liveness), `/readyz` (Postgres).
 
 ### 2. Vercel (app)
 
@@ -60,14 +67,14 @@ Copy your Render URL, e.g. `https://agentos-sc05.onrender.com`.
 
 | Name | Value |
 |------|--------|
-| `VITE_API_URL` | `https://agentos-sc05.onrender.com` (your Render URL) |
+| `VITE_API_URL` | App Runner origin, e.g. `https://xxxx.us-east-1.awsapprunner.com` |
 | `VITE_API_MODE` | `rest` |
 
 4. Redeploy after changing env vars.
 
 ### 3. Jira webhook
 
-Point to: `https://<render-host>/webhooks/jira`
+Point to: `https://<api-host>/webhooks/jira` (reconnect Jira after changing `PUBLIC_API_URL`).
 
 See [INTEGRATION.md](./INTEGRATION.md) and [server/README.md](./server/README.md).
 
