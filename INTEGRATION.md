@@ -20,14 +20,14 @@ npm run dev
 
 | Deploy | Root directory | Env |
 |--------|----------------|-----|
-| **Vercel** | `app` | `VITE_API_URL=https://agentos-sc05.onrender.com`, `VITE_API_MODE=rest` |
-| **Render** | `server` | `CORS_ORIGIN=https://agentos-blue.vercel.app`, `FRONTEND_URL=https://agentos-blue.vercel.app`, `PUBLIC_API_URL=https://agentos-sc05.onrender.com` |
+| **Vercel** | `app` | `VITE_API_URL=https://<api-host>`, `VITE_API_MODE=rest` |
+| **AWS App Runner** | `server` (Docker) | `CORS_ORIGIN` + `FRONTEND_URL` = `https://agentox.io`, `PUBLIC_API_URL` = API origin |
 
-Pipelines need Postgres, Redis, and model keys on Render. Jira intake pages only need Jira vars + SQLite path (`SQLITE_PATH`).
+See [docs/AWS_MIGRATION.md](./docs/AWS_MIGRATION.md) to move off Render.
 
 ## Webhook URL
 
-`https://agentos-sc05.onrender.com/webhooks/jira`
+`https://<api-host>/webhooks/jira`
 
 - `issue_created` → agent pipeline (needs worker + Redis)  
 - other events (e.g. `issue_updated`) → AI Worker SQLite queue  

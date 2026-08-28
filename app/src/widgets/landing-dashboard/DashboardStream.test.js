@@ -61,4 +61,34 @@ describe("buildDashboardStream", () => {
 
     expect(items.map((row) => row.message.metadata.kind)).toEqual(["issue", "handoff"]);
   });
+
+  it("keeps PRD, code, and QA artifacts in the chat stream", () => {
+    const items = buildDashboardStream({
+      messages: [
+        {
+          id: "release-prd-1",
+          role: "assistant",
+          content: "",
+          createdAt: "2026-08-26T00:02:00.000Z",
+          metadata: { kind: "prd", prd: { title: "Export PRD" } },
+        },
+        {
+          id: "release-ananta-1",
+          role: "assistant",
+          content: "",
+          createdAt: "2026-08-26T00:03:00.000Z",
+          metadata: { kind: "ananta", files: [{ path: "src/a.ts" }] },
+        },
+        {
+          id: "release-qa-1",
+          role: "assistant",
+          content: "",
+          createdAt: "2026-08-26T00:04:00.000Z",
+          metadata: { kind: "qa", coverage: { coveragePercent: 91 } },
+        },
+      ],
+    });
+
+    expect(items.map((row) => row.message.metadata.kind)).toEqual(["prd", "ananta", "qa"]);
+  });
 });

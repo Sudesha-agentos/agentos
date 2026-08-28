@@ -127,11 +127,62 @@ describe("release transcript", () => {
       }
     );
 
-    expect(rows.some((row) => row.metadata?.domain === "ananta" && /export\.ts/.test(row.content))).toBe(
-      true
-    );
+    const ananta = rows.find((row) => row.metadata?.kind === "ananta");
+    expect(ananta?.metadata?.files?.some((file) => file.path === "src/export.ts")).toBe(true);
+    expect(ananta?.metadata?.live).toBe(false);
     expect(rows.some((row) => row.metadata?.kind === "pr" && row.metadata.domain === "ananta")).toBe(true);
-    expect(rows.some((row) => row.metadata?.domain === "neel" && /88%/.test(row.content))).toBe(true);
+    const qa = rows.find((row) => row.metadata?.kind === "qa");
+    expect(qa?.metadata?.coverage?.coveragePercent).toBe(88);
+    expect(qa?.metadata?.live).toBe(true);
+    expect(qa?.metadata?.testCases ?? []).toEqual([]);
     expect(rows.some((row) => row.metadata?.domain === "neel" && row.metadata.kind === "issue")).toBe(true);
+  });
+
+  it("shows the PRD in the dashboard as soon as Virin has written it", () => {
+    const rows = buildReleaseMessages({
+      ...analysis,
+      status: "RUNNING",
+      currentStage: "PRD",
+      generatedPrd: {
+        title: "Audit export PRD",
+        problemStatement: "Need exports",
+        proposedSolution: "Signed bundle",
+      },
+    });
+    const prd = rows.find((row) => row.metadata?.kind === "prd");
+    expect(prd?.metadata?.live).toBe(true);
+    expect(prd?.metadata?.prd?.title).toBe("Audit export PRD");
+    expect(rows.some((row) => row.metadata?.kind === "stage" && row.metadata.stage === "PRD")).toBe(
+      false
+    );
+  });
+
+  it("keeps PRD, code, and QA artifacts even when their chat text is empty", () => {
+    const merged = mergeReleaseMessages(
+      [],
+      { ...analysis, status: "COMPLETED", generatedPrd: { title: "Audit export PRD" } },
+      {
+        pipelineId: "pl_1",
+        status: "RUNNING",
+        currentStage: "QA_AGENT",
+        currentStageLabel: "Neel",
+        currentAction: "Neel is running tests",
+        startedAt: "2026-08-26T00:20:00.000Z",
+      },
+      {
+        engineeringRun: {
+          pipelineId: "pl_1",
+          files: [{ path: "src/export.ts", change: "created" }],
+        },
+        qaReport: {
+          pipelineId: "pl_1",
+          coverageReport: { coveragePercent: 88 },
+          testRun: { passed: 10, failed: 1 },
+        },
+      }
+    );
+    expect(merged.filter((row) => row.metadata?.kind === "prd")).toHaveLength(1);
+    expect(merged.filter((row) => row.metadata?.kind === "ananta")).toHaveLength(1);
+    expect(merged.filter((row) => row.metadata?.kind === "qa")).toHaveLength(1);
   });
 });

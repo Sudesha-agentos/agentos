@@ -1,4 +1,5 @@
-# Render Blueprint — deploy from repo with rootDir = server (or link this file).
+# Render Blueprint — kept for rollback. Production API now deploys to AWS App Runner
+# (see docs/AWS_MIGRATION.md and server/infra/aws/).
 # https://render.com/docs/blueprint-spec
 #
 # Free / low-RAM default:

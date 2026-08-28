@@ -1,0 +1,50 @@
+name: Deploy API to AWS
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "server/**"
+      - ".github/workflows/deploy-api-aws.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - uses: aws-actions/amazon-ecr-login@v2
+        id: ecr
+
+      - name: Build and push
+        working-directory: server
+        env:
+          ECR_REGISTRY: ${{ steps.ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build --platform linux/amd64 \
+            -t "$ECR_REGISTRY/agentos-api:$IMAGE_TAG" \
+            -t "$ECR_REGISTRY/agentos-api:latest" .
+          docker push "$ECR_REGISTRY/agentos-api:$IMAGE_TAG"
+          docker push "$ECR_REGISTRY/agentos-api:latest"
+
+      - name: Trigger App Runner
+        run: |
+          ARN=$(aws apprunner list-services --query "ServiceSummaryList[?ServiceName=='agentos-api'].ServiceArn" --output text)
+          if [ -z "$ARN" ] || [ "$ARN" = "None" ]; then
+            echo "No App Runner service named agentos-api. Run server/infra/aws/deploy.ps1 first."
+            exit 1
+          fi
+          aws apprunner start-deployment --service-arn "$ARN"

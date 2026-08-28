@@ -138,6 +138,17 @@ export function getAgentModelForRole(settings, roleId) {
   };
 }
 
+export const AGENT_DOMAIN_ROLES = {
+  virin: "product",
+  ananta: "tech",
+  neel: "qa",
+};
+
+export function getAgentModelRoleForDomain(domain) {
+  const roleId = AGENT_DOMAIN_ROLES[domain] ?? "product";
+  return AGENT_MODEL_ROLES.find((item) => item.id === roleId) ?? AGENT_MODEL_ROLES[0];
+}
+
 export function getAgentModelForSurface(settings, surface) {
   const role = AGENT_MODEL_ROLES.find((item) => item.agent === surface);
   if (!role) return null;

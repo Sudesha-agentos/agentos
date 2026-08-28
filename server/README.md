@@ -200,7 +200,15 @@ npm run typecheck
 npm run build
 ```
 
-## Automatic pipeline deployment (Render)
+## Automatic pipeline deployment (AWS App Runner)
+
+See **[docs/AWS_MIGRATION.md](../docs/AWS_MIGRATION.md)** to migrate off Render. First deploy:
+
+```powershell
+cd server
+Copy-Item infra/aws/secrets.example.json infra/aws/secrets.json
+.\infra\aws\deploy.ps1 -Region us-east-1
+```
 
 ### Required environment variables
 
@@ -212,7 +220,7 @@ npm run build
 | `PUBLIC_API_URL` | Public URL for Jira webhooks |
 | `PIPELINE_COMPLETION_STATUS` | Default Jira status after pipeline (e.g. `Done`) |
 | `PIPELINE_INTAKE_POLL_MS` | AI Worker scan interval (default `120000`) |
-| `OSS_TOOLS_REQUIRED` | `1` in production — missing Semgrep/Playwright/etc. fail loudly |
+| `OSS_TOOLS_REQUIRED` | `0` on App Runner light image (Hypothesis only). Set `1` only if you install the full OSS CLI suite |
 
 ### Log Intelligence Layer
 
@@ -240,11 +248,11 @@ Do **not** vendor full Semgrep/Cover-Agent/Locust/ZAP repos. Build runs [`script
 
 ### Deploy steps
 
-1. Merge to `main` and deploy `agentos-api` via [`render.yaml`](render.yaml) (standard plan or larger).
-2. Run `npx prisma migrate deploy` against production Postgres.
+1. Merge to `main` (GitHub Actions pushes `agentos-api:latest` to ECR) or run `.\infra\aws\deploy.ps1`.
+2. Confirm `/healthz` and `/readyz` on the App Runner URL.
 3. In **Jira Integration**: connect Jira, map AI Worker column, set completion status via `PUT /pipeline-jira/completion-settings`.
 4. Register webhook (automatic on connect when `PUBLIC_API_URL` is set).
-5. Confirm `/healthz` shows `ossTools.ready: true` after build installs CLIs.
+5. Confirm `/healthz` shows `ossTools` after the image is running. Light mode (`QA_OSS_ADAPTERS=0`) only requires Hypothesis.
 
 ### Post-deploy smoke test
 
