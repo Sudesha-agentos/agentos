@@ -114,6 +114,56 @@ Then do the [cut over from Render](#8-cut-over-from-render) (OAuth callbacks, Ve
 
 You do **not** need Docker Desktop or `aws configure` for this path.
 
+The GitHub Action **Deploy API to AWS** is for the ECR / `deploy.ps1` path. Console-only App Runner already builds from GitHub, so that workflow will fail until you add AWS credentials (next section) — or you can disable the workflow.
+
+---
+
+## GitHub Actions deploy
+
+The workflow [`.github/workflows/deploy-api-aws.yml`](../.github/workflows/deploy-api-aws.yml) builds the API image, pushes it to ECR, and starts an App Runner deployment. GitHub does not see keys from `aws configure` on your laptop. Add them in the repo: **Settings → Secrets and variables → Actions**.
+
+### Access keys (matches §2 `agentos-deploy`)
+
+| Name | Type | Value |
+|------|------|--------|
+| `AWS_ACCESS_KEY_ID` | Secret | Access key ID from `agentos-deploy` |
+| `AWS_SECRET_ACCESS_KEY` | Secret | Secret access key from `agentos-deploy` |
+| `AWS_REGION` | Variable (optional) | `us-east-1` if unset |
+
+Do **not** paste `sudesha` / root keys. Empty secrets produce `Credentials could not be loaded, please check your action inputs`.
+
+### OIDC instead of long-lived keys (optional)
+
+1. IAM → **Identity providers** → **Add provider** → **OpenID Connect**.
+2. Provider URL: `https://token.actions.githubusercontent.com`. Audience: `sts.amazonaws.com`.
+3. Create role `agentos-gha-deploy`. Trust policy (replace `OWNER` with the GitHub org or user):
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "Federated": "arn:aws:iam::596896523266:oidc-provider/token.actions.githubusercontent.com"
+      },
+      "Action": "sts:AssumeRoleWithWebIdentity",
+      "Condition": {
+        "StringEquals": {
+          "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
+        },
+        "StringLike": {
+          "token.actions.githubusercontent.com:sub": "repo:OWNER/agentos:*"
+        }
+      }
+    }
+  ]
+}
+```
+
+4. Attach the same `agentos-deploy` policy as the IAM user.
+5. Set Actions **variable** `AWS_DEPLOY_ROLE_ARN` to that role ARN. When it is set, the workflow uses OIDC and ignores access keys.
+
 ---
 
 
@@ -287,6 +337,7 @@ Smoke-test sign-in, the work board, and one AI Worker ticket. Then **suspend** R
 
 | Symptom | Fix |
 |---------|-----|
+| GHA `Credentials could not be loaded` | Add `AWS_ACCESS_KEY_ID` + `AWS_SECRET_ACCESS_KEY` (or `AWS_DEPLOY_ROLE_ARN`) in repo Actions secrets/variables |
 | `sts get-caller-identity` is still `sudesha` | `$env:AWS_PROFILE = "agentos"` |
 | AccessDenied on CloudFormation / IAM | Policy `agentos-deploy` not attached, or you used the wrong keys |
 | Docker pipe / engine error | Start Docker Desktop and retry |
