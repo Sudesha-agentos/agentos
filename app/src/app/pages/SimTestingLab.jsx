@@ -307,8 +307,8 @@ export default function SimTestingLab() {
         </p>
         <h1 className="mt-1 text-[16px] text-zinc-100">sim-testing-for-testing</h1>
         <p className="mt-1 text-zinc-500">
-          Types a requirement → Virin PRD → Ananta clones GitHub, writes code, pushes a branch,
-          status 200 → Neel QA tools + test cases. Times, tokens, and model cost stay on this page.
+          Same pipeline as production (Virin discovery → Ananta plan/code/push → Neel QA).
+          This page only adds logs, tokens, and the question panel.
         </p>
       </header>
 

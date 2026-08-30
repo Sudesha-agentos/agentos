@@ -8,6 +8,7 @@ import {
   isSimPipelineId,
   recordSimUsage,
   resolveSimPrompt,
+  waitForSimPromptsClear,
 } from "./hub";
 
 describe("simTesting hub", () => {
@@ -45,5 +46,19 @@ describe("simTesting hub", () => {
     resolveSimPrompt(run.id, prompt.id, { action: "answer", answer: "Throw an error" });
     assert.equal(run.prompts[0].status, "answered");
     assert.equal(run.prompts[0].answer, "Throw an error");
+  });
+
+  it("resolves waitForSimPromptsClear after the last open prompt", async () => {
+    const run = createSimRun("org-1", "Add a calculator");
+    const prompt = addSimPrompt(run.id, {
+      agent: "virin",
+      kind: "approval",
+      title: "Continue",
+      body: "Continue to Ananta",
+    });
+    assert.ok(prompt);
+    const pending = waitForSimPromptsClear(run.id);
+    resolveSimPrompt(run.id, prompt.id, { action: "approve" });
+    await pending;
   });
 });

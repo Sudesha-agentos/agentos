@@ -82,13 +82,17 @@ async function pauseDiscovery(
   blockingGaps: number,
   snapshot: DiscoveryPauseSnapshot
 ): Promise<never> {
-  await stateManager.pauseForHuman(pipelineId, "PRODUCT_AGENT", message);
+  const { isSimPipelineId } = await import("../simTesting/hub");
+  if (!isSimPipelineId(pipelineId)) {
+    await stateManager.pauseForHuman(pipelineId, "PRODUCT_AGENT", message);
+  }
   throw new DiscoveryPausedError(message, blockingGaps, snapshot);
 }
 
 export async function runDiscovery(
   ticket: NormalizedTicket,
-  pipelineId: string
+  pipelineId: string,
+  options?: { skipHumanPause?: boolean }
 ): Promise<DiscoveryResult> {
   const startTime = Date.now();
   const usages: LlmUsage[] = [];
@@ -139,7 +143,7 @@ export async function runDiscovery(
   });
 
   const discoveryQuestions = buildDiscoveryQuestions(ticketAnalysis);
-  if (PAUSE_ON_AMBIGUITIES && discoveryQuestions.length > 0) {
+  if (!options?.skipHumanPause && PAUSE_ON_AMBIGUITIES && discoveryQuestions.length > 0) {
     await pauseDiscovery(
       pipelineId,
       `Discovery needs clarification (${discoveryQuestions.length} question${discoveryQuestions.length === 1 ? "" : "s"}).`,
@@ -188,6 +192,7 @@ export async function runDiscovery(
   });
 
   if (
+    !options?.skipHumanPause &&
     gapAnalysis.readinessForPRD === "needs-clarification" &&
     gapAnalysis.blockingGaps > 0
   ) {
@@ -205,7 +210,7 @@ export async function runDiscovery(
     );
   }
 
-  if (gapAnalysis.blockingGaps > BLOCKING_GAP_THRESHOLD) {
+  if (!options?.skipHumanPause && gapAnalysis.blockingGaps > BLOCKING_GAP_THRESHOLD) {
     await pauseDiscovery(
       pipelineId,
       `Too many blocking gaps (${gapAnalysis.blockingGaps}). Human clarification required.`,
@@ -290,7 +295,11 @@ export async function runDiscovery(
   }
 
   const prdOutput = generatedPrdToPrdOutput(prd, scores);
-  await embedder.embedPRD(ticket.jiraTicketId, ticket.jiraKey, prdOutput);
+  try {
+    await embedder.embedPRD(ticket.jiraTicketId, ticket.jiraKey, prdOutput);
+  } catch (err) {
+    logger.warn({ err, jiraKey: ticket.jiraKey }, "PRD embed failed — continuing pipeline");
+  }
 
   const merged = mergeUsage(usages);
   const durationMs = Date.now() - startTime;
