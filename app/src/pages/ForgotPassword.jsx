@@ -2,9 +2,11 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useState } from "react";
 import { requestPasswordReset, resetPassword } from "../entities/auth";
 import BrandLogo from "../shared/ui/BrandLogo";
+import { useDocumentRobots } from "../shared/seo/useDocumentRobots";
 import "../marketing/agent-team/agentTeam.css";
 
 export default function ForgotPassword() {
+  useDocumentRobots("noindex, nofollow");
   const [email, setEmail] = useState("");
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState("");
@@ -59,6 +61,7 @@ export default function ForgotPassword() {
 }
 
 export function ResetPassword() {
+  useDocumentRobots("noindex, nofollow");
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const token = searchParams.get("token") ?? "";

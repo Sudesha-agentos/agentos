@@ -17,6 +17,7 @@ import TopBar from "./TopBar";
 import WebsitePreview from "./WebsitePreview";
 import IntakeAssignmentListener from "../../shared/components/IntakeAssignmentListener";
 import ProductTourController from "../../features/product-tour/ProductTourController";
+import { useDocumentRobots } from "../../shared/seo/useDocumentRobots";
 
 function AppOutlet() {
   return (
@@ -90,6 +91,8 @@ export default function AppShell() {
       document.documentElement.style.removeProperty("color-scheme");
     };
   }, []);
+
+  useDocumentRobots("noindex, nofollow");
 
   return (
     <AppThemeProvider>

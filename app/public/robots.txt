@@ -1,0 +1,44 @@
+# https://agentox.io
+# Marketing pages may be indexed. Auth, API, and workspace apps must not.
+
+User-agent: *
+Allow: /
+Allow: /roi
+Allow: /contact
+Allow: /docs-code
+Allow: /privacy
+Allow: /terms
+Allow: /welcome
+
+Disallow: /login
+Disallow: /forgot-password
+Disallow: /reset-password
+Disallow: /onboarding
+Disallow: /auth/
+Disallow: /app
+Disallow: /api/
+Disallow: /r/
+
+# Authenticated product lives under /:orgSlug/...
+Disallow: /*/pipelines
+Disallow: /*/pm-agents
+Disallow: /*/ananta
+Disallow: /*/engineering
+Disallow: /*/codebase
+Disallow: /*/qa
+Disallow: /*/projects
+Disallow: /*/logs
+Disallow: /*/roadmap
+Disallow: /*/board
+Disallow: /*/costs
+Disallow: /*/audit
+Disallow: /*/integrations
+Disallow: /*/settings
+Disallow: /*/jira
+Disallow: /*/jira-search
+Disallow: /*/github
+Disallow: /*/git
+Disallow: /*/org-intelligence
+Disallow: /*/company-intelligence
+
+Sitemap: https://agentox.io/sitemap.xml
