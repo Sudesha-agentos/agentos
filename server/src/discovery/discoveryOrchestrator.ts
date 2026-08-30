@@ -6,6 +6,7 @@ import { generatedPrdToPrdOutput } from "../prd/toPrdOutput";
 import { embedder } from "../rag/embedder";
 import { unifiedRetriever } from "../rag/unifiedRetriever";
 import type { PrdOutput } from "../types/agents";
+import type { RetrievedContext } from "../types/pipeline";
 import type { NormalizedTicket } from "../types/ticket";
 import { logger } from "../utils/logger";
 import { stateManager } from "../pipeline/stateManager";
@@ -23,8 +24,11 @@ import {
 } from "./scoring";
 import {
   buildPersistedRetrievalContext,
+  answersCoverAllQuestions,
+  formatHumanAnswersJson,
   type DiscoveryPauseSnapshot,
   type DiscoveryQuestion,
+  type HumanDiscoveryAnswer,
   type PersistedContextItem,
 } from "./persistedContext";
 
@@ -49,6 +53,8 @@ export interface DiscoveryResult {
   }>;
   retrievalContext: PersistedContextItem[];
   totalTokensUsed: number;
+  inputTokens: number;
+  outputTokens: number;
   totalCostUsd: number;
   durationMs: number;
 }
@@ -67,7 +73,7 @@ export class DiscoveryPausedError extends Error {
 function buildDiscoveryQuestions(
   ticketAnalysis: TicketAnalysis
 ): DiscoveryQuestion[] {
-  return ticketAnalysis.ambiguities
+  return (ticketAnalysis.ambiguities ?? [])
     .filter((a) => a.impact === "blocking" || a.impact === "high")
     .map((a) => ({
       question: a.question,
@@ -76,74 +82,134 @@ function buildDiscoveryQuestions(
     }));
 }
 
+async function emitDiscoveryLog(pipelineId: string, label: string, detail?: string): Promise<void> {
+  const { isSimPipelineId, emitSimEvent } = await import("../simTesting/hub");
+  if (!isSimPipelineId(pipelineId)) return;
+  emitSimEvent(pipelineId, { agent: "virin", kind: "log", label, detail });
+}
+
 async function pauseDiscovery(
   pipelineId: string,
   message: string,
   blockingGaps: number,
-  snapshot: DiscoveryPauseSnapshot
+  snapshot: DiscoveryPauseSnapshot,
+  usages: LlmUsage[]
 ): Promise<never> {
   const { isSimPipelineId } = await import("../simTesting/hub");
   if (!isSimPipelineId(pipelineId)) {
     await stateManager.pauseForHuman(pipelineId, "PRODUCT_AGENT", message);
   }
-  throw new DiscoveryPausedError(message, blockingGaps, snapshot);
+  throw new DiscoveryPausedError(message, blockingGaps, {
+    ...snapshot,
+    usageSoFar: mergeUsage(usages),
+  });
 }
 
-export async function runDiscovery(
+async function retrieveDiscoveryContext(
   ticket: NormalizedTicket,
-  pipelineId: string,
-  options?: { skipHumanPause?: boolean }
-): Promise<DiscoveryResult> {
-  const startTime = Date.now();
-  const usages: LlmUsage[] = [];
-
-  logger.info({ jiraKey: ticket.jiraKey, pipelineId }, "discovery started");
-  await auditRepo.log(pipelineId, "PRODUCT_AGENT_STARTED", { jiraKey: ticket.jiraKey });
-
-  // Ingestion already embedded the ticket — skip duplicate embed work here.
-  await auditRepo.log(pipelineId, "DISCOVERY_STEP_STARTED", {
-    step: "context_retrieval",
-    label: "Retrieving similar tickets and codebase context",
-  });
-
+  humanAnswers?: HumanDiscoveryAnswer[]
+) {
   const scope = await import("../codebaseIntelligence/repoScope").then((m) =>
     m.resolveRepoScope()
   );
-  const unifiedQuery = `${ticket.summary} ${ticket.description}`;
+  const answersJson = formatHumanAnswersJson(humanAnswers);
+  const unifiedQuery = [ticket.summary, ticket.description, answersJson].filter(Boolean).join("\n");
   const unified = await unifiedRetriever.retrieveUnified(unifiedQuery, {
     ticketTypes: ["ticket", "prd", "implementation", "qa_report", "canary_finding"],
     codebase: { branchName: scope?.defaultBranch ?? "main", topK: 8 },
     includeCodebase: Boolean(scope),
     topKTotal: 12,
     currentJiraKey: ticket.jiraKey,
-    queryComponents: ticket.components,
+    queryComponents: ticket.components ?? [],
     similarityThreshold: 0.7,
   });
+  return {
+    historicalContext: unified.retrievedContext ?? [],
+    fusedBlock: unified.fusedBlock,
+    retrievalContext: buildPersistedRetrievalContext(unified),
+    codebaseHits: (unified.items ?? []).filter((i) => i.kind === "codebase").length,
+  };
+}
 
-  const historicalContext = unified.retrievedContext;
-  const retrievalContext = buildPersistedRetrievalContext(unified);
-  await auditRepo.log(pipelineId, "CONTEXT_RETRIEVED", {
-    chunksFound: historicalContext.length,
-    codebaseHits: unified.items.filter((i) => i.kind === "codebase").length,
-    topSimilarity: historicalContext[0]?.similarity ?? 0,
-  });
+export async function runDiscovery(
+  ticket: NormalizedTicket,
+  pipelineId: string,
+  options?: {
+    skipHumanPause?: boolean;
+    resume?: DiscoveryPauseSnapshot;
+    humanAnswers?: HumanDiscoveryAnswer[];
+  }
+): Promise<DiscoveryResult> {
+  const startTime = Date.now();
+  const usages: LlmUsage[] = [];
+  if (options?.resume?.usageSoFar) usages.push(options.resume.usageSoFar);
+  const humanAnswers = options?.humanAnswers ?? ticket.humanAnswers ?? [];
 
-  await auditRepo.log(pipelineId, "DISCOVERY_STEP_STARTED", {
-    step: "ticket_analysis",
-    label: "Analyzing ticket requirements",
-  });
-  const { analysis: ticketAnalysis, usage: u1 } = await analyseTicket(
-    ticket,
-    pipelineId
-  );
-  usages.push(u1);
-  await auditRepo.log(pipelineId, "TICKET_ANALYSED", {
-    requirementsFound: ticketAnalysis.atomicRequirements.length,
-    ambiguities: ticketAnalysis.ambiguities.length,
-  });
+  logger.info({ jiraKey: ticket.jiraKey, pipelineId }, "discovery started");
+  await auditRepo.log(pipelineId, "PRODUCT_AGENT_STARTED", { jiraKey: ticket.jiraKey });
 
-  const discoveryQuestions = buildDiscoveryQuestions(ticketAnalysis);
-  if (!options?.skipHumanPause && PAUSE_ON_AMBIGUITIES && discoveryQuestions.length > 0) {
+  let ticketAnalysis = options?.resume?.ticketAnalysis;
+  let historicalIntelligence = options?.resume?.historicalIntelligence;
+  let gapAnalysis = options?.resume?.gapAnalysis;
+  let retrievalContext = options?.resume?.retrievalContext ?? [];
+  let historicalContext: RetrievedContext[] = [];
+  let fusedBlock: string | undefined;
+
+  if (!ticketAnalysis) {
+    await auditRepo.log(pipelineId, "DISCOVERY_STEP_STARTED", {
+      step: "context_retrieval",
+      label: "Retrieving similar tickets and codebase context",
+    });
+    await emitDiscoveryLog(pipelineId, "Retrieving context");
+    const retrieved = await retrieveDiscoveryContext(ticket, humanAnswers);
+    historicalContext = retrieved.historicalContext;
+    fusedBlock = retrieved.fusedBlock;
+    retrievalContext = retrieved.retrievalContext;
+    await auditRepo.log(pipelineId, "CONTEXT_RETRIEVED", {
+      chunksFound: historicalContext.length,
+      codebaseHits: retrieved.codebaseHits,
+      topSimilarity: historicalContext[0]?.similarity ?? 0,
+    });
+
+    await auditRepo.log(pipelineId, "DISCOVERY_STEP_STARTED", {
+      step: "ticket_analysis",
+      label: "Analyzing ticket requirements",
+    });
+    await emitDiscoveryLog(pipelineId, "Analyzing ticket — this generates the questions");
+    const { analysis, usage: u1 } = await analyseTicket(ticket, pipelineId);
+    ticketAnalysis = analysis;
+    usages.push(u1);
+    await auditRepo.log(pipelineId, "TICKET_ANALYSED", {
+      requirementsFound: ticketAnalysis.atomicRequirements.length,
+      ambiguities: ticketAnalysis.ambiguities.length,
+    });
+  }
+
+  const discoveryQuestions =
+    options?.resume?.discoveryQuestions ?? buildDiscoveryQuestions(ticketAnalysis);
+  const answersReady = answersCoverAllQuestions(discoveryQuestions, humanAnswers);
+
+  if (ticketAnalysis && options?.resume && answersReady && humanAnswers.length) {
+    await emitDiscoveryLog(
+      pipelineId,
+      "Resuming — sending answers JSON into codebase analysis",
+      formatHumanAnswersJson(humanAnswers)
+    );
+    await auditRepo.log(pipelineId, "DISCOVERY_STEP_STARTED", {
+      step: "context_retrieval",
+      label: "Re-retrieving codebase context with human answers",
+    });
+    const retrieved = await retrieveDiscoveryContext(ticket, humanAnswers);
+    historicalContext = retrieved.historicalContext;
+    fusedBlock = retrieved.fusedBlock;
+    retrievalContext = retrieved.retrievalContext;
+    historicalIntelligence = undefined;
+    gapAnalysis = undefined;
+  } else if (ticketAnalysis && options?.resume && !answersReady) {
+    await emitDiscoveryLog(pipelineId, "Waiting — not all questions are answered yet");
+  }
+
+  if (PAUSE_ON_AMBIGUITIES && discoveryQuestions.length > 0 && !answersReady) {
     await pauseDiscovery(
       pipelineId,
       `Discovery needs clarification (${discoveryQuestions.length} question${discoveryQuestions.length === 1 ? "" : "s"}).`,
@@ -153,43 +219,56 @@ export async function runDiscovery(
         retrievalContext,
         discoveryQuestions,
         pauseReason: "ambiguities",
-      }
+      },
+      usages
     );
   }
 
-  await auditRepo.log(pipelineId, "DISCOVERY_STEP_STARTED", {
-    step: "historical_intelligence",
-    label: "Extracting historical patterns and precedents",
-  });
-  const { intelligence: historicalIntelligence, usage: u2 } =
-    await extractHistoricalIntelligence(
+  if (!historicalIntelligence) {
+    await auditRepo.log(pipelineId, "DISCOVERY_STEP_STARTED", {
+      step: "historical_intelligence",
+      label: "Extracting historical patterns and precedents",
+    });
+    await emitDiscoveryLog(
+      pipelineId,
+      humanAnswers.length ? "Codebase analysis with answers JSON" : "Extracting historical patterns"
+    );
+    const { intelligence, usage: u2 } = await extractHistoricalIntelligence(
       ticketAnalysis,
       historicalContext,
       pipelineId,
-      unified.fusedBlock
+      fusedBlock,
+      humanAnswers
     );
-  usages.push(u2);
-  await auditRepo.log(pipelineId, "INTELLIGENCE_EXTRACTED", {
-    patterns: historicalIntelligence.successPatterns.length,
-    failures: historicalIntelligence.knownFailures.length,
-    implied: historicalIntelligence.impliedRequirements.length,
-  });
+    historicalIntelligence = intelligence;
+    usages.push(u2);
+    await auditRepo.log(pipelineId, "INTELLIGENCE_EXTRACTED", {
+      patterns: historicalIntelligence.successPatterns.length,
+      failures: historicalIntelligence.knownFailures.length,
+      implied: historicalIntelligence.impliedRequirements.length,
+    });
+  }
 
-  await auditRepo.log(pipelineId, "DISCOVERY_STEP_STARTED", {
-    step: "gap_analysis",
-    label: "Identifying requirement gaps",
-  });
-  const { analysis: gapAnalysis, usage: u3 } = await analyseGaps(
-    ticketAnalysis,
-    historicalIntelligence,
-    pipelineId
-  );
-  usages.push(u3);
-  await auditRepo.log(pipelineId, "GAPS_ANALYSED", {
-    totalGaps: gapAnalysis.totalGaps,
-    blockingGaps: gapAnalysis.blockingGaps,
-    readiness: gapAnalysis.readinessForPRD,
-  });
+  if (!gapAnalysis) {
+    await auditRepo.log(pipelineId, "DISCOVERY_STEP_STARTED", {
+      step: "gap_analysis",
+      label: "Identifying requirement gaps",
+    });
+    await emitDiscoveryLog(pipelineId, "Identifying requirement gaps");
+    const { analysis, usage: u3 } = await analyseGaps(
+      ticketAnalysis,
+      historicalIntelligence,
+      pipelineId,
+      humanAnswers
+    );
+    gapAnalysis = analysis;
+    usages.push(u3);
+    await auditRepo.log(pipelineId, "GAPS_ANALYSED", {
+      totalGaps: gapAnalysis.totalGaps,
+      blockingGaps: gapAnalysis.blockingGaps,
+      readiness: gapAnalysis.readinessForPRD,
+    });
+  }
 
   if (
     !options?.skipHumanPause &&
@@ -206,7 +285,8 @@ export async function runDiscovery(
         gapAnalysis,
         retrievalContext,
         pauseReason: "needs_clarification",
-      }
+      },
+      usages
     );
   }
 
@@ -221,19 +301,26 @@ export async function runDiscovery(
         gapAnalysis,
         retrievalContext,
         pauseReason: "blocking_gaps",
-      }
+      },
+      usages
     );
+  }
+
+  if (!ticketAnalysis || !historicalIntelligence || !gapAnalysis) {
+    throw new Error("Discovery is missing ticket analysis, history, or gaps");
   }
 
   await auditRepo.log(pipelineId, "DISCOVERY_STEP_STARTED", {
     step: "complexity_scoring",
     label: "Scoring implementation complexity",
   });
+  await emitDiscoveryLog(pipelineId, "Scoring complexity");
   const { assessment: complexityAssessment, usage: u4 } = await scoreComplexity(
     ticketAnalysis,
     historicalIntelligence,
     gapAnalysis,
-    pipelineId
+    pipelineId,
+    humanAnswers
   );
   usages.push(u4);
   await auditRepo.log(pipelineId, "COMPLEXITY_SCORED", {
@@ -246,13 +333,15 @@ export async function runDiscovery(
     step: "prd_generation",
     label: "Virin is drafting the PRD",
   });
+  await emitDiscoveryLog(pipelineId, "Drafting the PRD");
   const { prd, usage: u5, toolCallLog } = await generatePRD(
     ticket,
     ticketAnalysis,
     historicalIntelligence,
     gapAnalysis,
     complexityAssessment,
-    pipelineId
+    pipelineId,
+    humanAnswers
   );
   usages.push(u5);
 
@@ -333,6 +422,8 @@ export async function runDiscovery(
     toolCallLog,
     retrievalContext,
     totalTokensUsed: merged.inputTokens + merged.outputTokens,
+    inputTokens: merged.inputTokens,
+    outputTokens: merged.outputTokens,
     totalCostUsd: merged.costUsd,
     durationMs,
   };

@@ -167,7 +167,7 @@ export function calculatePRDQuality(
   score -= Math.min(gapAnalysis.totalGaps * 0.015, 0.2);
 
   const missingCriticalNfrs = CRITICAL_NFR_TYPES.filter((type) =>
-    gapAnalysis.nfrGaps.some((g) => g.type === type)
+    (gapAnalysis.nfrGaps ?? []).some((g) => g.type === type)
   ).length;
   score -= missingCriticalNfrs * 0.03;
 
@@ -190,7 +190,7 @@ export function calculatePRDQuality(
   if ((prd.proposedSolution?.length ?? 0) < 80) score -= 0.06;
 
   if (
-    gapAnalysis.endpointGaps.length > 0 &&
+    (gapAnalysis.endpointGaps ?? []).length > 0 &&
     (prd.technicalRequirements?.endpoints?.length ?? 0) === 0
   ) {
     score -= 0.08;
@@ -208,12 +208,12 @@ export function calculateComplexityScore(
 ): number {
   let score = ROUGH_COMPLEXITY_BASE[ticketAnalysis.roughComplexity] ?? 5;
 
-  score += Math.min(gapAnalysis.endpointGaps.length * 0.4, 2);
-  score += Math.min(gapAnalysis.dataGaps.length * 0.5, 1.5);
+  score += Math.min((gapAnalysis.endpointGaps ?? []).length * 0.4, 2);
+  score += Math.min((gapAnalysis.dataGaps ?? []).length * 0.5, 1.5);
   score += Math.min(gapAnalysis.blockingGaps * 0.3, 1);
-  score += Math.min(gapAnalysis.nfrGaps.length * 0.2, 0.8);
+  score += Math.min((gapAnalysis.nfrGaps ?? []).length * 0.2, 0.8);
 
-  const reuseCredit = Math.min(intelligence.reuseOpportunities.length * 0.3, 1.2);
+  const reuseCredit = Math.min((intelligence.reuseOpportunities ?? []).length * 0.3, 1.2);
   score -= reuseCredit;
 
   const knownFailures = intelligence.knownFailures?.length ?? 0;
@@ -339,7 +339,7 @@ export function runProductValidation(input: {
       ).length,
       requirements: input.ticketAnalysis.atomicRequirements?.length ?? 0,
       ragChunks: input.retrievedContext.length,
-      reuseOpportunities: input.historicalIntelligence.reuseOpportunities.length,
+      reuseOpportunities: (input.historicalIntelligence.reuseOpportunities ?? []).length,
       recommendation,
     },
   };

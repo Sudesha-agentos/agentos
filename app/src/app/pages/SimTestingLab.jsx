@@ -210,6 +210,10 @@ export default function SimTestingLab() {
   const qaCases = done?.data?.qaTestCases;
   const prompts = run?.prompts ?? [];
   const openPrompts = prompts.filter((item) => item.status === "open");
+  const questionPrompts = prompts.filter((item) => item.kind === "question");
+  const answeredQuestions = questionPrompts.filter(
+    (item) => item.status === "answered" && Boolean(String(item.answer ?? "").trim())
+  ).length;
   const running = run?.status === "queued" || run?.status === "running";
 
   const resolvePrompt = async (prompt, action) => {
@@ -231,12 +235,17 @@ export default function SimTestingLab() {
 
   return (
     <div className="relative flex min-h-svh flex-col bg-zinc-950 font-mono text-[13px] text-zinc-200">
-      {prompts.length > 0 ? (
+      {openPrompts.length > 0 ? (
         <aside className="fixed right-4 top-4 z-20 flex max-h-[70vh] w-[22rem] flex-col overflow-auto rounded-lg border border-amber-700/70 bg-zinc-950/95 p-3 shadow-2xl">
           <p className="text-[11px] uppercase tracking-widest text-amber-300">Questions &amp; approvals</p>
-          <p className="mt-1 text-zinc-500">The pipeline keeps running. Answer here if you want to steer the next stage.</p>
+          <p className="mt-1 text-zinc-500">
+            Answer every question. The next stage starts only after all of them have answers
+            {questionPrompts.length
+              ? ` (${answeredQuestions}/${questionPrompts.length}).`
+              : "."}
+          </p>
           <ul className="mt-3 space-y-3">
-            {prompts
+            {openPrompts
               .slice()
               .reverse()
               .map((prompt) => (
@@ -266,27 +275,30 @@ export default function SimTestingLab() {
                         {prompt.kind === "question" ? (
                           <button
                             type="button"
+                            disabled={!String(drafts[prompt.id] ?? "").trim()}
                             onClick={() => resolvePrompt(prompt, "answer")}
-                            className="rounded bg-amber-200 px-2 py-1 text-[11px] text-zinc-950"
+                            className="rounded bg-amber-200 px-2 py-1 text-[11px] text-zinc-950 disabled:opacity-40"
                           >
                             Send answer
                           </button>
                         ) : (
-                          <button
-                            type="button"
-                            onClick={() => resolvePrompt(prompt, "approve")}
-                            className="rounded bg-amber-200 px-2 py-1 text-[11px] text-zinc-950"
-                          >
-                            Approve
-                          </button>
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => resolvePrompt(prompt, "approve")}
+                              className="rounded bg-amber-200 px-2 py-1 text-[11px] text-zinc-950"
+                            >
+                              Approve
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => resolvePrompt(prompt, "dismiss")}
+                              className="rounded border border-zinc-700 px-2 py-1 text-[11px] text-zinc-300"
+                            >
+                              Dismiss
+                            </button>
+                          </>
                         )}
-                        <button
-                          type="button"
-                          onClick={() => resolvePrompt(prompt, "dismiss")}
-                          className="rounded border border-zinc-700 px-2 py-1 text-[11px] text-zinc-300"
-                        >
-                          Dismiss
-                        </button>
                       </div>
                     </div>
                   ) : prompt.answer ? (
@@ -295,13 +307,10 @@ export default function SimTestingLab() {
                 </li>
               ))}
           </ul>
-          {openPrompts.length === 0 ? (
-            <p className="mt-2 text-zinc-600">No open items.</p>
-          ) : null}
         </aside>
       ) : null}
 
-      <header className={`border-b border-zinc-800 px-4 py-3 ${prompts.length ? "pr-[24rem]" : ""}`}>
+      <header className={`border-b border-zinc-800 px-4 py-3 ${openPrompts.length ? "pr-[24rem]" : ""}`}>
         <p className="text-[11px] uppercase tracking-widest text-zinc-500">
           Simulation lab · not a product surface
         </p>
@@ -312,7 +321,7 @@ export default function SimTestingLab() {
         </p>
       </header>
 
-      <form onSubmit={start} className={`border-b border-zinc-800 px-4 py-3 ${prompts.length ? "pr-[24rem]" : ""}`}>
+      <form onSubmit={start} className={`border-b border-zinc-800 px-4 py-3 ${openPrompts.length ? "pr-[24rem]" : ""}`}>
         <textarea
           value={requirement}
           onChange={(e) => setRequirement(e.target.value)}

@@ -1,6 +1,7 @@
 import { completionJson } from "../llm/discoveryCompletion";
 import type { HistoricalIntelligence } from "./historicalIntelligence";
 import type { TicketAnalysis } from "./ticketAnalyser";
+import { humanAnswersPromptBlock, type HumanDiscoveryAnswer } from "./persistedContext";
 import { logger } from "../utils/logger";
 
 export type GapCategory =
@@ -65,7 +66,8 @@ export interface GapAnalysis {
 export async function analyseGaps(
   ticketAnalysis: TicketAnalysis,
   historicalIntelligence: HistoricalIntelligence,
-  pipelineId: string
+  pipelineId: string,
+  humanAnswers?: HumanDiscoveryAnswer[]
 ): Promise<{ analysis: GapAnalysis; usage: import("../llm/discoveryCompletion").LlmUsage }> {
   logger.info({ pipelineId }, "starting gap analysis");
 
@@ -93,6 +95,8 @@ HISTORICAL:
 Implied: ${historicalIntelligence.impliedRequirements.map((r) => `- ${r.requirement}`).join("\n") || "None"}
 Failures: ${historicalIntelligence.knownFailures.map((f) => `- ${f.failure}`).join("\n") || "None"}
 QA: ${historicalIntelligence.historicalQAIssues.map((i) => `- [${i.frequency}] ${i.issue}`).join("\n") || "None"}
+${humanAnswersPromptBlock(humanAnswers)}
+Resolved HUMAN_ANSWERS_JSON items are not gaps. Do not re-ask them.
 
 Return JSON with knownKnowns, knownUnknowns, endpointGaps, dataGaps, accessGaps, nfrGaps,
 readinessForPRD, blockingGaps, totalGaps.
@@ -111,18 +115,33 @@ Rules:
     maxTokens: 4000,
   });
 
+  const knownUnknowns = parsed.knownUnknowns ?? [];
+  const endpointGaps = parsed.endpointGaps ?? [];
+  const dataGaps = parsed.dataGaps ?? [];
+  const accessGaps = parsed.accessGaps ?? [];
+  const nfrGaps = parsed.nfrGaps ?? [];
   const blockingGaps =
     parsed.blockingGaps ??
-    parsed.knownUnknowns.filter((u) => u.resolutionRequired).length;
+    knownUnknowns.filter((u) => u.resolutionRequired).length;
   const totalGaps =
     parsed.totalGaps ??
-    parsed.knownUnknowns.length +
-      parsed.endpointGaps.length +
-      parsed.dataGaps.length +
-      parsed.accessGaps.length +
-      parsed.nfrGaps.length;
+    knownUnknowns.length +
+      endpointGaps.length +
+      dataGaps.length +
+      accessGaps.length +
+      nfrGaps.length;
 
-  const analysis: GapAnalysis = { ...parsed, blockingGaps, totalGaps };
+  const analysis: GapAnalysis = {
+    ...parsed,
+    knownKnowns: parsed.knownKnowns ?? [],
+    knownUnknowns,
+    endpointGaps,
+    dataGaps,
+    accessGaps,
+    nfrGaps,
+    blockingGaps,
+    totalGaps,
+  };
 
   logger.info(
     {

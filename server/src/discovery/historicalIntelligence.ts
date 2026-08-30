@@ -1,6 +1,7 @@
 import { completionJson } from "../llm/discoveryCompletion";
 import type { RetrievedContext } from "../types/pipeline";
 import type { TicketAnalysis } from "./ticketAnalyser";
+import { humanAnswersPromptBlock, type HumanDiscoveryAnswer } from "./persistedContext";
 import { logger } from "../utils/logger";
 
 export interface HistoricalIntelligence {
@@ -54,12 +55,13 @@ export async function extractHistoricalIntelligence(
   ticketAnalysis: TicketAnalysis,
   retrievedContext: RetrievedContext[],
   pipelineId: string,
-  unifiedFusedBlock?: string
+  unifiedFusedBlock?: string,
+  humanAnswers?: HumanDiscoveryAnswer[]
 ): Promise<{
   intelligence: HistoricalIntelligence;
   usage: import("../llm/discoveryCompletion").LlmUsage;
 }> {
-  if (retrievedContext.length === 0 && !unifiedFusedBlock?.trim()) {
+  if (retrievedContext.length === 0 && !unifiedFusedBlock?.trim() && !humanAnswers?.length) {
     logger.info({ pipelineId }, "no historical context — empty intelligence");
     return { intelligence: emptyIntelligence(), usage: { inputTokens: 0, outputTokens: 0, costUsd: 0 } };
   }
@@ -98,6 +100,8 @@ Requirements Count: ${ticketAnalysis.atomicRequirements.length}
 
 Historical context:
 ${contextBlock}${unifiedSection}
+${humanAnswersPromptBlock(humanAnswers)}
+Treat HUMAN_ANSWERS_JSON as resolved product decisions when ranking codebase reuse and implied requirements.
 
 Return JSON:
 {
@@ -123,15 +127,26 @@ Rules:
     maxTokens: 2500,
   });
 
+  const intelligence: HistoricalIntelligence = {
+    ...emptyIntelligence(),
+    ...parsed,
+    successPatterns: parsed.successPatterns ?? [],
+    knownFailures: parsed.knownFailures ?? [],
+    impliedRequirements: parsed.impliedRequirements ?? [],
+    technicalPatterns: parsed.technicalPatterns ?? [],
+    historicalQAIssues: parsed.historicalQAIssues ?? [],
+    reuseOpportunities: parsed.reuseOpportunities ?? [],
+  };
+
   logger.info(
     {
       pipelineId,
-      successPatterns: parsed.successPatterns.length,
-      knownFailures: parsed.knownFailures.length,
-      coverage: parsed.historicalCoverage,
+      successPatterns: intelligence.successPatterns.length,
+      knownFailures: intelligence.knownFailures.length,
+      coverage: intelligence.historicalCoverage,
     },
     "historical intelligence extracted"
   );
 
-  return { intelligence: parsed, usage };
+  return { intelligence, usage };
 }

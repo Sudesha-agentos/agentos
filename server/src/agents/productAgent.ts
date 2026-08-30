@@ -15,6 +15,7 @@ export interface ProductAgentInput {
   gapAnalysis: GapAnalysis;
   complexityAssessment: ComplexityAssessment;
   pipelineId: string;
+  humanAnswers?: import("../discovery/persistedContext").HumanDiscoveryAnswer[];
 }
 
 export interface ProductAgentResult {
@@ -223,6 +224,9 @@ ${safeJson(input.gapAnalysis)}
 
 Complexity assessment:
 ${safeJson(input.complexityAssessment)}
+
+Human answers to discovery questions (JSON — treat as decided):
+${safeJson({ humanAnswers: input.humanAnswers ?? [] })}
 
 Instructions:
 1. Use search_historical_context if you need concrete past examples, precedents,

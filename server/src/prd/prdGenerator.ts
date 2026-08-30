@@ -104,7 +104,8 @@ export async function generatePRD(
   historicalIntelligence: HistoricalIntelligence,
   gapAnalysis: GapAnalysis,
   complexityAssessment: ComplexityAssessment,
-  pipelineId: string
+  pipelineId: string,
+  humanAnswers?: import("../discovery/persistedContext").HumanDiscoveryAnswer[]
 ): Promise<{
   prd: GeneratedPRD;
   usage: import("../llm/discoveryCompletion").LlmUsage;
@@ -123,6 +124,7 @@ export async function generatePRD(
     gapAnalysis,
     complexityAssessment,
     pipelineId,
+    humanAnswers,
   });
 
   logger.info(

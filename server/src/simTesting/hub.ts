@@ -20,10 +20,20 @@ const hub = new EventEmitter();
 hub.setMaxListeners(80);
 const promptWaiters = new Map<string, Set<() => void>>();
 
-function notifyPromptWaiters(runId: string): void {
+export function allSimQuestionsAnswered(runId: string): boolean {
   const run = runs.get(runId);
-  if (!run) return;
-  if (run.prompts.some((prompt) => prompt.status === "open")) return;
+  if (!run) return false;
+  const questions = run.prompts.filter((prompt) => prompt.kind === "question");
+  if (questions.length === 0) {
+    return run.prompts.length === 0 || run.prompts.every((prompt) => prompt.status !== "open");
+  }
+  return questions.every(
+    (prompt) => prompt.status === "answered" && Boolean(prompt.answer?.trim())
+  );
+}
+
+function notifyPromptWaiters(runId: string): void {
+  if (!allSimQuestionsAnswered(runId)) return;
   const waiters = promptWaiters.get(runId);
   if (!waiters?.size) return;
   for (const wake of waiters) wake();
@@ -32,7 +42,7 @@ function notifyPromptWaiters(runId: string): void {
 
 export function waitForSimPromptsClear(runId: string): Promise<void> {
   const run = runs.get(runId);
-  if (!run || run.prompts.every((prompt) => prompt.status !== "open")) {
+  if (!run || allSimQuestionsAnswered(runId)) {
     return Promise.resolve();
   }
   return new Promise((resolve) => {
@@ -185,10 +195,14 @@ export function resolveSimPrompt(
   const prompt = run.prompts.find((item) => item.id === promptId);
   if (!prompt) return null;
   if (input.action === "approve") prompt.status = "approved";
-  else if (input.action === "dismiss") prompt.status = "dismissed";
-  else {
+  else if (input.action === "dismiss") {
+    if (prompt.kind === "question") return prompt;
+    prompt.status = "dismissed";
+  } else {
+    const answer = String(input.answer ?? "").trim();
+    if (prompt.kind === "question" && !answer) return prompt;
     prompt.status = "answered";
-    prompt.answer = String(input.answer ?? "").trim();
+    prompt.answer = answer;
   }
   emitSimEvent(runId, {
     agent: prompt.agent,
@@ -206,12 +220,21 @@ export function resolveSimPrompt(
   return prompt;
 }
 
-export function formatAnsweredPrompts(runId: string): string {
+export function collectSimAnswers(runId: string): import("../discovery/persistedContext").HumanDiscoveryAnswer[] {
   const run = runs.get(runId);
-  if (!run) return "";
+  if (!run) return [];
   return run.prompts
-    .filter((prompt) => prompt.status === "answered" && prompt.answer)
-    .map((prompt) => `- ${prompt.title}: ${prompt.answer}`)
+    .filter((prompt) => prompt.kind === "question" && prompt.status === "answered" && Boolean(prompt.answer?.trim()))
+    .map((prompt) => ({
+      question: prompt.body || prompt.title,
+      answer: prompt.answer!.trim(),
+      status: "answered" as const,
+    }));
+}
+
+export function formatAnsweredPrompts(runId: string): string {
+  return collectSimAnswers(runId)
+    .map((item) => `- ${item.question}: ${item.answer}`)
     .join("\n");
 }
 
