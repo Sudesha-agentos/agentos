@@ -66,6 +66,7 @@ describe("buildPipelineRunSummary", () => {
     assert.equal(summary.branch, "agentos/ao-1");
     assert.deepEqual(summary.filesChanged, ["server/src/filters.ts"]);
     assert.equal(summary.testsPassed, 4);
+    assert.ok(summary.whatWasDone.some((line) => /4 passed/.test(line)));
     assert.ok(summary.whatWasDone.some((line) => line.includes("agentos/ao-1")));
     assert.ok(summary.whatWasDone.some((line) => /marked completed/i.test(line)));
   });

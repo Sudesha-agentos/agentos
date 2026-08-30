@@ -66,14 +66,74 @@ export function answersCoverAllQuestions(
   });
 }
 
+export type DiscoveryPauseReason =
+  | "ambiguities"
+  | "blocking_gaps"
+  | "needs_clarification"
+  | "prd_open_questions";
+
 export interface DiscoveryPauseSnapshot {
   ticketAnalysis?: import("./ticketAnalyser").TicketAnalysis;
   historicalIntelligence?: import("./historicalIntelligence").HistoricalIntelligence;
   gapAnalysis?: import("./gapAnalyser").GapAnalysis;
+  complexityAssessment?: import("./complexityScorer").ComplexityAssessment;
   retrievalContext: PersistedContextItem[];
   discoveryQuestions?: DiscoveryQuestion[];
-  pauseReason: "ambiguities" | "blocking_gaps" | "needs_clarification";
+  pauseReason: DiscoveryPauseReason;
   usageSoFar?: import("../llm/discoveryCompletion").LlmUsage;
+}
+
+type QuestionLike = string | {
+  question?: string;
+  gap?: string;
+  description?: string;
+  impact?: string;
+  suggestedResolution?: string;
+  defaultAssumption?: string;
+};
+
+/** Normalize ticket/gap/PRD items into the same question shape used to pause discovery. */
+export function toDiscoveryQuestions(
+  items: QuestionLike[] | undefined,
+  impact = "blocking"
+): DiscoveryQuestion[] {
+  return (items ?? [])
+    .map((item) => {
+      if (typeof item === "string") {
+        const question = item.trim();
+        return question ? { question, description: "", impact } : null;
+      }
+      const question = String(item.question ?? item.gap ?? "").trim();
+      if (!question) return null;
+      const description = String(
+        item.description ?? item.suggestedResolution ?? item.defaultAssumption ?? ""
+      ).trim();
+      return {
+        question,
+        description,
+        impact: String(item.impact ?? impact),
+      };
+    })
+    .filter((item): item is DiscoveryQuestion => Boolean(item));
+}
+
+export function buildGapQuestions(gap: {
+  knownUnknowns?: Array<{
+    gap: string;
+    resolutionRequired: boolean;
+    suggestedResolution?: string;
+    defaultAssumption?: string;
+  }>;
+}): DiscoveryQuestion[] {
+  return toDiscoveryQuestions(
+    (gap.knownUnknowns ?? []).filter((item) => item.resolutionRequired)
+  );
+}
+
+export function buildPrdOpenQuestions(
+  openQuestions: Array<string | { question?: string; impact?: string; defaultAssumption?: string }> | undefined
+): DiscoveryQuestion[] {
+  return toDiscoveryQuestions(openQuestions);
 }
 
 const MAX_CONTENT_CHARS = 6000;

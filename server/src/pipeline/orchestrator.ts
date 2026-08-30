@@ -73,7 +73,6 @@ import {
   runDiscovery,
 } from "../discovery/discoveryOrchestrator";
 import type { DiscoveryPauseSnapshot } from "../discovery/persistedContext";
-import { answersCoverAllQuestions } from "../discovery/persistedContext";
 import { auditRepo } from "../db/repositories/auditRepo";
 import { pipelineRepo } from "../db/repositories/pipelineRepo";
 import { ticketRepo } from "../db/repositories/ticketRepo";
@@ -135,9 +134,11 @@ function buildPrBodyWithQa(
   const qaSection = [
     "### QA results",
     `**Tests:** ${qa.testCases.length} · **Coverage:** ${qa.coverageReport.coveragePercent.toFixed(1)}% · **Confidence:** ${(qa.confidenceScore * 100).toFixed(0)}%`,
-    testRun
-      ? `**Test run:** ${testRun.passed ?? 0} passed · ${testRun.failed ?? 0} failed · ${testRun.totalTests ?? 0} total`
-      : null,
+    qa.testConductReport?.headline
+      ? `**${qa.testConductReport.headline}**`
+      : testRun
+        ? `**Test run:** ${testRun.passed ?? 0} passed · ${testRun.failed ?? 0} failed · ${testRun.totalTests ?? 0} total`
+        : null,
     recommendation
       ? `**Recommendation:** ${recommendation.replace(/_/g, " ")}`
       : null,
@@ -1007,13 +1008,15 @@ export class PipelineOrchestrator {
           retrievalContext: Array.isArray(paused.retrievalContext)
             ? (paused.retrievalContext as DiscoveryPauseSnapshot["retrievalContext"])
             : [],
+          complexityAssessment: (paused.complexityAssessment ?? undefined) as DiscoveryPauseSnapshot["complexityAssessment"],
           discoveryQuestions: Array.isArray(priorOut.discoveryQuestions)
             ? (priorOut.discoveryQuestions as DiscoveryPauseSnapshot["discoveryQuestions"])
             : undefined,
           pauseReason:
             priorOut.pauseReason === "ambiguities" ||
             priorOut.pauseReason === "blocking_gaps" ||
-            priorOut.pauseReason === "needs_clarification"
+            priorOut.pauseReason === "needs_clarification" ||
+            priorOut.pauseReason === "prd_open_questions"
               ? priorOut.pauseReason
               : "ambiguities",
         };
@@ -1021,9 +1024,6 @@ export class PipelineOrchestrator {
       discovery = await runDiscovery(ticket, pipelineId, {
         humanAnswers: ticket.humanAnswers,
         resume,
-        skipHumanPause:
-          Boolean(resume) &&
-          answersCoverAllQuestions(resume?.discoveryQuestions, ticket.humanAnswers),
       });
     } catch (err) {
       if (err instanceof DiscoveryPausedError) {
@@ -1041,6 +1041,7 @@ export class PipelineOrchestrator {
                   ticketAnalysis: snap.ticketAnalysis ?? null,
                   historicalIntelligence: snap.historicalIntelligence ?? null,
                   gapAnalysis: snap.gapAnalysis ?? null,
+                  complexityAssessment: snap.complexityAssessment ?? null,
                   retrievalContext: snap.retrievalContext ?? [],
                 }
               : { retrievalContext: [] },

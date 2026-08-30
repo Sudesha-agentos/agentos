@@ -16,10 +16,13 @@ import { resolveImplementationBranchForQa } from "../qa/resolveImplementationBra
 import { buildQaInitialUserMessage, resolveQaBranchName } from "./inputBuilder";
 import { buildQaSystemPrompt } from "./systemPrompt";
 import { enrichQaOutput } from "../qa/enrichQaOutput";
+import { generateQaReport } from "../qa/report/reportGenerator";
+import { buildTestConductReport } from "../qa/report/testConductReport";
+import { testRunner } from "../qa/testing/testRunner";
 
 const INPUT_COST_PER_TOKEN = 0.000003;
 const OUTPUT_COST_PER_TOKEN = 0.000015;
-const MAX_QA_TOOL_CALLS = 20;
+const MAX_QA_TOOL_CALLS = 28;
 
 export interface QaAgentRunInput {
   pipelineId: string;
@@ -117,6 +120,68 @@ export async function runQaAgentic(
     // Re-read after OSS + bridge (do not use a stale pre-OSS snapshot)
     const artifacts = getQaArtifacts(input.pipelineId);
 
+    if (
+      mode === "code" &&
+      (!artifacts.lastTestRun || (artifacts.lastTestRun.totalTests ?? 0) === 0)
+    ) {
+      try {
+        const fullRun = await testRunner.runTestsInSandbox({
+          branchName,
+          runType: "full_suite",
+          timeoutSeconds: 180,
+          stagedTestFiles: artifacts.stagedTestFiles.map((file) => ({
+            filePath: file.filePath,
+            content: file.content,
+          })),
+        });
+        artifacts.lastTestRun = fullRun;
+        logger.info(
+          {
+            pipelineId: input.pipelineId,
+            passed: fullRun.passed,
+            failed: fullRun.failed,
+            total: fullRun.totalTests,
+          },
+          "Neel full test suite completed"
+        );
+      } catch (suiteErr) {
+        logger.warn(
+          { err: suiteErr instanceof Error ? suiteErr.message : String(suiteErr) },
+          "Neel full test suite failed to start"
+        );
+      }
+    }
+
+    if (!artifacts.executionReport && artifacts.lastTestRun) {
+      artifacts.executionReport = generateQaReport({
+        testResults: artifacts.lastTestRun,
+        overallRecommendation:
+          artifacts.lastTestRun.failed > 0 || artifacts.lastTestRun.sandboxAvailable === false
+            ? "request_changes"
+            : "approve_with_conditions",
+        summary: "Full test suite after Neel tool work",
+        acceptanceCriteria: input.prd.acceptanceCriteria ?? [],
+        securityScan: artifacts.securityScan,
+        playwrightSmoke: artifacts.playwrightSmoke,
+        locatorHealProposals: artifacts.locatorHealProposals,
+      });
+    } else if (artifacts.executionReport && artifacts.lastTestRun) {
+      artifacts.executionReport = {
+        ...artifacts.executionReport,
+        testRun: artifacts.lastTestRun,
+        coverage: artifacts.lastTestRun.coverage ?? artifacts.executionReport.coverage,
+        executionStatus:
+          artifacts.lastTestRun.sandboxAvailable === false
+            ? "unavailable"
+            : (artifacts.lastTestRun.totalTests ?? 0) === 0
+              ? "skipped"
+              : artifacts.lastTestRun.status === "error"
+                ? "error"
+                : "ran",
+        executionMessage: artifacts.lastTestRun.message ?? artifacts.executionReport.executionMessage,
+      };
+    }
+
     const mergedExecutionReport: QaExecutionReport | undefined =
       artifacts.executionReport
         ? {
@@ -151,6 +216,27 @@ export async function runQaAgentic(
       executionReport: mergedExecutionReport,
       ticketText: `${input.jiraKey} ${input.prd.title} ${input.prd.problemStatement}`,
     });
+
+    let toolArtifacts: import("../integrations/toolArtifacts").ToolArtifact[] = [];
+    try {
+      const { listToolArtifacts } = await import("../integrations/toolArtifacts");
+      toolArtifacts = listToolArtifacts(input.pipelineId, "qa");
+    } catch {
+      /* optional */
+    }
+    const testConductReport = buildTestConductReport({
+      qa: qaOutput,
+      executionReport: mergedExecutionReport,
+      testRun: artifacts.lastTestRun,
+      toolArtifacts,
+    });
+    qaOutput.testConductReport = testConductReport;
+    qaOutput.testSummary = [
+      testConductReport.headline,
+      qaOutput.testSummary,
+    ]
+      .filter(Boolean)
+      .join(" ");
 
     // Keep artifact report aligned with explainable confidence
     if (artifacts.executionReport) {
@@ -212,6 +298,7 @@ export async function runQaAgentic(
               summary: `${qaOutput.coverageGaps.length} gap(s)`,
             }
           : artifacts.executionReport.gapMap,
+        testConductReport,
       };
     }
 
@@ -222,6 +309,8 @@ export async function runQaAgentic(
         implementationBranch: branchName,
         toolCalls: loop.toolCallCount,
         testCases: qaOutput.testCases?.length ?? 0,
+        testsPassed: testConductReport.totals.passed,
+        testsFailed: testConductReport.totals.failed,
         recommendation: artifacts.executionReport?.overallRecommendation,
         confidence: qaOutput.confidenceScore,
         testsNotExecuted: qaOutput.confidenceBreakdown?.testsNotExecuted,
@@ -249,8 +338,20 @@ export async function runQaAgentic(
               artifacts.securityScan ?? mergedExecutionReport.securityScan,
             playwrightSmoke:
               artifacts.playwrightSmoke ?? mergedExecutionReport.playwrightSmoke,
+            testConductReport,
           }
-        : undefined,
+        : {
+            generatedAt: new Date().toISOString(),
+            summary: testConductReport.headline,
+            overallRecommendation: "request_changes",
+            criteriaCoverage: {
+              total: qaOutput.coverageReport?.totalCriteria ?? 0,
+              covered: qaOutput.coverageReport?.coveredCriteria ?? 0,
+              uncovered: qaOutput.coverageReport?.uncoveredCriteria ?? [],
+            },
+            executionStatus: "unavailable",
+            testConductReport,
+          },
       toolCallLog: loop.toolCallLog,
     };
   } finally {

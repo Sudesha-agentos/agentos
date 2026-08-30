@@ -37,7 +37,16 @@ export function parseTestOutput(output: string): ParsedTestRun {
     return jestJson;
   }
 
+  const pytest = tryParsePytestOutput(output);
+  if (pytest && pytest.total > 0) {
+    return pytest;
+  }
+
   return emptyResults();
+}
+
+export function mergeParsedTestRuns(runs: ParsedTestRun[]): ParsedTestRun {
+  return summarize(runs.flatMap((run) => run.testResults));
 }
 
 function tryParseVitestJson(output: string): ParsedTestRun | null {
@@ -107,6 +116,51 @@ function tryParseJestJson(output: string): ParsedTestRun | null {
   } catch {
     return null;
   }
+}
+
+function tryParsePytestOutput(output: string): ParsedTestRun | null {
+  const testResults: ParsedTestResult[] = [];
+  const seen = new Set<string>();
+  const verbose =
+    /^(.+?::[\w\[\].-]+)\s+(PASSED|FAILED|SKIPPED|ERROR|XFAIL|XPASS)\b/gm;
+  const prefixed =
+    /^(PASSED|FAILED|SKIPPED|ERROR|XFAIL|XPASS)\s+(.+?::[\w\[\].-]+)/gm;
+
+  let match: RegExpExecArray | null;
+  while ((match = verbose.exec(output)) !== null) {
+    addPytestResult(testResults, seen, match[1], match[2]);
+  }
+  while ((match = prefixed.exec(output)) !== null) {
+    addPytestResult(testResults, seen, match[2], match[1]);
+  }
+
+  return testResults.length ? summarize(testResults) : null;
+}
+
+function addPytestResult(
+  testResults: ParsedTestResult[],
+  seen: Set<string>,
+  rawName: string,
+  rawStatus: string
+): void {
+  const name = rawName.trim();
+  if (!name || seen.has(name)) return;
+  seen.add(name);
+  const statusRaw = rawStatus.toLowerCase();
+  const status: ParsedTestResult["status"] =
+    statusRaw === "passed" || statusRaw === "xpass"
+      ? "pass"
+      : statusRaw === "failed"
+        ? "fail"
+        : statusRaw === "skipped" || statusRaw === "xfail"
+          ? "skip"
+          : "error";
+  testResults.push({
+    testId: generateTestId(name),
+    testName: name,
+    status,
+    duration: 0,
+  });
 }
 
 function mapTestResult(

@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   answersCoverAllQuestions,
+  buildGapQuestions,
+  buildPrdOpenQuestions,
   formatHumanAnswersJson,
   humanAnswersPromptBlock,
 } from "./persistedContext";
@@ -45,5 +47,40 @@ describe("human discovery answers", () => {
       false
     );
     assert.equal(answersCoverAllQuestions([], [{ question: "Q", answer: "A" }]), true);
+  });
+
+  it("builds gap and PRD questions that must be answered before engineering", () => {
+    const gapQuestions = buildGapQuestions({
+      knownUnknowns: [
+        {
+          gap: "What happens on divide by zero?",
+          resolutionRequired: true,
+          suggestedResolution: "Throw or return null",
+          defaultAssumption: "Throw",
+        },
+        {
+          gap: "Nice-to-have animation",
+          resolutionRequired: false,
+          suggestedResolution: "Skip",
+          defaultAssumption: "Skip",
+        },
+      ],
+    });
+    assert.equal(gapQuestions.length, 1);
+    assert.equal(gapQuestions[0].question, "What happens on divide by zero?");
+    assert.equal(
+      answersCoverAllQuestions(gapQuestions, [
+        { question: "What happens on divide by zero?", answer: "Throw", status: "answered" },
+      ]),
+      true
+    );
+
+    const prdQuestions = buildPrdOpenQuestions([
+      { question: "Which locale for currency?", defaultAssumption: "en-US" },
+      "  ",
+    ]);
+    assert.equal(prdQuestions.length, 1);
+    assert.equal(prdQuestions[0].question, "Which locale for currency?");
+    assert.equal(answersCoverAllQuestions(prdQuestions, []), false);
   });
 });

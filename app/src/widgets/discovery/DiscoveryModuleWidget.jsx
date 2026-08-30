@@ -86,7 +86,7 @@ export default function DiscoveryModuleWidget({ parsed, stage, rawOutput }) {
           <p className="editorial-kicker text-warning">Discovery paused</p>
           <p className="mt-1 text-[13px] text-ink-dim">
             {parsed.discoveryQuestions?.length
-              ? `${parsed.discoveryQuestions.length} question(s) need answers before the pipeline continues.`
+              ? `${parsed.discoveryQuestions.length} question(s) need answers before Virin writes the PRD and engineering starts.`
               : "Human clarification is required before the pipeline continues."}
           </p>
         </div>

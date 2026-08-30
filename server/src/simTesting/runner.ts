@@ -90,9 +90,18 @@ function publishQuestions(
   questions: string[] | undefined,
   approval?: { title: string; body: string }
 ): void {
+  const existing = new Set(
+    (getSimRun(runId)?.prompts ?? [])
+      .filter((prompt) => prompt.kind === "question")
+      .map((prompt) => (prompt.body || prompt.title).trim().toLowerCase())
+      .filter(Boolean)
+  );
   for (const question of questions ?? []) {
     const text = String(question ?? "").trim();
     if (!text) continue;
+    const key = text.toLowerCase();
+    if (existing.has(key)) continue;
+    existing.add(key);
     addSimPrompt(runId, {
       agent,
       kind: "question",
@@ -144,11 +153,11 @@ async function runVirin(runId: string, requirement: string): Promise<PrdOutput> 
       detail: getApiModelForRole("product"),
     });
 
-    let skipHumanPause = false;
     let resume: import("../discovery/persistedContext").DiscoveryPauseSnapshot | undefined;
     let recordedInput = 0;
     let recordedOutput = 0;
-    for (let attempt = 0; attempt < 3; attempt += 1) {
+    const maxVirinAttempts = 8;
+    for (let attempt = 0; attempt < maxVirinAttempts; attempt += 1) {
       const answers = collectSimAnswers(runId);
       const ticket = requirementToTicket(runId, requirement, answers);
       try {
@@ -161,7 +170,6 @@ async function runVirin(runId: string, requirement: string): Promise<PrdOutput> 
           });
         }
         const discovery = await runDiscovery(ticket, runId, {
-          skipHumanPause,
           resume,
           humanAnswers: answers,
         });
@@ -184,10 +192,9 @@ async function runVirin(runId: string, requirement: string): Promise<PrdOutput> 
             openQuestions: prd.openQuestions,
           },
         });
-        publishQuestions(runId, "virin", prd.openQuestions);
         return prd;
       } catch (err) {
-        if (!(err instanceof DiscoveryPausedError) || attempt >= 2) throw err;
+        if (!(err instanceof DiscoveryPausedError) || attempt >= maxVirinAttempts - 1) throw err;
         const questions = (err.snapshot?.discoveryQuestions ?? []).map((item) => item.question);
         emitSimEvent(runId, {
           agent: "virin",
@@ -212,7 +219,10 @@ async function runVirin(runId: string, requirement: string): Promise<PrdOutput> 
           agent: "virin",
           kind: "log",
           label: "Waiting for answers",
-          detail: "The box closes when every question is answered. Discovery then resumes from this point.",
+          detail:
+            err.snapshot?.pauseReason === "prd_open_questions"
+              ? "Answer every question. Virin will fold them into the PRD before Ananta starts coding."
+              : "The box closes when every question is answered. Discovery then resumes from this point.",
         });
         await waitForSimPromptsClear(runId);
         const answered = collectSimAnswers(runId);
@@ -226,7 +236,6 @@ async function runVirin(runId: string, requirement: string): Promise<PrdOutput> 
           attempt -= 1;
           continue;
         }
-        skipHumanPause = true;
         resume = err.snapshot;
       }
     }
@@ -457,6 +466,7 @@ export async function executeSimRun(runId: string): Promise<void> {
     );
 
     const testCases = qa.agentOutput.parsed.testCases ?? [];
+    const conduct = qa.agentOutput.parsed.testConductReport;
     recordSimUsage(runId, {
       agent: "neel",
       stage: "Neel QA",
@@ -467,17 +477,26 @@ export async function executeSimRun(runId: string): Promise<void> {
     emitSimEvent(runId, {
       agent: "neel",
       kind: "artifact",
-      label: "QA report",
-      detail: `${testCases.length} test cases · ${qa.toolCallLog.length} tools · ${qa.agentOutput.parsed.coverageReport?.coveragePercent ?? "?"}% coverage`,
+      label: "Neel test report",
+      detail:
+        conduct?.headline ??
+        `${testCases.length} test cases · ${qa.toolCallLog.length} tools · ${qa.agentOutput.parsed.coverageReport?.coveragePercent ?? "?"}% coverage`,
       data: {
         testSummary: qa.agentOutput.parsed.testSummary,
         testCaseCount: testCases.length,
         coveragePercent: qa.agentOutput.parsed.coverageReport?.coveragePercent,
+        headline: conduct?.headline,
+        totals: conduct?.totals,
+        executed: conduct?.executed,
+        tools: conduct?.tools,
+        markdown: conduct?.markdown,
       },
     });
     publishQuestions(runId, "neel", qa.agentOutput.parsed.coverageReport?.uncoveredCriteria, {
       title: "QA complete",
-      body: `${testCases.length} test cases · ${qa.agentOutput.parsed.coverageReport?.coveragePercent ?? "?"}% coverage. Review on the right; the sim already continued.`,
+      body:
+        conduct?.headline ??
+        `${testCases.length} test cases · ${qa.agentOutput.parsed.coverageReport?.coveragePercent ?? "?"}% coverage. Review on the right; the sim already continued.`,
     });
     for (const call of qa.toolCallLog) {
       emitSimEvent(runId, {
@@ -509,6 +528,11 @@ export async function executeSimRun(runId: string): Promise<void> {
       qaTestCases: testCases.length,
       qaToolCalls: qa.toolCallLog.length,
       qaSummary: qa.agentOutput.parsed.testSummary,
+      testsPassed: conduct?.totals.passed ?? summary.testsPassed,
+      testsFailed: conduct?.totals.failed ?? summary.testsFailed,
+      testConductHeadline: conduct?.headline,
+      testConductMarkdown: conduct?.markdown,
+      executed: conduct?.executed,
       whatWasDone: summary.whatWasDone,
     });
   } catch (err) {

@@ -427,6 +427,24 @@ export default function SimTestingLab() {
           <p className="mt-2 text-zinc-400">{tools.length} calls</p>
           <p className="mt-4 text-[11px] uppercase tracking-widest text-zinc-500">QA cases</p>
           <p className="mt-2 text-zinc-400">{qaCases ?? "—"}</p>
+          {done?.data?.testsPassed != null || done?.data?.testConductHeadline ? (
+            <>
+              <p className="mt-4 text-[11px] uppercase tracking-widest text-zinc-500">Tests conducted</p>
+              <p className="mt-2 text-zinc-300">
+                {done.data.testConductHeadline ??
+                  `${done.data.testsPassed ?? 0} passed · ${done.data.testsFailed ?? 0} failed`}
+              </p>
+              {Array.isArray(done.data.executed) && done.data.executed.length ? (
+                <ul className="mt-2 space-y-1 text-zinc-400">
+                  {done.data.executed.map((test) => (
+                    <li key={test.name}>
+                      [{String(test.status ?? "").toUpperCase()}] {test.name}
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+            </>
+          ) : null}
           {done?.data?.whatWasDone ? (
             <>
               <p className="mt-4 text-[11px] uppercase tracking-widest text-zinc-500">Summary</p>

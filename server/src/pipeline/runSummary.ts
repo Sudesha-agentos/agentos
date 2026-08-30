@@ -34,8 +34,14 @@ export function buildPipelineRunSummary(input: {
     string,
     unknown
   >;
-  const testsPassed = asNumber(testRun.passed ?? testRun.passedCount);
-  const testsFailed = asNumber(testRun.failed ?? testRun.failedCount);
+  const testsPassed =
+    asNumber(testRun.passed ?? testRun.passedCount) ??
+    input.qa.testConductReport?.totals.passed ??
+    null;
+  const testsFailed =
+    asNumber(testRun.failed ?? testRun.failedCount) ??
+    input.qa.testConductReport?.totals.failed ??
+    null;
   const coveragePercent = asNumber(coverage.coveragePercent ?? coverage.percent);
   const recommendation = asString(
     report.recommendation ?? (input.qa as { recommendation?: unknown }).recommendation
@@ -52,7 +58,11 @@ export function buildPipelineRunSummary(input: {
     input.implementation.codingSummary || input.implementation.summary
       ? `Code: ${input.implementation.codingSummary || input.implementation.summary}`
       : null,
-    `Neel ran QA: ${input.qa.testSummary || "test plan complete"}.`,
+    input.qa.testConductReport?.headline
+      ? input.qa.testConductReport.headline
+      : testsPassed != null || testsFailed != null
+        ? `Neel ran QA: ${testsPassed ?? 0} passed, ${testsFailed ?? 0} failed.`
+        : `Neel ran QA: ${input.qa.testSummary || "test plan complete"}.`,
     recommendation
       ? `QA recommendation: ${recommendation.replace(/_/g, " ")}.`
       : null,

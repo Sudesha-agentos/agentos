@@ -24,7 +24,21 @@ export function formatQaReportForJira(
     }
   }
 
-  if (executionReport?.testRun) {
+  const conduct = qaOutput.testConductReport ?? executionReport?.testConductReport;
+  if (conduct) {
+    lines.push("", "h3. Tests conducted", conduct.headline);
+    for (const test of conduct.executed) {
+      const mark =
+        test.status === "pass" ? "PASS" : test.status === "fail" ? "FAIL" : test.status.toUpperCase();
+      lines.push(`- [${mark}] ${test.name}${test.error ? ` — ${test.error}` : ""}`);
+    }
+    if (conduct.tools.length) {
+      lines.push("", "h3. Open-source tools");
+      for (const tool of conduct.tools) {
+        lines.push(`- *${tool.tool}* (${tool.status}): ${tool.summary}`);
+      }
+    }
+  } else if (executionReport?.testRun) {
     const run = executionReport.testRun;
     lines.push(
       "",

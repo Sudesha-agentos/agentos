@@ -3,6 +3,7 @@ import { prisma } from "../../db/client";
 import { canaryRunRepo } from "../../db/repositories/canaryRunRepo";
 import { getQaInbox } from "../../qa/qaInbox";
 import type { QaOutput } from "../../types/agents";
+import { matchPlannedStatus } from "../../qa/report/testConductReport";
 import {
   requireOrganizationUser,
   withOrganizationContext,
@@ -180,11 +181,31 @@ router.get("/pipeline-reports/:pipelineId", async (req, res, next) => {
       explainableConfidence?: unknown;
     } | undefined;
 
-    // Merge per-test-case pass/fail status from execution report
+    // Merge per-test-case pass/fail from the executed ledger (names, not TC ids)
     const testResults = execReport?.testRun?.testResults ?? [];
+    const executedForJoin = (
+      qa?.testConductReport?.executed ??
+      (execReport as { testConductReport?: { executed?: Array<{ name?: string; status: string }> } } | undefined)
+        ?.testConductReport?.executed ??
+      testResults.map((r) => ({
+        name: (r as { testName?: string; name?: string }).testName ?? (r as { name?: string }).name,
+        status: r.status,
+      }))
+    );
     const testCases = (qa?.testCases ?? []).map((tc) => {
-      const result = testResults.find((r) => r.id === tc.id);
-      return { ...tc, status: result?.status ?? (testResults.length > 0 ? "skipped" : "pending") };
+      const fromLedger = matchPlannedStatus(tc, executedForJoin);
+      const fromId = testResults.find(
+        (r) =>
+          (r as { id?: string }).id === tc.id ||
+          (r as { testId?: string }).testId === tc.id
+      );
+      return {
+        ...tc,
+        status:
+          fromLedger ??
+          fromId?.status ??
+          (executedForJoin.length > 0 ? "skipped" : "pending"),
+      };
     });
 
     // Prefer executionReport (durationMs/output from OSS bridge); fall back to qa JSON
@@ -234,6 +255,16 @@ router.get("/pipeline-reports/:pipelineId", async (req, res, next) => {
       testSummary: qa?.testSummary,
       recommendation: execReport?.overallRecommendation ?? null,
       testRun: execReport?.testRun ?? null,
+      testConductReport:
+        qa?.testConductReport ??
+        (execReport as { testConductReport?: unknown } | undefined)?.testConductReport ??
+        null,
+      executedTests:
+        qa?.testConductReport?.executed ??
+        (execReport as { testConductReport?: { executed?: unknown[] } } | undefined)
+          ?.testConductReport?.executed ??
+        execReport?.testRun?.testResults ??
+        [],
       failureAnalysis: execReport?.failureAnalysis ?? [],
       securityScan,
       executionStatus: execReport?.executionStatus ?? null,
