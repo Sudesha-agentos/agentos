@@ -32,6 +32,7 @@ export interface QaAgentRunInput {
   implementationBranch?: string;
   /** Status 200 handshake from Ananta after the GitHub branch is pushed. */
   qaHandoff?: QaHandoff;
+  humanAnswers?: import("../discovery/persistedContext").HumanDiscoveryAnswer[];
 }
 
 export interface QaAgentRunResult {

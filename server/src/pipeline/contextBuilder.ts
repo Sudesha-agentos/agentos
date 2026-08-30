@@ -1,5 +1,9 @@
 import type { ImplementationOutput, PrdOutput } from "../types/agents";
 import { contextCompressor } from "../rag/contextCompressor";
+import {
+  formatHumanAnswersJson,
+  type HumanDiscoveryAnswer,
+} from "../discovery/persistedContext";
 import type { NormalizedTicket } from "../types/ticket";
 import type { RetrievedContext } from "../types/pipeline";
 
@@ -54,9 +58,11 @@ ${codebaseContext}`.trim();
 export function buildQaAgentContext(
   prd: PrdOutput,
   implementation: ImplementationOutput,
-  retrievedContext: RetrievedContext[]
+  retrievedContext: RetrievedContext[],
+  humanAnswers?: HumanDiscoveryAnswer[]
 ): string {
   const mode = implementation.implementationMode ?? "code";
+  const answersJson = formatHumanAnswersJson(humanAnswers);
   const compressed = contextCompressor.compress({
     currentLabel: "Current QA Input",
     currentBody: `PRD Title: ${prd.title}
@@ -69,10 +75,14 @@ Technical Approach: ${implementation.technicalApproach}
 Criteria Mapping: ${(implementation.criteriaMapping ?? [])
   .map((m) => `${m.criterion} → ${m.implementation}`)
   .join(" | ") || "none"}
+Files Ananta changed: ${(implementation.codeChanges ?? [])
+  .map((change) => change.filePath)
+  .join(" | ") || "read from the branch checkout"}
 Target files: ${(implementation.targetFiles ?? []).join(" | ") || "none"}
 Risks: ${implementation.risks
   .map((risk) => `${risk.description} [${risk.severity}]`)
-  .join(" | ")}`.trim(),
+  .join(" | ")}
+Human answers JSON: ${answersJson || "(none)"}`.trim(),
     retrievedContext,
   });
 

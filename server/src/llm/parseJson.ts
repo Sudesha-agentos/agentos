@@ -81,3 +81,23 @@ export function tryParseJsonObject(raw: string): unknown | undefined {
     return undefined;
   }
 }
+
+/** Find a JSON object that contains `"key"` even when the model dumped prose or code around it. */
+export function extractJsonObjectByKey(raw: string, key: string): unknown | undefined {
+  const text = String(raw ?? "");
+  const needle = `"${key}"`;
+  let from = 0;
+  while (from < text.length) {
+    const idx = text.indexOf(needle, from);
+    if (idx < 0) return undefined;
+    const start = text.lastIndexOf("{", idx);
+    if (start >= 0) {
+      const parsed = tryParseJsonObject(text.slice(start));
+      if (parsed && typeof parsed === "object" && parsed !== null && key in parsed) {
+        return parsed;
+      }
+    }
+    from = idx + needle.length;
+  }
+  return undefined;
+}

@@ -58,7 +58,7 @@ export function assertQaHandoffReady(handoff: QaHandoff | null | undefined): QaH
 
 export function formatQaHandoffForPrompt(handoff: QaHandoff): string {
   return [
-    "## Ananta coding handoff (status 200 — start generating test cases)",
+    "## Ananta finished — test this checkout",
     `status: ${handoff.status}`,
     `readyForQa: ${handoff.readyForQa}`,
     `branch: ${handoff.implementationBranch}`,
@@ -67,6 +67,7 @@ export function formatQaHandoffForPrompt(handoff: QaHandoff): string {
     handoff.compileFailed
       ? "compileFailed: true — write tests against the pushed branch; note build risk in the report."
       : "compileFailed: false",
-    `codingSummary: ${handoff.codingSummary}`,
+    `whatAnantaDid: ${handoff.codingSummary}`,
+    "Clone this branch. Generate test cases from the PRD, acceptance criteria, and human answers — not from a coding-agent JSON blob.",
   ].join("\n");
 }

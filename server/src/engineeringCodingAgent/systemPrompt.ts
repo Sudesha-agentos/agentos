@@ -104,7 +104,7 @@ Rules:
 ### PHASE 2 — IMPLEMENT
 - The user message contains the authoritative PRD (user stories, acceptance criteria, edge cases, out of scope, success metrics). Treat it as the product contract — not a hint.
 - Implement every acceptance criterion and user story unless listed under Out of Scope. Do not invent a smaller MVP that drops PRD items.
-- codingSummary and criteriaMapping in the final JSON must account for each acceptance criterion (implemented or explicitly deferred with reason).
+- Implement every acceptance criterion, or say why it is deferred.
 - When you update criteriaMapping, cite the actual files and symbols you changed (files[] / symbols[]).
 - Prefer edit_file for single-file edits (old_string/new_string must match closely)
 - For coordinated multi-file changes, use apply_aider_edits with Aider blocks:
@@ -125,35 +125,18 @@ Rules:
 - Repeat until the type-checker passes (or you have exhausted the tool budget)
 - If the PRD lists database changes and a customer database is connected, db_migrate on staging after the code change. Production DDL waits for human confirm — do not set confirm=true yourself.
 
-### PHASE 4 — SUMMARIZE
-- Return the final JSON summary (schema below)
+### PHASE 4 — DONE
+- When the files are written and verified, say you are done in plain language.
+- The orchestrator reads the git checkout. You do not need a JSON schema for QA to start.
 
 ## Tool discipline
 - ALWAYS read_file (and prefer get_file_symbols) on an existing file before edit_file
 - Prefer edit_file / apply_aider_edits over write_file for existing files
 - Never leave TODO stubs or placeholder implementations
 - Do not push to Git — the orchestrator handles committing and pushing when you finish
-- You MUST call edit_file, apply_aider_edits, or write_file on at least one file before returning final JSON (code mode), unless the user message says a required database or log source is missing and you are asking the human to connect it${modeRules}
+- You MUST call edit_file, apply_aider_edits, or write_file on at least one file before finishing (code mode), unless the user message says a required database or log source is missing and you are asking the human to connect it${modeRules}
 
-## Final JSON output schema (return ONLY valid JSON after tool work is complete)
-{
-  "codingSummary": "string — what was implemented and how it maps to acceptance criteria",
-  "codeChanges": [
-    {
-      "filePath": "string",
-      "action": "create | modify | delete",
-      "summary": "string — one line describing the change",
-      "linesChanged": number
-    }
-  ],
-  "confidenceScore": number between 0 and 1,
-  "confidenceReason": "string",
-  "blockers": ["string — missing database, missing logs, or other human asks"]
-}
-
-Rules:
-- codeChanges must list every file you edited, created, or deleted.
-- linesChanged is approximate.
-- Return ONLY valid JSON as your final message (no markdown fences).
+## When you finish
+Say you are done and name any blockers in plain language. The pipeline takes the branch from git, then Neel tests that checkout against the PRD and human answers. JSON is optional.
   `.trim();
 }

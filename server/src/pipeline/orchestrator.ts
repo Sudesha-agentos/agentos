@@ -337,7 +337,8 @@ export class PipelineOrchestrator {
         productStage.agentOutput.parsed,
         implementationOutput.parsed,
         implementationBranch,
-        qaHandoff
+        qaHandoff,
+        normalizedTicket.humanAnswers
       );
       const qaOutput = qaStage.agentOutput;
 
@@ -665,7 +666,8 @@ export class PipelineOrchestrator {
           productStage.agentOutput.parsed,
           implementationOutput.parsed,
           implementationBranch,
-          qaHandoff
+          qaHandoff,
+          normalizedTicket.humanAnswers
         );
       } else {
         const qaLog = await pipelineRepo.getStageOutput(pipelineId, "QA_AGENT");
@@ -1941,7 +1943,8 @@ export class PipelineOrchestrator {
     prd: PrdOutput,
     implementation: ImplementationOutput,
     implementationBranch?: string,
-    qaHandoff?: QaHandoff | null
+    qaHandoff?: QaHandoff | null,
+    humanAnswers?: import("../discovery/persistedContext").HumanDiscoveryAnswer[]
   ) {
     const handoff = await this.resolveQaHandoff(
       pipelineId,
@@ -1986,6 +1989,7 @@ export class PipelineOrchestrator {
       implementationMode: implementation.implementationMode,
       implementationBranch: branchName,
       qaHandoff: handoff,
+      humanAnswers,
     });
     const output = result.agentOutput;
     await pipelineRepo.completeStage({
