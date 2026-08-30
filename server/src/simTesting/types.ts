@@ -1,6 +1,24 @@
 export type SimAgent = "system" | "virin" | "ananta" | "neel";
 
-export type SimEventKind = "stage" | "log" | "tool" | "artifact" | "error" | "done";
+export type SimEventKind = "stage" | "log" | "tool" | "artifact" | "usage" | "error" | "done";
+
+export type SimUsageLine = {
+  agent: SimAgent;
+  stage: string;
+  model: string;
+  inputTokens: number;
+  outputTokens: number;
+  costUsd: number;
+  inputUsdPerMillion: number;
+  outputUsdPerMillion: number;
+};
+
+export type SimUsageTotals = {
+  inputTokens: number;
+  outputTokens: number;
+  costUsd: number;
+  lines: SimUsageLine[];
+};
 
 export type SimRunStatus = "queued" | "running" | "failed" | "completed";
 
@@ -28,6 +46,7 @@ export type SimRunResult = {
   qaToolCalls?: number;
   qaSummary?: string;
   whatWasDone?: string[];
+  usage?: SimUsageTotals;
 };
 
 export type SimRun = {
@@ -38,6 +57,7 @@ export type SimRun = {
   startedAt: number;
   finishedAt?: number;
   events: SimEvent[];
+  usage: SimUsageTotals;
   result?: SimRunResult;
   error?: string;
 };
