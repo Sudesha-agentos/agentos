@@ -34,12 +34,13 @@ export function formatApiError(bodyText: string, status: number): string {
 }
 
 export async function fetchJson(path: string, init: RequestInit = {}) {
+  const headers = new Headers(init.headers);
+  if (init.body != null && !headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
   const res = await fetch(path, {
-    headers: {
-      "Content-Type": "application/json",
-      ...(init.headers ?? {}),
-    },
     ...init,
+    headers,
   });
 
   if (!res.ok) {
