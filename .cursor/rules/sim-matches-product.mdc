@@ -1,0 +1,14 @@
+---
+description: Sim testing must run the same pipeline as production
+alwaysApply: true
+---
+
+# Sim testing = real product
+
+`sim-testing-for-testing` is a debug window on the **same** Virin → Ananta → Neel pipeline the product uses. It is not a separate implementation.
+
+- Call the same server functions as production (`runDiscovery`, `EngineeringAgent`, `createEngWorkspace`, `runEngineeringCodingAgentic`, `runQaAgentic`, gates/handoffs). Do not add a sim-only LLM shortcut or a different clone/write/push path.
+- Extra logs, token/cost display, and the top-right question/approval panel are allowed. Different agent behavior is not.
+- If the user asks for a change in sim testing, make the same change in the real product path. Do not leave the fix only in `server/src/simTesting/`.
+- Keep cloning a fresh workspace per run (same as `createEngWorkspace` in the orchestrator). Do not add a sim-only persistent checkout unless production gets the same reuse.
+- Do not surface the sim lab in product chrome (sidebar/top bar). It stays a noindex debug route.

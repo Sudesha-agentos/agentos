@@ -1,3 +1,7 @@
+/**
+ * Debug window on the production pipeline. Stages here must call the same
+ * functions as PipelineOrchestrator — extra logs only, no sim-only agent path.
+ */
 import { EngineeringAgent } from "../agents/engineeringAgent";
 import { buildEngineeringAgentSystemPrompt } from "../agents/engineeringAgentPrompt";
 import { normalizeImplementationOutput } from "../agents/normalizeImplementationOutput";
@@ -6,15 +10,17 @@ import {
   createEngWorkspace,
   destroyEngWorkspace,
   resolveEngineeringBranchName,
+  shouldSkipEngineeringDependencyInstall,
   workspaceCommitAndPush,
 } from "../engineering/engineeringWorkspace";
 import { buildReadyQaHandoff } from "../engineering/qaHandoff";
 import { runEngineeringCodingAgentic } from "../engineeringCodingAgent";
 import { getPublicGitCredentials } from "../git-integration/gitCredentialsStore";
 import { resolveRepoIndexBranch } from "../git-integration/resolveRepoBranch";
-import { getApiModelForRole, getModelIdForRole } from "../billing/consumeAgentCredits";
-import { chatCompletionText, parseDiscoveryJson } from "../llm/openaiCompletion";
+import { getApiModelForRole } from "../billing/consumeAgentCredits";
+import { DiscoveryPausedError, runDiscovery } from "../discovery/discoveryOrchestrator";
 import { resolveRepoScope } from "../codebaseIntelligence/repoScope";
+import type { NormalizedTicket } from "../types/ticket";
 import { buildEngineeringAgentContext } from "../pipeline/contextBuilder";
 import { buildPipelineRunSummary } from "../pipeline/runSummary";
 import { runQaAgentic } from "../qaAgent";
@@ -29,6 +35,7 @@ import {
   getSimRun,
   markSimRunning,
   recordSimUsage,
+  waitForSimPromptsClear,
 } from "./hub";
 
 async function timed<T>(
@@ -101,61 +108,85 @@ function publishQuestions(
   }
 }
 
-async function runVirin(runId: string, requirement: string): Promise<PrdOutput> {
-  return timed(runId, "virin", "Virin PRD", async () => {
-    const { text, usage, model } = await chatCompletionText({
-      role: "product",
-      providerId: getModelIdForRole("product"),
-      jsonMode: true,
-      maxTokens: 3000,
-      system: `You are Virin. Return ONLY JSON:
-{
-  "title": string,
-  "problemStatement": string,
-  "proposedSolution": string,
-  "userStories": string[],
-  "acceptanceCriteria": string[],
-  "outOfScope": string[],
-  "edgeCases": string[],
-  "dependencies": string[],
-  "successMetrics": string[],
-  "openQuestions": string[],
-  "confidenceScore": number,
-  "confidenceReason": string
+function requirementToTicket(runId: string, requirement: string, answers?: string): NormalizedTicket {
+  const jiraKey = `SIM-${runId.slice(4, 12)}`.toUpperCase();
+  const description = answers?.trim()
+    ? `${requirement.trim()}\n\nHuman answers from sim panel:\n${answers.trim()}`
+    : requirement.trim();
+  return {
+    jiraTicketId: runId,
+    jiraKey,
+    summary: requirement.trim().slice(0, 120) || jiraKey,
+    description,
+    issueType: "Story",
+    priority: "Medium",
+    reporter: "sim",
+    assignee: null,
+    labels: ["sim-testing"],
+    epicLink: null,
+    storyPoints: null,
+    components: [],
+    createdAt: new Date(),
+    projectKey: "SIM",
+  };
 }
-Write a real PRD. Include at least 6 testable acceptance criteria.`,
-      user: requirement,
-    });
+
+async function runVirin(runId: string, requirement: string): Promise<PrdOutput> {
+  return timed(runId, "virin", "Virin discovery", async () => {
     emitSimEvent(runId, {
       agent: "virin",
       kind: "log",
-      label: "Calling product model",
-      detail: model || getApiModelForRole("product"),
+      label: "Running product discovery",
+      detail: getApiModelForRole("product"),
     });
-    const prd = parseDiscoveryJson<PrdOutput>(text, "simVirin");
-    recordSimUsage(runId, {
-      agent: "virin",
-      stage: "Virin PRD",
-      model: model || getApiModelForRole("product"),
-      inputTokens: usage.inputTokens,
-      outputTokens: usage.outputTokens,
-    });
-    emitSimEvent(runId, {
-      agent: "virin",
-      kind: "artifact",
-      label: `PRD · ${prd.title}`,
-      detail: `${prd.acceptanceCriteria?.length ?? 0} criteria · ${prd.openQuestions?.length ?? 0} questions`,
-      data: {
-        title: prd.title,
-        acceptanceCriteria: prd.acceptanceCriteria,
-        openQuestions: prd.openQuestions,
-      },
-    });
-    publishQuestions(runId, "virin", prd.openQuestions, {
-      title: "Continue to Ananta",
-      body: `${prd.title} is ready (${prd.acceptanceCriteria?.length ?? 0} criteria). The pipeline keeps going — approve or add answers on the right.`,
-    });
-    return prd;
+
+    let skipHumanPause = false;
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      const ticket = requirementToTicket(runId, requirement, formatAnsweredPrompts(runId));
+      try {
+        const discovery = await runDiscovery(ticket, runId, { skipHumanPause });
+        recordSimUsage(runId, {
+          agent: "virin",
+          stage: "Virin discovery",
+          model: getApiModelForRole("product"),
+          inputTokens: discovery.totalTokensUsed,
+          outputTokens: 0,
+        });
+        const prd = discovery.prdOutput;
+        emitSimEvent(runId, {
+          agent: "virin",
+          kind: "artifact",
+          label: `PRD · ${prd.title}`,
+          detail: `${prd.acceptanceCriteria?.length ?? 0} criteria · ${prd.openQuestions?.length ?? 0} questions`,
+          data: {
+            title: prd.title,
+            acceptanceCriteria: prd.acceptanceCriteria,
+            openQuestions: prd.openQuestions,
+          },
+        });
+        publishQuestions(runId, "virin", prd.openQuestions, {
+          title: "Continue to Ananta",
+          body: `${prd.title} is ready (${prd.acceptanceCriteria?.length ?? 0} criteria). Same handoff as production.`,
+        });
+        return prd;
+      } catch (err) {
+        if (!(err instanceof DiscoveryPausedError) || attempt === 1) throw err;
+        const questions = (err.snapshot?.discoveryQuestions ?? []).map((item) => item.question);
+        emitSimEvent(runId, {
+          agent: "virin",
+          kind: "log",
+          label: "Paused for the same human gate as production",
+          detail: err.message,
+        });
+        publishQuestions(runId, "virin", questions.length ? questions : [err.message], {
+          title: "Answer to resume Virin",
+          body: "Production would wait here. Answer or approve on the right, then discovery continues.",
+        });
+        await waitForSimPromptsClear(runId);
+        skipHumanPause = true;
+      }
+    }
+    throw new Error("Virin discovery did not produce a PRD");
   });
 }
 
@@ -273,24 +304,7 @@ export async function executeSimRun(runId: string): Promise<void> {
   });
 
   try {
-    emitSimEvent(runId, {
-      agent: "system",
-      kind: "log",
-      label: "Virin PRD and GitHub clone running together",
-    });
-    const [prd, workspace] = await Promise.all([
-      runVirin(runId, run.requirement),
-      timed(runId, "system", "Clone GitHub repo", async () =>
-        createEngWorkspace(runId, jiraKey, sourceBranch, { skipDependencyInstall: true })
-      ),
-    ]);
-    workspaceDir = workspace.workspaceDir;
-    emitSimEvent(runId, {
-      agent: "system",
-      kind: "log",
-      label: "Checkout ready",
-      detail: `${workspace.workspaceDir} · ${workspace.branchName}`,
-    });
+    const prd = await runVirin(runId, run.requirement);
 
     const humanAnswers = formatAnsweredPrompts(runId);
     if (humanAnswers) {
@@ -303,6 +317,20 @@ export async function executeSimRun(runId: string): Promise<void> {
     }
 
     const plan = await runAnantaPlan(runId, prd);
+
+    const skipDependencyInstall = shouldSkipEngineeringDependencyInstall({
+      implementationMode: "code",
+    });
+    const workspace = await timed(runId, "system", "Clone GitHub repo", async () =>
+      createEngWorkspace(runId, jiraKey, sourceBranch, { skipDependencyInstall })
+    );
+    workspaceDir = workspace.workspaceDir;
+    emitSimEvent(runId, {
+      agent: "system",
+      kind: "log",
+      label: "Checkout ready",
+      detail: `${workspace.workspaceDir} · ${workspace.branchName}`,
+    });
 
     const codingAnswers = formatAnsweredPrompts(runId);
     const coding = await timed(runId, "ananta", "Ananta coding", async () =>

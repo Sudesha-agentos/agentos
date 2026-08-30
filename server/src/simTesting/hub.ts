@@ -18,6 +18,36 @@ const MAX_EVENTS = 2_000;
 const runs = new Map<string, SimRun>();
 const hub = new EventEmitter();
 hub.setMaxListeners(80);
+const promptWaiters = new Map<string, Set<() => void>>();
+
+function notifyPromptWaiters(runId: string): void {
+  const run = runs.get(runId);
+  if (!run) return;
+  if (run.prompts.some((prompt) => prompt.status === "open")) return;
+  const waiters = promptWaiters.get(runId);
+  if (!waiters?.size) return;
+  for (const wake of waiters) wake();
+  promptWaiters.delete(runId);
+}
+
+export function waitForSimPromptsClear(runId: string): Promise<void> {
+  const run = runs.get(runId);
+  if (!run || run.prompts.every((prompt) => prompt.status !== "open")) {
+    return Promise.resolve();
+  }
+  return new Promise((resolve) => {
+    let set = promptWaiters.get(runId);
+    if (!set) {
+      set = new Set();
+      promptWaiters.set(runId, set);
+    }
+    const wake = () => {
+      set?.delete(wake);
+      resolve();
+    };
+    set.add(wake);
+  });
+}
 
 export function createSimRun(organizationId: string, requirement: string): SimRun {
   const run: SimRun = {
@@ -172,6 +202,7 @@ export function resolveSimPrompt(
     detail: prompt.answer || prompt.body,
     data: prompt as unknown as Record<string, unknown>,
   });
+  notifyPromptWaiters(runId);
   return prompt;
 }
 

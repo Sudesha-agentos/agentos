@@ -5,6 +5,7 @@ import { withRetry } from "../utils/retry";
 import { getOpenAIChatModel } from "./openaiClient";
 import { createProviderChatCompletion } from "./providerChat";
 import { DEFAULT_AGENT_MODEL_ID, type AgentModelId, type AgentRole } from "./agentModels";
+import { recoverJsonText } from "./parseJson";
 
 // GPT-5.1 pricing placeholder — update when billing constants are finalized.
 const INPUT_COST_PER_TOKEN = 0.00000125;
@@ -16,23 +17,8 @@ export interface LlmUsage {
   costUsd: number;
 }
 
-function extractJsonPayload(raw: string): string {
-  const cleaned = raw.replace(/```json\s*/gi, "").replace(/```/g, "").trim();
-  try {
-    JSON.parse(cleaned);
-    return cleaned;
-  } catch {
-    const start = cleaned.indexOf("{");
-    const end = cleaned.lastIndexOf("}");
-    if (start >= 0 && end > start) {
-      return cleaned.slice(start, end + 1);
-    }
-    return cleaned;
-  }
-}
-
 export function parseDiscoveryJson<T>(raw: string, source: string): T {
-  const payload = extractJsonPayload(raw);
+  const payload = recoverJsonText(raw);
   try {
     return JSON.parse(payload) as T;
   } catch {
@@ -49,7 +35,7 @@ export async function chatCompletionText(params: {
   model?: string;
   providerId?: AgentModelId;
   role?: AgentRole;
-}): Promise<{ text: string; usage: LlmUsage; model: string }> {
+}): Promise<{ text: string; usage: LlmUsage; model: string; finishReason?: string }> {
   const providerId = params.providerId ?? DEFAULT_AGENT_MODEL_ID;
   const response = await withRetry(
     () =>
@@ -78,6 +64,7 @@ export async function chatCompletionText(params: {
   return {
     text,
     model,
+    finishReason: response.choices[0]?.finish_reason ?? undefined,
     usage: {
       inputTokens,
       outputTokens,
