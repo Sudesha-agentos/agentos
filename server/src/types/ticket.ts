@@ -19,6 +19,8 @@ export interface NormalizedTicket {
   pmContext?: PmPipelineContext;
   intakeSourceKey?: string;
   parentStoryKey?: string;
+  /** Structured answers to Virin discovery questions — sent to later LLM stages as JSON. */
+  humanAnswers?: import("../discovery/persistedContext").HumanDiscoveryAnswer[];
   /** Frozen original ask — gates compare against this, not the drifted PRD. */
   originalTicket?: {
     summary: string;

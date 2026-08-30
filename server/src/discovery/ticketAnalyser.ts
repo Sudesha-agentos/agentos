@@ -59,8 +59,8 @@ Type: ${ticket.issueType}
 Priority: ${ticket.priority}
 Summary: ${ticket.summary}
 Description: ${ticket.description}
-Components: ${ticket.components.join(", ") || "Not specified"}
-Labels: ${ticket.labels.join(", ") || "None"}
+Components: ${(ticket.components ?? []).join(", ") || "Not specified"}
+Labels: ${(ticket.labels ?? []).join(", ") || "None"}
 Story Points: ${ticket.storyPoints ?? "Not estimated"}
 Reporter: ${ticket.reporter}
 
@@ -113,18 +113,28 @@ Rules:
     source: "ticketAnalyser",
     systemPrompt,
     userPrompt,
-    maxTokens: 3000,
+    maxTokens: 6000,
   });
+  const analysis: TicketAnalysis = {
+    coreIntent: parsed.coreIntent ?? "",
+    atomicRequirements: parsed.atomicRequirements ?? [],
+    ambiguities: parsed.ambiguities ?? [],
+    userPersonas: parsed.userPersonas ?? [],
+    systemsAffected: parsed.systemsAffected ?? [],
+    roughComplexity: parsed.roughComplexity ?? "small",
+    workType: parsed.workType ?? "enhancement",
+    understandingConfidence: parsed.understandingConfidence ?? 0,
+  };
 
   logger.info(
     {
       jiraKey: ticket.jiraKey,
-      requirementsFound: parsed.atomicRequirements.length,
-      ambiguitiesFound: parsed.ambiguities.length,
-      confidence: parsed.understandingConfidence,
+      requirementsFound: analysis.atomicRequirements.length,
+      ambiguitiesFound: analysis.ambiguities.length,
+      confidence: analysis.understandingConfidence,
     },
     "ticket analysis complete"
   );
 
-  return { analysis: parsed, usage };
+  return { analysis, usage };
 }

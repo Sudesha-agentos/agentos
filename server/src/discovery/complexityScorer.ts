@@ -1,4 +1,5 @@
 import { completionJson } from "../llm/discoveryCompletion";
+import { humanAnswersPromptBlock, type HumanDiscoveryAnswer } from "./persistedContext";
 import type { GapAnalysis } from "./gapAnalyser";
 import type { HistoricalIntelligence } from "./historicalIntelligence";
 import type { TicketAnalysis } from "./ticketAnalyser";
@@ -48,7 +49,8 @@ export async function scoreComplexity(
   ticketAnalysis: TicketAnalysis,
   historicalIntelligence: HistoricalIntelligence,
   gapAnalysis: GapAnalysis,
-  pipelineId: string
+  pipelineId: string,
+  humanAnswers?: HumanDiscoveryAnswer[]
 ): Promise<{
   assessment: ComplexityAssessment;
   usage: import("../llm/discoveryCompletion").LlmUsage;
@@ -66,9 +68,10 @@ ${PROMPT_AGENT_PIPELINE_EFFORT_GUIDANCE}
   const userPrompt = `
 TICKET: ${ticketAnalysis.coreIntent} | ${ticketAnalysis.workType} | ${ticketAnalysis.roughComplexity}
 GAPS: ${gapAnalysis.totalGaps} total, ${gapAnalysis.blockingGaps} blocking, readiness ${gapAnalysis.readinessForPRD}
-ENDPOINTS: ${gapAnalysis.endpointGaps.map((e) => `- ${e.description} [${e.estimatedComplexity}]`).join("\n") || "None"}
-DATA: ${gapAnalysis.dataGaps.map((d) => `- ${d.description}`).join("\n") || "None"}
-HISTORY: ${historicalIntelligence.historicalCoverage}, failures ${historicalIntelligence.knownFailures.length}
+ENDPOINTS: ${(gapAnalysis.endpointGaps ?? []).map((e) => `- ${e.description} [${e.estimatedComplexity}]`).join("\n") || "None"}
+DATA: ${(gapAnalysis.dataGaps ?? []).map((d) => `- ${d.description}`).join("\n") || "None"}
+HISTORY: ${historicalIntelligence.historicalCoverage}, failures ${(historicalIntelligence.knownFailures ?? []).length}
+${humanAnswersPromptBlock(humanAnswers)}
 
 Return JSON with overallScore (1-10), dimensions, effortEstimate (unit: "hours", realistic >= optimistic * 1.2),
 complexityDrivers, estimateRisks (impactHours = extra agent pipeline hours if risk materializes),

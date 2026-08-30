@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   addSimPrompt,
+  collectSimAnswers,
   createSimRun,
   emitSimEvent,
   completeSimRun,
@@ -46,6 +47,45 @@ describe("simTesting hub", () => {
     resolveSimPrompt(run.id, prompt.id, { action: "answer", answer: "Throw an error" });
     assert.equal(run.prompts[0].status, "answered");
     assert.equal(run.prompts[0].answer, "Throw an error");
+    const answers = collectSimAnswers(run.id);
+    assert.equal(answers[0].question, "Should divide throw or return null?");
+    assert.equal(answers[0].answer, "Throw an error");
+  });
+
+  it("does not resume until every question has an answer", async () => {
+    const run = createSimRun("org-1", "Add a calculator");
+    const first = addSimPrompt(run.id, {
+      agent: "virin",
+      kind: "question",
+      title: "Q1",
+      body: "Should divide throw?",
+    });
+    const second = addSimPrompt(run.id, {
+      agent: "virin",
+      kind: "question",
+      title: "Q2",
+      body: "What precision?",
+    });
+    assert.ok(first && second);
+    let released = false;
+    const pending = waitForSimPromptsClear(run.id).then(() => {
+      released = true;
+    });
+    resolveSimPrompt(run.id, first.id, { action: "answer", answer: "Throw" });
+    await Promise.resolve();
+    assert.equal(released, false);
+    assert.equal(collectSimAnswers(run.id).length, 1);
+    resolveSimPrompt(run.id, second.id, { action: "dismiss" });
+    await Promise.resolve();
+    assert.equal(released, false);
+    assert.equal(second.status, "open");
+    resolveSimPrompt(run.id, second.id, { action: "answer", answer: "   " });
+    await Promise.resolve();
+    assert.equal(released, false);
+    resolveSimPrompt(run.id, second.id, { action: "answer", answer: "Two decimals" });
+    await pending;
+    assert.equal(released, true);
+    assert.equal(collectSimAnswers(run.id).length, 2);
   });
 
   it("resolves waitForSimPromptsClear after the last open prompt", async () => {

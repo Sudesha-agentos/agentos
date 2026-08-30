@@ -72,6 +72,8 @@ import {
   DiscoveryPausedError,
   runDiscovery,
 } from "../discovery/discoveryOrchestrator";
+import type { DiscoveryPauseSnapshot } from "../discovery/persistedContext";
+import { answersCoverAllQuestions } from "../discovery/persistedContext";
 import { auditRepo } from "../db/repositories/auditRepo";
 import { pipelineRepo } from "../db/repositories/pipelineRepo";
 import { ticketRepo } from "../db/repositories/ticketRepo";
@@ -991,7 +993,36 @@ export class PipelineOrchestrator {
 
     let discovery;
     try {
-      discovery = await runDiscovery(ticket, pipelineId);
+      const prior = await pipelineRepo.getStageOutput(pipelineId, "PRODUCT_AGENT");
+      const priorOut = prior?.output as Record<string, unknown> | undefined;
+      let resume: DiscoveryPauseSnapshot | undefined;
+      if (priorOut?.paused && priorOut.discovery && typeof priorOut.discovery === "object") {
+        const paused = priorOut.discovery as Record<string, unknown>;
+        resume = {
+          ticketAnalysis: (paused.ticketAnalysis ?? undefined) as DiscoveryPauseSnapshot["ticketAnalysis"],
+          historicalIntelligence: (paused.historicalIntelligence ?? undefined) as DiscoveryPauseSnapshot["historicalIntelligence"],
+          gapAnalysis: (paused.gapAnalysis ?? undefined) as DiscoveryPauseSnapshot["gapAnalysis"],
+          retrievalContext: Array.isArray(paused.retrievalContext)
+            ? (paused.retrievalContext as DiscoveryPauseSnapshot["retrievalContext"])
+            : [],
+          discoveryQuestions: Array.isArray(priorOut.discoveryQuestions)
+            ? (priorOut.discoveryQuestions as DiscoveryPauseSnapshot["discoveryQuestions"])
+            : undefined,
+          pauseReason:
+            priorOut.pauseReason === "ambiguities" ||
+            priorOut.pauseReason === "blocking_gaps" ||
+            priorOut.pauseReason === "needs_clarification"
+              ? priorOut.pauseReason
+              : "ambiguities",
+        };
+      }
+      discovery = await runDiscovery(ticket, pipelineId, {
+        humanAnswers: ticket.humanAnswers,
+        resume,
+        skipHumanPause:
+          Boolean(resume) &&
+          answersCoverAllQuestions(resume?.discoveryQuestions, ticket.humanAnswers),
+      });
     } catch (err) {
       if (err instanceof DiscoveryPausedError) {
         const snap = err.snapshot;

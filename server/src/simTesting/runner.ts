@@ -19,6 +19,7 @@ import { getPublicGitCredentials } from "../git-integration/gitCredentialsStore"
 import { resolveRepoIndexBranch } from "../git-integration/resolveRepoBranch";
 import { getApiModelForRole } from "../billing/consumeAgentCredits";
 import { DiscoveryPausedError, runDiscovery } from "../discovery/discoveryOrchestrator";
+import { answersCoverAllQuestions } from "../discovery/persistedContext";
 import { resolveRepoScope } from "../codebaseIntelligence/repoScope";
 import type { NormalizedTicket } from "../types/ticket";
 import { buildEngineeringAgentContext } from "../pipeline/contextBuilder";
@@ -31,6 +32,7 @@ import {
   completeSimRun,
   emitSimEvent,
   failSimRun,
+  collectSimAnswers,
   formatAnsweredPrompts,
   getSimRun,
   markSimRunning,
@@ -108,16 +110,18 @@ function publishQuestions(
   }
 }
 
-function requirementToTicket(runId: string, requirement: string, answers?: string): NormalizedTicket {
+function requirementToTicket(
+  runId: string,
+  requirement: string,
+  answers?: import("../discovery/persistedContext").HumanDiscoveryAnswer[]
+): NormalizedTicket {
   const jiraKey = `SIM-${runId.slice(4, 12)}`.toUpperCase();
-  const description = answers?.trim()
-    ? `${requirement.trim()}\n\nHuman answers from sim panel:\n${answers.trim()}`
-    : requirement.trim();
   return {
     jiraTicketId: runId,
     jiraKey,
     summary: requirement.trim().slice(0, 120) || jiraKey,
-    description,
+    description: requirement.trim(),
+    humanAnswers: answers?.length ? answers : undefined,
     issueType: "Story",
     priority: "Medium",
     reporter: "sim",
@@ -141,16 +145,32 @@ async function runVirin(runId: string, requirement: string): Promise<PrdOutput> 
     });
 
     let skipHumanPause = false;
-    for (let attempt = 0; attempt < 2; attempt += 1) {
-      const ticket = requirementToTicket(runId, requirement, formatAnsweredPrompts(runId));
+    let resume: import("../discovery/persistedContext").DiscoveryPauseSnapshot | undefined;
+    let recordedInput = 0;
+    let recordedOutput = 0;
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const answers = collectSimAnswers(runId);
+      const ticket = requirementToTicket(runId, requirement, answers);
       try {
-        const discovery = await runDiscovery(ticket, runId, { skipHumanPause });
+        if (answers.length) {
+          emitSimEvent(runId, {
+            agent: "virin",
+            kind: "log",
+            label: "Sending answers JSON to codebase analysis",
+            detail: JSON.stringify({ humanAnswers: answers }),
+          });
+        }
+        const discovery = await runDiscovery(ticket, runId, {
+          skipHumanPause,
+          resume,
+          humanAnswers: answers,
+        });
         recordSimUsage(runId, {
           agent: "virin",
           stage: "Virin discovery",
           model: getApiModelForRole("product"),
-          inputTokens: discovery.totalTokensUsed,
-          outputTokens: 0,
+          inputTokens: Math.max(0, discovery.inputTokens - recordedInput),
+          outputTokens: Math.max(0, discovery.outputTokens - recordedOutput),
         });
         const prd = discovery.prdOutput;
         emitSimEvent(runId, {
@@ -164,13 +184,10 @@ async function runVirin(runId: string, requirement: string): Promise<PrdOutput> 
             openQuestions: prd.openQuestions,
           },
         });
-        publishQuestions(runId, "virin", prd.openQuestions, {
-          title: "Continue to Ananta",
-          body: `${prd.title} is ready (${prd.acceptanceCriteria?.length ?? 0} criteria). Same handoff as production.`,
-        });
+        publishQuestions(runId, "virin", prd.openQuestions);
         return prd;
       } catch (err) {
-        if (!(err instanceof DiscoveryPausedError) || attempt === 1) throw err;
+        if (!(err instanceof DiscoveryPausedError) || attempt >= 2) throw err;
         const questions = (err.snapshot?.discoveryQuestions ?? []).map((item) => item.question);
         emitSimEvent(runId, {
           agent: "virin",
@@ -178,12 +195,39 @@ async function runVirin(runId: string, requirement: string): Promise<PrdOutput> 
           label: "Paused for the same human gate as production",
           detail: err.message,
         });
-        publishQuestions(runId, "virin", questions.length ? questions : [err.message], {
-          title: "Answer to resume Virin",
-          body: "Production would wait here. Answer or approve on the right, then discovery continues.",
+        const pausedUsage = err.snapshot?.usageSoFar;
+        if (pausedUsage && (pausedUsage.inputTokens || pausedUsage.outputTokens)) {
+          recordSimUsage(runId, {
+            agent: "virin",
+            stage: "Virin questions",
+            model: getApiModelForRole("product"),
+            inputTokens: Math.max(0, pausedUsage.inputTokens - recordedInput),
+            outputTokens: Math.max(0, pausedUsage.outputTokens - recordedOutput),
+          });
+          recordedInput = pausedUsage.inputTokens;
+          recordedOutput = pausedUsage.outputTokens;
+        }
+        publishQuestions(runId, "virin", questions.length ? questions : [err.message]);
+        emitSimEvent(runId, {
+          agent: "virin",
+          kind: "log",
+          label: "Waiting for answers",
+          detail: "The box closes when every question is answered. Discovery then resumes from this point.",
         });
         await waitForSimPromptsClear(runId);
+        const answered = collectSimAnswers(runId);
+        if (questions.length && !answersCoverAllQuestions(questions, answered)) {
+          emitSimEvent(runId, {
+            agent: "virin",
+            kind: "log",
+            label: "Still waiting for every question",
+            detail: `${answered.length}/${questions.length} answered`,
+          });
+          attempt -= 1;
+          continue;
+        }
         skipHumanPause = true;
+        resume = err.snapshot;
       }
     }
     throw new Error("Virin discovery did not produce a PRD");
