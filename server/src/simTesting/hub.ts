@@ -1,7 +1,16 @@
 import { EventEmitter } from "node:events";
 import { randomUUID } from "node:crypto";
 import { costUsdForTokens, formatUsd, tokenRatesForModel } from "../llm/tokenPricing";
-import type { SimAgent, SimEvent, SimEventKind, SimRun, SimRunResult, SimUsageLine } from "./types";
+import type {
+  SimAgent,
+  SimEvent,
+  SimEventKind,
+  SimPrompt,
+  SimPromptKind,
+  SimRun,
+  SimRunResult,
+  SimUsageLine,
+} from "./types";
 
 const MAX_RUNS = 40;
 const MAX_EVENTS = 2_000;
@@ -18,6 +27,7 @@ export function createSimRun(organizationId: string, requirement: string): SimRu
     status: "queued",
     startedAt: Date.now(),
     events: [],
+    prompts: [],
     usage: { inputTokens: 0, outputTokens: 0, costUsd: 0, lines: [] },
   };
   runs.set(run.id, run);
@@ -107,6 +117,71 @@ export function recordSimUsage(
     data: line as unknown as Record<string, unknown>,
   });
   return line;
+}
+
+export function addSimPrompt(
+  runId: string,
+  input: { agent: SimAgent; kind: SimPromptKind; title: string; body: string }
+): SimPrompt | null {
+  const run = runs.get(runId);
+  if (!run) return null;
+  const prompt: SimPrompt = {
+    id: randomUUID(),
+    agent: input.agent,
+    kind: input.kind,
+    title: input.title,
+    body: input.body,
+    status: "open",
+    createdAt: Date.now(),
+  };
+  run.prompts.push(prompt);
+  emitSimEvent(runId, {
+    agent: input.agent,
+    kind: "prompt",
+    label: input.kind === "approval" ? `Approval · ${input.title}` : `Question · ${input.title}`,
+    detail: input.body,
+    data: prompt as unknown as Record<string, unknown>,
+  });
+  return prompt;
+}
+
+export function resolveSimPrompt(
+  runId: string,
+  promptId: string,
+  input: { action: "approve" | "answer" | "dismiss"; answer?: string }
+): SimPrompt | null {
+  const run = runs.get(runId);
+  if (!run) return null;
+  const prompt = run.prompts.find((item) => item.id === promptId);
+  if (!prompt) return null;
+  if (input.action === "approve") prompt.status = "approved";
+  else if (input.action === "dismiss") prompt.status = "dismissed";
+  else {
+    prompt.status = "answered";
+    prompt.answer = String(input.answer ?? "").trim();
+  }
+  emitSimEvent(runId, {
+    agent: prompt.agent,
+    kind: "prompt",
+    label:
+      prompt.status === "approved"
+        ? `Approved · ${prompt.title}`
+        : prompt.status === "dismissed"
+          ? `Dismissed · ${prompt.title}`
+          : `Answered · ${prompt.title}`,
+    detail: prompt.answer || prompt.body,
+    data: prompt as unknown as Record<string, unknown>,
+  });
+  return prompt;
+}
+
+export function formatAnsweredPrompts(runId: string): string {
+  const run = runs.get(runId);
+  if (!run) return "";
+  return run.prompts
+    .filter((prompt) => prompt.status === "answered" && prompt.answer)
+    .map((prompt) => `- ${prompt.title}: ${prompt.answer}`)
+    .join("\n");
 }
 
 export function markSimRunning(runId: string): void {

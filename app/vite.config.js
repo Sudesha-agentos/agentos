@@ -18,6 +18,8 @@ export default defineConfig(({ mode }) => {
         "/api": {
           target: apiUrl,
           changeOrigin: true,
+          timeout: 0,
+          proxyTimeout: 0,
         },
         "/jira-intake": {
           target: apiUrl,

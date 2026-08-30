@@ -21,9 +21,11 @@ import { runQaAgentic } from "../qaAgent";
 import type { ImplementationOutput, PrdOutput } from "../types/agents";
 import { logger } from "../utils/logger";
 import {
+  addSimPrompt,
   completeSimRun,
   emitSimEvent,
   failSimRun,
+  formatAnsweredPrompts,
   getSimRun,
   markSimRunning,
   recordSimUsage,
@@ -37,6 +39,15 @@ async function timed<T>(
 ): Promise<T> {
   const started = Date.now();
   emitSimEvent(runId, { agent, kind: "stage", label: `${label} started` });
+  const beat = setInterval(() => {
+    const elapsed = Math.round((Date.now() - started) / 1000);
+    emitSimEvent(runId, {
+      agent,
+      kind: "log",
+      label: `${label} in progress`,
+      detail: `${elapsed}s elapsed — still working`,
+    });
+  }, 7000);
   try {
     const result = await fn();
     const durationMs = Date.now() - started;
@@ -59,6 +70,34 @@ async function timed<T>(
       durationMs,
     });
     throw err;
+  } finally {
+    clearInterval(beat);
+  }
+}
+
+function publishQuestions(
+  runId: string,
+  agent: "virin" | "ananta" | "neel",
+  questions: string[] | undefined,
+  approval?: { title: string; body: string }
+): void {
+  for (const question of questions ?? []) {
+    const text = String(question ?? "").trim();
+    if (!text) continue;
+    addSimPrompt(runId, {
+      agent,
+      kind: "question",
+      title: text.length > 72 ? `${text.slice(0, 72)}…` : text,
+      body: text,
+    });
+  }
+  if (approval) {
+    addSimPrompt(runId, {
+      agent,
+      kind: "approval",
+      title: approval.title,
+      body: approval.body,
+    });
   }
 }
 
@@ -87,6 +126,12 @@ async function runVirin(runId: string, requirement: string): Promise<PrdOutput> 
 Write a real PRD. Include at least 6 testable acceptance criteria.`,
       user: requirement,
     });
+    emitSimEvent(runId, {
+      agent: "virin",
+      kind: "log",
+      label: "Calling product model",
+      detail: model || getApiModelForRole("product"),
+    });
     const prd = parseDiscoveryJson<PrdOutput>(text, "simVirin");
     recordSimUsage(runId, {
       agent: "virin",
@@ -99,8 +144,16 @@ Write a real PRD. Include at least 6 testable acceptance criteria.`,
       agent: "virin",
       kind: "artifact",
       label: `PRD · ${prd.title}`,
-      detail: `${prd.acceptanceCriteria?.length ?? 0} criteria · ${model} in=${usage.inputTokens} out=${usage.outputTokens}`,
-      data: { prd: prd as unknown as Record<string, unknown> },
+      detail: `${prd.acceptanceCriteria?.length ?? 0} criteria · ${prd.openQuestions?.length ?? 0} questions`,
+      data: {
+        title: prd.title,
+        acceptanceCriteria: prd.acceptanceCriteria,
+        openQuestions: prd.openQuestions,
+      },
+    });
+    publishQuestions(runId, "virin", prd.openQuestions, {
+      title: "Continue to Ananta",
+      body: `${prd.title} is ready (${prd.acceptanceCriteria?.length ?? 0} criteria). The pipeline keeps going — approve or add answers on the right.`,
     });
     return prd;
   });
@@ -114,12 +167,15 @@ async function runAnantaPlan(runId: string, prd: PrdOutput): Promise<Implementat
       [],
       "Use the connected GitHub checkout. Match existing repo style."
     );
+    const humanAnswers = formatAnsweredPrompts(runId);
     const output = await agent.run(
       runId,
       JSON.stringify({
         context,
         prd,
-        instruction: "Produce an implementation plan mapped to every acceptance criterion.",
+        instruction:
+          "Produce an implementation plan mapped to every acceptance criterion. Do not stop for missing optional integrations — plan the work and list questions as blockers.",
+        humanAnswers: humanAnswers || undefined,
         implementationMode: "code",
       }),
       {
@@ -142,7 +198,17 @@ async function runAnantaPlan(runId: string, prd: PrdOutput): Promise<Implementat
       kind: "artifact",
       label: "Implementation plan",
       detail: plan.summary,
-      data: { plan: plan as unknown as Record<string, unknown> },
+      data: {
+        summary: plan.summary,
+        blockers: plan.blockers,
+        targetFiles: plan.targetFiles,
+      },
+    });
+    publishQuestions(runId, "ananta", plan.blockers, {
+      title: "Continue to coding",
+      body: plan.blockers.length
+        ? `Ananta listed ${plan.blockers.length} blocker(s). Coding continues on this sim.`
+        : "Plan is ready. Coding continues on this sim.",
     });
     return plan;
   });
@@ -190,13 +256,34 @@ export async function executeSimRun(runId: string): Promise<void> {
         durationMs: event.type === "tool_completed" ? event.durationMs : undefined,
         data: { tool: event.tool, filePath: "filePath" in event ? event.filePath : undefined },
       });
+    } else if (event.type === "file_staged") {
+      emitSimEvent(runId, {
+        agent: "ananta",
+        kind: "log",
+        label: `File ${event.action}`,
+        detail: event.filePath,
+      });
+    } else if (event.type === "coding_started" || event.type === "coding_completed") {
+      emitSimEvent(runId, {
+        agent: "ananta",
+        kind: "log",
+        label: event.type === "coding_started" ? "Coding loop started" : "Coding loop completed",
+      });
     }
   });
 
   try {
-    const workspace = await timed(runId, "system", "Clone GitHub repo", async () =>
-      createEngWorkspace(runId, jiraKey, sourceBranch, { skipDependencyInstall: true })
-    );
+    emitSimEvent(runId, {
+      agent: "system",
+      kind: "log",
+      label: "Virin PRD and GitHub clone running together",
+    });
+    const [prd, workspace] = await Promise.all([
+      runVirin(runId, run.requirement),
+      timed(runId, "system", "Clone GitHub repo", async () =>
+        createEngWorkspace(runId, jiraKey, sourceBranch, { skipDependencyInstall: true })
+      ),
+    ]);
     workspaceDir = workspace.workspaceDir;
     emitSimEvent(runId, {
       agent: "system",
@@ -205,9 +292,19 @@ export async function executeSimRun(runId: string): Promise<void> {
       detail: `${workspace.workspaceDir} · ${workspace.branchName}`,
     });
 
-    const prd = await runVirin(runId, run.requirement);
+    const humanAnswers = formatAnsweredPrompts(runId);
+    if (humanAnswers) {
+      emitSimEvent(runId, {
+        agent: "system",
+        kind: "log",
+        label: "Using answers from the prompt panel",
+        detail: humanAnswers,
+      });
+    }
+
     const plan = await runAnantaPlan(runId, prd);
 
+    const codingAnswers = formatAnsweredPrompts(runId);
     const coding = await timed(runId, "ananta", "Ananta coding", async () =>
       runEngineeringCodingAgentic({
         pipelineId: runId,
@@ -217,6 +314,9 @@ export async function executeSimRun(runId: string): Promise<void> {
         enrichedPrdDocument: {},
         implementationMode: "code",
         retainArtifacts: true,
+        compileFeedback: codingAnswers
+          ? `Human answers from the sim prompt panel:\n${codingAnswers}`
+          : undefined,
       })
     );
     recordSimUsage(runId, {
@@ -297,9 +397,14 @@ export async function executeSimRun(runId: string): Promise<void> {
       label: "QA report",
       detail: `${testCases.length} test cases · ${qa.toolCallLog.length} tools · ${qa.agentOutput.parsed.coverageReport?.coveragePercent ?? "?"}% coverage`,
       data: {
-        qa: qa.agentOutput.parsed as unknown as Record<string, unknown>,
-        toolCallLog: qa.toolCallLog,
+        testSummary: qa.agentOutput.parsed.testSummary,
+        testCaseCount: testCases.length,
+        coveragePercent: qa.agentOutput.parsed.coverageReport?.coveragePercent,
       },
+    });
+    publishQuestions(runId, "neel", qa.agentOutput.parsed.coverageReport?.uncoveredCriteria, {
+      title: "QA complete",
+      body: `${testCases.length} test cases · ${qa.agentOutput.parsed.coverageReport?.coveragePercent ?? "?"}% coverage. Review on the right; the sim already continued.`,
     });
     for (const call of qa.toolCallLog) {
       emitSimEvent(runId, {
