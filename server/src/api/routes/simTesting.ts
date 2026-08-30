@@ -46,9 +46,16 @@ router.post("/runs", async (req, res, next) => {
   try {
     const user = requireOrganizationUser(req, res);
     if (!user?.organizationId) return;
-    const requirement = String(req.body?.requirement ?? "").trim();
+    const body = (req.body ?? {}) as Record<string, unknown>;
+    const requirement = String(
+      body.requirement ?? body.text ?? body.prompt ?? ""
+    ).trim();
     if (requirement.length < 8) {
-      res.status(400).json({ error: "requirement_required", message: "Type a requirement (at least 8 characters)." });
+      res.status(400).json({
+        error: "requirement_required",
+        message:
+          "The requirement did not reach the API. Refresh and click Run simulation again (need at least 8 characters in the box).",
+      });
       return;
     }
     const run = createSimRun(user.organizationId, requirement);

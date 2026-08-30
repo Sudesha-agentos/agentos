@@ -90,6 +90,11 @@ export default function SimTestingLab() {
 
   const start = async (event) => {
     event.preventDefault();
+    const text = requirement.trim();
+    if (text.length < 8) {
+      setError("Type a requirement in the box first (a short sentence is enough).");
+      return;
+    }
     setError("");
     setBusy(true);
     seen.current = new Set();
@@ -97,8 +102,8 @@ export default function SimTestingLab() {
     try {
       const data = await fetchJson(apiPath("/api", "/sim-testing/runs"), {
         method: "POST",
-        headers: authHeaders(),
-        body: JSON.stringify({ requirement }),
+        headers: { ...authHeaders(), "Content-Type": "application/json" },
+        body: JSON.stringify({ requirement: text }),
       });
       setRun(data.run);
     } catch (err) {
