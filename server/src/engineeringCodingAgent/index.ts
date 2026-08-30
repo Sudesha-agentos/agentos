@@ -14,7 +14,6 @@ import {
   getEngWorkspace,
   workspaceGetChangedFiles,
 } from "../engineering/engineeringWorkspace";
-import { parseDiscoveryJson } from "../llm/discoveryCompletion";
 import type { GeneratedPRD } from "../prd/prdGenerator";
 import { executeEngineeringCodingToolCall } from "../tools/engineeringCodingToolExecutor";
 import { ENGINEERING_CODING_TOOL_DEFINITIONS } from "../tools/engineeringCodingToolDefinitions";
@@ -26,6 +25,11 @@ import type {
   PrdOutput,
 } from "../types/agents";
 import { logger } from "../utils/logger";
+import {
+  codingSummaryFromChanges,
+  mergeCodingChanges,
+  parseCodingAgentOutput,
+} from "./parseOutput";
 import {
   buildEngineeringCodingInitialUserMessage,
   resolveCodingBranchName,
@@ -55,13 +59,6 @@ export interface EngineeringCodingAgentRunInput {
   requiredDeliverablePaths?: string[];
   /** Injected from CodebaseKnowledgeCache for repo conventions */
   repoKnowledge?: CodebaseKnowledge | null;
-}
-
-interface CodingAgentJsonOutput {
-  codingSummary: string;
-  codeChanges: CodeChange[];
-  confidenceScore?: number;
-  confidenceReason?: string;
 }
 
 export interface EngineeringCodingAgentRunResult {
@@ -150,43 +147,43 @@ export async function runEngineeringCodingAgentic(
       requireMutatingToolCalls: mode === "code" && !prewrite.mustAskForDatabase,
       maxMutatingToolRetries: 2,
       mutatingToolRetryMessage: prewrite.mustAskForDatabase
-        ? "A customer database is required but not connected. Do not invent schema. Return final JSON with blockers asking the human to attach a database in Settings → Integrations."
+        ? "A customer database is required but not connected. Do not invent schema. Ask the human to attach a database in Settings → Integrations, then stop."
         : "You must edit or create at least one source file with edit_file or write_file before finishing. Use grep/list_dir to find auth/API/UI paths in this repo if needed, then implement.",
       forcedWrapUpMessage:
         mode === "content"
-          ? `You have used the maximum number of coding tool calls. Produce the final JSON summary now using all changes made so far. Do not call more tools.`
-          : `You have used the maximum number of coding tool calls. Return final JSON only if you already called edit_file/write_file on real files; otherwise use remaining calls to implement.`,
+          ? `You have used the maximum number of coding tool calls. Say you are done. The orchestrator reads the files from git — do not invent a JSON schema.`
+          : `You have used the maximum number of coding tool calls. If you already edited files, say you are done. The orchestrator reads the git diff. If you have not edited files yet, implement now.`,
       role: "tech",
     });
 
-    const parsed = parseDiscoveryJson<CodingAgentJsonOutput>(
-      loop.finalResponse,
-      "engineeringCodingAgent"
-    );
-
-    // Derive code changes: prefer agent's self-report, then workspace git diff, then legacy in-memory store
-    let codeChanges: CodeChange[] = parsed.codeChanges ?? [];
-
-    if (codeChanges.length === 0 && workspace) {
-      // Derive from workspace git diff
-      const changedFiles = await workspaceGetChangedFiles(workspace.workspaceDir);
-      codeChanges = changedFiles.map((f) => ({
-        filePath: f.path,
-        action: f.status === "added" ? "create" : f.status === "deleted" ? "delete" : "modify",
-        summary: `${f.status} by engineering agent`,
-        linesChanged: 0,
-      }));
-    }
-
-    if (codeChanges.length === 0) {
-      // Legacy fallback: in-memory artifact store
-      const artifacts = getCodingArtifacts(input.pipelineId);
-      codeChanges = artifacts.stagedFiles.map((file) => ({
+    const parsed = parseCodingAgentOutput(loop.finalResponse);
+    const workspaceChanges: CodeChange[] = workspace
+      ? (await workspaceGetChangedFiles(workspace.workspaceDir)).map((file) => ({
+          filePath: file.path,
+          action:
+            file.status === "added" ? "create" : file.status === "deleted" ? "delete" : "modify",
+          summary: `${file.status} by engineering agent`,
+          linesChanged: 0,
+        }))
+      : [];
+    const artifactChanges: CodeChange[] = getCodingArtifacts(input.pipelineId).stagedFiles.map(
+      (file) => ({
         filePath: file.filePath,
         action: file.action,
         summary: file.summary,
         linesChanged: file.content.split("\n").length,
-      }));
+      })
+    );
+    const codeChanges = mergeCodingChanges(workspaceChanges, [
+      artifactChanges,
+      parsed?.codeChanges ?? [],
+    ]);
+    const codingSummary =
+      codingSummaryFromChanges(parsed, codeChanges, input.jiraKey) ||
+      loop.finalResponse.trim().slice(0, 400) ||
+      `Ananta finished on the workspace for ${input.jiraKey}.`;
+    if (codeChanges.length === 0 && !prewrite.mustAskForDatabase) {
+      throw new Error(`Ananta made no file changes on the workspace for ${input.jiraKey}.`);
     }
 
     logger.info(
@@ -219,9 +216,7 @@ export async function runEngineeringCodingAgentic(
 
     return {
       raw: loop.finalResponse,
-      codingSummary:
-        parsed.codingSummary ??
-        `Changed ${codeChanges.length} file(s) for ${input.jiraKey}.`,
+      codingSummary,
       codeChanges,
       metadata: {
         inputTokens: loop.totalInputTokens,

@@ -5,6 +5,11 @@ import type {
 import type { RetrievedContext } from "../types/pipeline";
 import { resolveRepoScope } from "../codebaseIntelligence/repoScope";
 import {
+  formatHumanAnswersJson,
+  humanAnswersPromptBlock,
+  type HumanDiscoveryAnswer,
+} from "../discovery/persistedContext";
+import {
   resolveEngineeringBranchName,
   resolveFallbackApiPushBranch,
 } from "../engineering/engineeringWorkspace";
@@ -20,21 +25,28 @@ export interface QaAgenticInput {
   retrievedContext: RetrievedContext[];
   branchName: string;
   qaHandoff?: QaHandoff;
+  humanAnswers?: HumanDiscoveryAnswer[];
 }
 
 export function buildQaInitialUserMessage(input: QaAgenticInput): string {
   const context = buildQaAgentContext(
     input.prd,
     input.implementation,
-    input.retrievedContext
+    input.retrievedContext,
+    input.humanAnswers
   );
+  const answersJson = formatHumanAnswersJson(input.humanAnswers);
 
   return `
 Jira: ${input.jiraKey}
 Pipeline: ${input.pipelineId}
 Implementation branch: ${input.branchName}
 
+Ananta already wrote the code on this GitHub branch. Your job is to test that checkout against the original job (PRD) and the human answers.
+
 ${input.qaHandoff ? formatQaHandoffForPrompt(input.qaHandoff) : "Ananta coding handoff: missing — do not invent a branch. Ask for status 200."}
+${humanAnswersPromptBlock(input.humanAnswers)}
+${answersJson ? `Use HUMAN_ANSWERS_JSON as the source of truth for decisions the human already made.` : ""}
 
 ${context}
 
@@ -57,9 +69,8 @@ ${input.implementation.criteriaMapping
   .join("\n")}
 
 You MUST call run_security_scan and run_tests (or document why skipped) before generate_qa_report.
-Begin PHASE 1: read implementation code on branch "${input.branchName}",
-then proceed through all four phases. End with generate_qa_report and the
-final JSON test plan.
+Begin PHASE 1: read the implementation on branch "${input.branchName}",
+then write test cases for the PRD job and human answers. End with generate_qa_report.
   `.trim();
 }
 

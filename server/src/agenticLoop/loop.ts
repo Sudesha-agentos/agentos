@@ -8,6 +8,7 @@ import type { AgentRole } from "../llm/agentModels";
 import { applyClaudeSkillsToPrompt } from "../llm/claudeSkills";
 import { executeToolCall, type ToolCallInput, type ToolCallResult } from "../tools/executor";
 import { TOOL_DEFINITIONS } from "../tools/definitions";
+import { tryParseJsonObject } from "../llm/parseJson";
 import { logger } from "../utils/logger";
 import { withRetry } from "../utils/retry";
 import {
@@ -48,6 +49,8 @@ export interface AgenticLoopConfig {
   ) => Promise<ToolCallResult>;
   /** Which process this loop is for — selects Claude / Grok / ChatGPT and credit cost. */
   role?: AgentRole;
+  /** If the finish message is not JSON, retry once with json_object (OpenAI/Grok). */
+  jsonModeOnFinish?: boolean;
 }
 
 export interface AgenticLoopResult {
@@ -81,6 +84,7 @@ export async function runAgenticLoop(
     mutatingToolRetryMessage,
     executeToolCall: executeToolCallFn = executeToolCall,
     role = "product" as AgentRole,
+    jsonModeOnFinish = false,
   } = config;
 
   const providerId = getModelIdForRole(role);
@@ -170,9 +174,38 @@ export async function runAgenticLoop(
         continue;
       }
 
-      const finalResponse = extractTextContent(choice.message);
+      let finalResponse = extractTextContent(choice.message);
       if (!finalResponse) {
         throw new Error("Agentic loop ended without a text response.");
+      }
+      if (jsonModeOnFinish && !tryParseJsonObject(finalResponse)) {
+        messages.push(choice.message);
+        messages.push({
+          role: "user",
+          content:
+            "Your last message was not valid JSON. Return ONLY the final JSON object now (codingSummary, codeChanges, confidenceScore, confidenceReason). No markdown, no tools, no prose.",
+        });
+        const jsonWrap = await withRetry(
+          () =>
+            createProviderChatCompletion({
+              providerId,
+              role,
+              maxTokens: 4000,
+              jsonMode: true,
+              messages: [{ role: "system", content: prompt }, ...messages],
+            }),
+          {
+            maxAttempts: 2,
+            baseDelayMs: 2000,
+            maxDelayMs: 15000,
+          }
+        );
+        totalInputTokens += jsonWrap.usage?.prompt_tokens ?? 0;
+        totalOutputTokens += jsonWrap.usage?.completion_tokens ?? 0;
+        const wrapText = extractTextContent(jsonWrap.choices[0]?.message ?? {});
+        if (wrapText && tryParseJsonObject(wrapText)) {
+          finalResponse = wrapText;
+        }
       }
 
       const totalCostUsd =

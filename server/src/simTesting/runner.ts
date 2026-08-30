@@ -452,6 +452,7 @@ export async function executeSimRun(runId: string): Promise<void> {
         implementationMode: "code",
         implementationBranch: handoff.implementationBranch,
         qaHandoff: handoff,
+        humanAnswers: collectSimAnswers(runId),
       })
     );
 

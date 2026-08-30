@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { closeTruncatedJson, recoverJsonText, tryParseJsonObject } from "./parseJson";
+import {
+  closeTruncatedJson,
+  extractJsonObjectByKey,
+  recoverJsonText,
+  tryParseJsonObject,
+} from "./parseJson";
 
 describe("parseJson", () => {
   it("recovers fenced JSON", () => {
@@ -24,5 +29,13 @@ describe("parseJson", () => {
     const parsed = tryParseJsonObject('Here you go:\n{"title":"Calc","acceptanceCriteria":["div by zero throws"');
     assert.ok(parsed && typeof parsed === "object");
     assert.equal((parsed as { title: string }).title, "Calc");
+  });
+
+  it("extracts an object by key from surrounding code", () => {
+    const parsed = extractJsonObjectByKey(
+      'const x = { a: 1 };\n{"codingSummary":"done","codeChanges":[]}',
+      "codingSummary"
+    ) as { codingSummary?: string };
+    assert.equal(parsed?.codingSummary, "done");
   });
 });

@@ -258,18 +258,16 @@ ${input.compileFeedback ? `SANDBOX COMPILE/TEST FEEDBACK — fix these errors be
 CRITICAL IMPLEMENTATION RULES:
 - Ground every change in sections 1–4 above (codebase intelligence, databases, logs, entire PRD).
 - The PRD is the source of truth. Implement every criterion and user story unless it is explicitly out of scope.
-- If a customer database is required and none is connected, do not invent schema. Ask the human to attach one in Settings → Integrations, then stop (blockers in final JSON).
+- If a customer database is required and none is connected, do not invent schema. Ask the human to attach one in Settings → Integrations, then stop.
 - If log sources are required for a production bug and none are connected, ask for Logs → Sources or a stack trace before guessing root cause.
 - Write clean code for the selected Tech LLM: match existing style, no TODOs, no unused imports, no speculative architecture.
 - criteriaMapping entries must each be realized in code (or content deliverables). Do not ship a partial subset.
-- Each criteriaMapping entry should cite files[] that exist in your codeChanges.
 - Prefer editing the files named in the plan / task breakdown / verified paths over inventing unrelated files.
-- In codingSummary, list which acceptance criteria each change satisfies.
 
 Begin PHASE 1: explore the codebase (list_dir, grep, search_codebase, read_file),
 PHASE 2: implement using edit_file / write_file,
 PHASE 2b: if Database changes are listed above, list_databases then db_schema, then db_migrate on staging (not production unless a human confirmed),
 PHASE 3: verify with run_command (type-checker), fix errors,
-PHASE 4: return the final JSON summary.
+PHASE 4: say you are done. The orchestrator reads git and hands the branch to QA.
   `.trim();
 }
