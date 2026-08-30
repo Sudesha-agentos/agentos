@@ -19,6 +19,7 @@ describe("resolveQaBranchName", () => {
 
   it("falls back to legacy API push branch before main", () => {
     assert.equal(resolveFallbackApiPushBranch(), LEGACY_API_PUSH_BRANCH);
+    assert.equal(resolveFallbackApiPushBranch("AG-99"), "agentos/ag-99");
     assert.equal(resolveQaBranchName(undefined, "AG-99"), "agentos/ag-99");
   });
 });

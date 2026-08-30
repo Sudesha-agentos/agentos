@@ -49,8 +49,14 @@ export function resolveEngineeringBranchName(jiraKey: string): string {
 }
 
 /** Branch Ananta pushes to when using the Git Data API fallback path. */
-export function resolveFallbackApiPushBranch(): string {
-  return process.env.ENGINEERING_TARGET_BRANCH?.trim() || LEGACY_API_PUSH_BRANCH;
+export function resolveFallbackApiPushBranch(jiraKey?: string): string {
+  if (process.env.ENGINEERING_TARGET_BRANCH?.trim()) {
+    return process.env.ENGINEERING_TARGET_BRANCH.trim();
+  }
+  if (jiraKey?.trim()) {
+    return resolveEngineeringBranchName(jiraKey);
+  }
+  return LEGACY_API_PUSH_BRANCH;
 }
 
 export type EngineeringWorkspaceOptions = {

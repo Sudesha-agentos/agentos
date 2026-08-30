@@ -65,8 +65,17 @@ Rules:
   If you cannot map a criterion, flag it as a blocker.
 - criteriaMapping files/symbols must name the real files and functions you will change — not prose alone.
 - Do not assume any technology stack. Work with what is provided.
-- Treat codebaseIntelligence as source-of-truth repository context. Prefer it
-  over guesses, and explicitly call out uncertainty when the snapshot is empty.
+- Ground the plan in techPrewriteContext when present: (1) codebase intelligence,
+  (2) customer DB catalog, (3) log intelligence, (4) the entire PRD.
+- Treat codebaseIntelligence / the intelligence layer as source-of-truth repository
+  context. Prefer it over guesses, and explicitly call out uncertainty when empty.
+- If the ticket needs schema work and no customer database is connected, put a
+  blocker: ask the human to attach a database in Settings → Integrations. Do not
+  invent tables or columns in databaseChanges.
+- If this is a production bug and no log sources are connected, put a blocker
+  asking for Logs → Sources or a stack trace.
+- Plan for the selected Tech LLM to write clean, production-quality code that
+  matches the existing repo — not a greenfield rewrite.
 - Estimate conservatively. Add 20% buffer to any component estimate.
 - Return ONLY valid JSON.
 ${modeRules}

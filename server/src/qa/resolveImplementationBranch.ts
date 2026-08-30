@@ -32,7 +32,7 @@ export async function resolveImplementationBranchForQa(
   const scope = resolveRepoScope();
   return (
     resolveEngineeringBranchName(jiraKey) ||
-    resolveFallbackApiPushBranch() ||
+    resolveFallbackApiPushBranch(jiraKey) ||
     process.env.QA_DEFAULT_BRANCH?.trim() ||
     process.env.GITHUB_DEFAULT_BRANCH?.trim() ||
     scope?.defaultBranch ||

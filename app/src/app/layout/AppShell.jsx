@@ -34,6 +34,7 @@ function AppShellContent() {
   const { pathMatches, orgPath, location } = useOrgNavigation();
   const { isPreview, setWork } = useWorkspaceMode();
   const onSettings = pathMatches("settings");
+  const onSimLab = pathMatches("sim-testing-for-testing");
   const onCreateNew = location.pathname === orgPath();
   const showPreview = isPreview && onCreateNew;
 
@@ -47,9 +48,13 @@ function AppShellContent() {
         showPreview ? "h-svh overflow-hidden" : "min-h-screen"
       }`}
     >
-      <TopBar />
+      {onSimLab ? null : <TopBar />}
       {showPreview ? (
         <WebsitePreview />
+      ) : onSimLab ? (
+        <div className="min-h-0 flex-1 overflow-hidden">
+          <AppOutlet />
+        </div>
       ) : (
         <div className="flex min-h-0 flex-1 flex-col">
           {onSettings ? (

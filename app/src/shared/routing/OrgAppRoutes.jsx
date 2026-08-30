@@ -22,6 +22,7 @@ const LogIntelligence = lazy(() => import("../../app/pages/LogIntelligence"));
 const ProjectsPage = lazy(() => import("../../app/pages/ProjectsPage"));
 const WorkBoard = lazy(() => import("../../app/pages/WorkBoard"));
 const OrgNotFound = lazy(() => import("../../app/pages/OrgNotFound"));
+const SimTestingLab = lazy(() => import("../../app/pages/SimTestingLab"));
 
 function RedirectTo({ segments }) {
   const { orgPath } = useOrg();
@@ -68,6 +69,7 @@ export const orgAppRouteElements = (
     <Route path="integrations" element={<IntegrationsPage />} />
     <Route path="integrations/:integrationId" element={<IntegrationConnectPage />} />
     <Route path="settings/*" element={<SettingsRoutes />} />
+    <Route path="sim-testing-for-testing" element={<SimTestingLab />} />
     <Route path="*" element={<OrgNotFound />} />
   </>
 );

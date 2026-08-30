@@ -29,6 +29,7 @@ describe("robots.txt crawl rules", () => {
       "/*/pipelines",
       "/*/settings",
       "/*/board",
+      "/*/sim-testing-for-testing",
     ]) {
       expect(robots).toContain(`Disallow: ${path}`);
     }

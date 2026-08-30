@@ -14,6 +14,8 @@ const AUDIT_EVENT_LABELS: Record<string, string> = {
   QA_AGENT_COMPLETED: "Neel finished QA report",
   ENGINEERING_CODING_STARTED: "Ananta is writing code",
   ENGINEERING_CODING_COMPLETED: "Code changes complete",
+  QA_HANDOFF: "Ananta passed status 200 to Neel",
+  PIPELINE_RUN_SUMMARY: "Release summary ready",
   ENGINEERING_SANDBOX_COMPILE: "Compiling in sandbox",
   ENGINEERING_PUSHED_TO_BRANCH: "Pushed changes to branch",
   AGENTIC_LOOP_STARTED: "Agent reasoning loop started",

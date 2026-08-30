@@ -78,6 +78,17 @@ export async function executeQaToolCall(
     "QA tool call executing"
   );
 
+  if (pipelineId.startsWith("sim-")) {
+    const { emitSimEvent } = await import("../simTesting/hub");
+    emitSimEvent(pipelineId, {
+      agent: "neel",
+      kind: "tool",
+      label: toolCall.name,
+      detail: "running",
+      data: { input: toolCall.input as Record<string, unknown> },
+    });
+  }
+
   await auditRepo.log(pipelineId, "QA_TOOL_CALL_STARTED", {
     tool: toolCall.name,
     input: toolCall.input,
@@ -540,6 +551,17 @@ export async function executeQaToolCall(
     }
 
     const durationMs = Date.now() - startTime;
+    if (pipelineId.startsWith("sim-")) {
+      const { emitSimEvent } = await import("../simTesting/hub");
+      emitSimEvent(pipelineId, {
+        agent: "neel",
+        kind: "tool",
+        label: toolCall.name,
+        detail: `${durationMs}ms · hits=${resultsFound}`,
+        durationMs,
+        data: { query: metaQuery, resultsFound },
+      });
+    }
     await auditRepo.log(pipelineId, "QA_TOOL_CALL_COMPLETED", {
       tool: toolCall.name,
       durationMs,

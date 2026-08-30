@@ -15,6 +15,7 @@ import {
   workspaceGetChangedFiles,
 } from "../engineering/engineeringWorkspace";
 import { parseDiscoveryJson } from "../llm/discoveryCompletion";
+import type { GeneratedPRD } from "../prd/prdGenerator";
 import { executeEngineeringCodingToolCall } from "../tools/engineeringCodingToolExecutor";
 import { ENGINEERING_CODING_TOOL_DEFINITIONS } from "../tools/engineeringCodingToolDefinitions";
 import type {
@@ -29,6 +30,7 @@ import {
   buildEngineeringCodingInitialUserMessage,
   resolveCodingBranchName,
 } from "./inputBuilder";
+import { gatherTechPrewriteContext } from "./prewriteContext";
 import { buildEngineeringCodingSystemPrompt } from "./systemPrompt";
 
 const INPUT_COST_PER_TOKEN = 0.000003;
@@ -104,9 +106,27 @@ export async function runEngineeringCodingAgentic(
   }
 
   try {
-    const { buildDatabaseCatalogPromptBlock } = await import("../customerDb/promptBlock");
-    const databaseCatalogBlock = await buildDatabaseCatalogPromptBlock(input.pipelineId).catch(
-      () => "CUSTOMER DATABASES: catalog unavailable."
+    const generatedPrd =
+      input.pmContext?.generatedPrd ??
+      (input.enrichedPrdDocument.generatedPrd as GeneratedPRD | undefined);
+    const prewrite = await gatherTechPrewriteContext({
+      pipelineId: input.pipelineId,
+      jiraKey: input.jiraKey,
+      prd: input.prd,
+      implementation: input.implementation,
+      generatedPrd,
+      branchName,
+    });
+    logger.info(
+      {
+        pipelineId: input.pipelineId,
+        jiraKey: input.jiraKey,
+        selectedModel: prewrite.selectedModelLabel,
+        databaseConnected: prewrite.databaseConnected,
+        mustAskForDatabase: prewrite.mustAskForDatabase,
+        logsConnected: prewrite.logsConnected,
+      },
+      "tech prewrite context gathered"
     );
     const loop = await runAgenticLoop({
       systemPrompt: buildEngineeringCodingSystemPrompt(mode, input.repoKnowledge),
@@ -116,17 +136,22 @@ export async function runEngineeringCodingAgentic(
         compileFeedback: input.compileFeedback,
         implementationMode: mode,
         deliverableFiles: input.deliverableFiles,
-        databaseCatalogBlock,
+        selectedModelLabel: prewrite.selectedModelLabel,
+        codebaseIntelligenceBlock: prewrite.codebaseIntelligenceBlock,
+        databaseCatalogBlock: prewrite.databaseCatalogBlock,
+        logIntelligenceBlock: prewrite.logIntelligenceBlock,
+        mustAskForDatabase: prewrite.mustAskForDatabase,
       }),
       pipelineId: input.pipelineId,
       jiraKey: input.jiraKey,
       maxToolCalls: mode === "content" ? MAX_CONTENT_CODING_TOOL_CALLS : MAX_CODING_TOOL_CALLS,
       tools: ENGINEERING_CODING_TOOL_DEFINITIONS,
       executeToolCall: executeEngineeringCodingToolCall,
-      requireMutatingToolCalls: mode === "code",
+      requireMutatingToolCalls: mode === "code" && !prewrite.mustAskForDatabase,
       maxMutatingToolRetries: 2,
-      mutatingToolRetryMessage:
-        "You must edit or create at least one source file with edit_file or write_file before finishing. Use grep/list_dir to find auth/API/UI paths in this repo if needed, then implement.",
+      mutatingToolRetryMessage: prewrite.mustAskForDatabase
+        ? "A customer database is required but not connected. Do not invent schema. Return final JSON with blockers asking the human to attach a database in Settings → Integrations."
+        : "You must edit or create at least one source file with edit_file or write_file before finishing. Use grep/list_dir to find auth/API/UI paths in this repo if needed, then implement.",
       forcedWrapUpMessage:
         mode === "content"
           ? `You have used the maximum number of coding tool calls. Produce the final JSON summary now using all changes made so far. Do not call more tools.`

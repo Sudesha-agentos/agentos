@@ -47,6 +47,7 @@ PHASE 4 — QA REPORT
 - Then return the final JSON test plan (see output schema below)
 
 Tool discipline:
+- Only start after Ananta passed status 200 in the user message. Generate test cases from that branch — do not invent another branch.
 - The implementation branch is in the initial user message — use it for every read/search/test tool call.
 - Never read from main or the repo default branch unless that IS the implementation branch.
 - Never skip read_existing_tests before write_test_file.

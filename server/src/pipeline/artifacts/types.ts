@@ -3,7 +3,8 @@ export type PipelineArtifactType =
   | "CODE_SUMMARY"
   | "TEST_PLAN"
   | "SYSTEM_DESIGN"
-  | "TASK_BREAKDOWN";
+  | "TASK_BREAKDOWN"
+  | "RUN_SUMMARY";
 
 export type PipelineArtifactProducer = "virin" | "engineering" | "qa" | "pipeline";
 
@@ -24,7 +25,7 @@ export const ARTIFACT_SUBSCRIPTIONS: Record<
   PipelineArtifactType[]
 > = {
   engineering: ["IMPLEMENTATION_PLAN", "SYSTEM_DESIGN", "TASK_BREAKDOWN"],
-  qa: ["IMPLEMENTATION_PLAN", "CODE_SUMMARY", "TEST_PLAN"],
+  qa: ["IMPLEMENTATION_PLAN", "CODE_SUMMARY", "TEST_PLAN", "RUN_SUMMARY"],
 };
 
 /** Eng/QA pipeline artifact types shown in Pipeline detail UI. */
@@ -32,4 +33,5 @@ export const ENG_QA_ARTIFACT_TYPES: PipelineArtifactType[] = [
   "IMPLEMENTATION_PLAN",
   "CODE_SUMMARY",
   "TEST_PLAN",
+  "RUN_SUMMARY",
 ];

@@ -26,6 +26,10 @@ export interface EngineeringCodingAgenticInput {
   implementationMode?: ImplementationMode;
   deliverableFiles?: Array<{ path: string; format: string; purpose: string }>;
   databaseCatalogBlock?: string;
+  codebaseIntelligenceBlock?: string;
+  logIntelligenceBlock?: string;
+  selectedModelLabel?: string;
+  mustAskForDatabase?: boolean;
 }
 
 export function resolveCodingBranchName(): string {
@@ -107,6 +111,25 @@ export function buildEngineeringCodingInitialUserMessage(
           ]),
         ].filter(Boolean);
 
+  const fullPrdJson = generatedPrd
+    ? JSON.stringify(generatedPrd, null, 2)
+    : JSON.stringify(
+        {
+          title: input.prd.title,
+          problemStatement: input.prd.problemStatement,
+          proposedSolution: input.prd.proposedSolution,
+          userStories: input.prd.userStories,
+          acceptanceCriteria: input.prd.acceptanceCriteria,
+          edgeCases: input.prd.edgeCases,
+          outOfScope: input.prd.outOfScope,
+          successMetrics: input.prd.successMetrics,
+          dependencies: input.prd.dependencies,
+          openQuestions: input.prd.openQuestions,
+        },
+        null,
+        2
+      );
+
   const requiredFilesBlock =
     mode === "content" && requiredPaths.length
       ? `REQUIRED OUTPUT FILES (you MUST write_file each before finishing):
@@ -122,13 +145,27 @@ Jira: ${input.jiraKey}
 Pipeline: ${input.pipelineId}
 Working branch: ${input.branchName}
 Implementation mode: ${mode}
+Selected Tech LLM: ${input.selectedModelLabel ?? "workspace tech model"}
 PM context attached: ${input.pmContext ? "yes" : "no"}
+
+Write production-quality code with this model. Match the repo's existing style. No TODOs, no unused imports, no speculative architecture.
 
 ${formatVerifiedPathsBlock(verifiedPaths)}
 
 ${requiredFilesBlock}
 
-## AUTHORITATIVE PRD (implement ALL of this — do not invent a smaller scope)
+${input.codebaseIntelligenceBlock ?? "## 1. Codebase intelligence layer\nUnavailable — explore with list_dir/grep."}
+
+## 2. Customer databases
+${input.databaseCatalogBlock ? input.databaseCatalogBlock : "CUSTOMER DATABASES: none connected."}
+${input.mustAskForDatabase ? "\nSTOP on schema work until a human attaches a database. Do not invent persistence." : ""}
+
+${input.logIntelligenceBlock ?? "## 3. Log intelligence\nNot gathered."}
+
+## 4. Entire PRD (authoritative — implement every feature, story, and criterion)
+${fullPrdJson}
+
+## PRD checklist (same document, flattened)
 PRD title: ${input.prd.title}
 Problem: ${input.prd.problemStatement}
 Solution: ${input.prd.proposedSolution}
@@ -214,16 +251,16 @@ ${design ? `System design package:\n${JSON.stringify(design, null, 2)}` : ""}
 
 ${tasks?.length ? `Task breakdown (file paths omitted unless verified in codebase analysis):\n${tasks.map((t) => `- ${t.id}: ${t.title}${t.files?.length ? ` (${t.files.join(", ")})` : ""}${t.description ? ` — ${t.description}` : ""}`).join("\n")}` : ""}
 
-${generatedPrd ? `Full PM-generated PRD (authoritative — implement every feature, user story, and requirement described here):\n${JSON.stringify(generatedPrd, null, 2)}` : ""}
-
 ${generatedPrd?.implementationDeltaSummary ? `CODEBASE DELTA (build only net-new work):\nSummary: ${generatedPrd.implementationDeltaSummary}\nAlready exists:\n${(generatedPrd.existingCapabilities ?? []).map((c) => `- ${c}`).join("\n")}\nNet-new work:\n${(generatedPrd.netNewWork ?? []).map((c) => `- ${c}`).join("\n")}\nReuse from codebase:\n${(generatedPrd.reuseFromCodebase ?? []).map((c) => `- ${c}`).join("\n")}` : ""}
 
 ${input.compileFeedback ? `SANDBOX COMPILE/TEST FEEDBACK — fix these errors before finishing:\n${input.compileFeedback}` : ""}
 
-${input.databaseCatalogBlock ? input.databaseCatalogBlock : "CUSTOMER DATABASES: none connected."}
-
 CRITICAL IMPLEMENTATION RULES:
-- The PRD + acceptance criteria above are the source of truth. Implement every criterion and user story unless it is explicitly out of scope.
+- Ground every change in sections 1–4 above (codebase intelligence, databases, logs, entire PRD).
+- The PRD is the source of truth. Implement every criterion and user story unless it is explicitly out of scope.
+- If a customer database is required and none is connected, do not invent schema. Ask the human to attach one in Settings → Integrations, then stop (blockers in final JSON).
+- If log sources are required for a production bug and none are connected, ask for Logs → Sources or a stack trace before guessing root cause.
+- Write clean code for the selected Tech LLM: match existing style, no TODOs, no unused imports, no speculative architecture.
 - criteriaMapping entries must each be realized in code (or content deliverables). Do not ship a partial subset.
 - Each criteriaMapping entry should cite files[] that exist in your codeChanges.
 - Prefer editing the files named in the plan / task breakdown / verified paths over inventing unrelated files.

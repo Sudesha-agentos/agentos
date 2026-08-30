@@ -5,6 +5,13 @@ import { normalizeImplementationOutput } from "../agents/normalizeImplementation
 import { runCanaryCycle } from "../canaryAgent";
 import { runEngineeringCodingAgentic } from "../engineeringCodingAgent";
 import { resolveCodingBranchName } from "../engineeringCodingAgent/inputBuilder";
+import { gatherTechPrewriteContext } from "../engineeringCodingAgent/prewriteContext";
+import {
+  assertQaHandoffReady,
+  buildReadyQaHandoff,
+  type QaHandoff,
+} from "../engineering/qaHandoff";
+import { buildPipelineRunSummary } from "./runSummary";
 import {
   clearCodingArtifacts,
   getCodingArtifacts,
@@ -287,6 +294,7 @@ export class PipelineOrchestrator {
         throw err;
       }
       const implementationBranch = codingStage.implementationBranch;
+      const qaHandoff = codingStage.qaHandoff;
       const implementationOutput = codingStage.output;
       const implementationValidation = await this.validateImplementationStage(
         pipeline.id,
@@ -326,7 +334,8 @@ export class PipelineOrchestrator {
         normalizedTicket.jiraKey,
         productStage.agentOutput.parsed,
         implementationOutput.parsed,
-        implementationBranch
+        implementationBranch,
+        qaHandoff
       );
       const qaOutput = qaStage.agentOutput;
 
@@ -431,6 +440,15 @@ export class PipelineOrchestrator {
         ...jiraResult,
       });
 
+      await this.publishCompletedRunSummary({
+        pipelineId: pipeline.id,
+        jiraKey: normalizedTicket.jiraKey,
+        prd: productStage.agentOutput.parsed,
+        implementation: implementationOutput.parsed,
+        qa: qaOutput.parsed,
+        implementationBranch,
+        executionReport: qaStage.executionReport as Record<string, unknown> | undefined,
+      });
       await stateManager.complete(pipeline.id);
       await ticketRepo.setStatus(ticket.id, "COMPLETED");
       logger.info({ pipelineId: pipeline.id, jiraResult }, "pipeline completed");
@@ -524,6 +542,7 @@ export class PipelineOrchestrator {
       }
 
       let implementationBranch: string | undefined;
+      let qaHandoff: QaHandoff | undefined;
       let implementationOutput: AgentOutput<ImplementationOutput>;
       if (!completedStages.has("ENGINEERING_AGENT")) {
         const engStage = await this.runEngineeringAgent(
@@ -542,6 +561,7 @@ export class PipelineOrchestrator {
             engStage.stageLogId
           );
           implementationBranch = codingResult.implementationBranch;
+          qaHandoff = codingResult.qaHandoff;
           implementationOutput = codingResult.output;
         } catch (err) {
           await pipelineRepo
@@ -553,9 +573,11 @@ export class PipelineOrchestrator {
         const engLog = await pipelineRepo.getStageOutput(pipelineId, "ENGINEERING_AGENT");
         const engOutput = engLog?.output as (ImplementationOutput & {
           implementationBranch?: string;
+          qaHandoff?: QaHandoff;
         }) | null;
         const parsed = engOutput as unknown as ImplementationOutput;
         implementationBranch = engOutput?.implementationBranch;
+        qaHandoff = engOutput?.qaHandoff;
         implementationOutput = {
           raw: JSON.stringify(engLog?.output),
           parsed,
@@ -588,6 +610,7 @@ export class PipelineOrchestrator {
               codingLog.id
             );
             implementationBranch = codingResult.implementationBranch;
+            qaHandoff = codingResult.qaHandoff;
             implementationOutput = codingResult.output;
           } catch (err) {
             await pipelineRepo
@@ -639,7 +662,8 @@ export class PipelineOrchestrator {
           normalizedTicket.jiraKey,
           productStage.agentOutput.parsed,
           implementationOutput.parsed,
-          implementationBranch
+          implementationBranch,
+          qaHandoff
         );
       } else {
         const qaLog = await pipelineRepo.getStageOutput(pipelineId, "QA_AGENT");
@@ -763,6 +787,15 @@ export class PipelineOrchestrator {
         ...jiraResult,
       });
 
+      await this.publishCompletedRunSummary({
+        pipelineId,
+        jiraKey: normalizedTicket.jiraKey,
+        prd: productStage.agentOutput.parsed,
+        implementation: implementationOutput.parsed,
+        qa: qaOutput.parsed,
+        implementationBranch,
+        executionReport: qaStage.executionReport as Record<string, unknown> | undefined,
+      });
       await stateManager.complete(pipelineId);
       await ticketRepo.setStatus(ticket.id, "COMPLETED");
       logger.info({ pipelineId }, "pipeline resume completed");
@@ -822,6 +855,36 @@ export class PipelineOrchestrator {
     } catch {
       return undefined;
     }
+  }
+
+  private async publishCompletedRunSummary(input: {
+    pipelineId: string;
+    jiraKey: string;
+    prd: PrdOutput;
+    implementation: ImplementationOutput;
+    qa: QaOutput;
+    implementationBranch?: string;
+    executionReport?: Record<string, unknown>;
+  }): Promise<void> {
+    const summary = buildPipelineRunSummary(input);
+    publishPipelineArtifact({
+      pipelineId: input.pipelineId,
+      jiraKey: input.jiraKey,
+      type: "RUN_SUMMARY",
+      producer: "pipeline",
+      title: `Completed ${input.jiraKey}`,
+      payload: summary as unknown as Record<string, unknown>,
+    });
+    await auditRepo.log(input.pipelineId, "PIPELINE_RUN_SUMMARY", summary);
+    logger.info(
+      {
+        pipelineId: input.pipelineId,
+        jiraKey: input.jiraKey,
+        branch: summary.branch,
+        filesChanged: summary.filesChanged.length,
+      },
+      "pipeline run summary published — marked completed"
+    );
   }
 
   private async completeOutputStage(
@@ -1057,7 +1120,7 @@ export class PipelineOrchestrator {
     prd: PrdOutput,
     enrichedPrdDocument: Record<string, unknown>
   ): Promise<{ output: AgentOutput<ImplementationOutput>; stageLogId: string }> {
-    const { implementationMode, deliverableFiles, targetFilePaths } =
+    const { generatedPrd, implementationMode, deliverableFiles, targetFilePaths } =
       this.resolveImplementationContext(ticket, enrichedPrdDocument);
     const query = `${prd.title} ${prd.problemStatement} ${prd.proposedSolution}`;
     const scope = resolveRepoScope();
@@ -1071,18 +1134,50 @@ export class PipelineOrchestrator {
     });
 
     const codebaseIntelligence = await this.getCodebaseIntelligenceSnapshot(prd);
+    const prewrite = await gatherTechPrewriteContext({
+      pipelineId,
+      jiraKey: ticket.jiraKey,
+      prd,
+      generatedPrd,
+      branchName: branch,
+      skipCodebase: true,
+    });
+    const techPrewriteContext = {
+      selectedModelLabel: prewrite.selectedModelLabel,
+      codebaseIntelligenceBlock: codebaseIntelligence.snapshotText,
+      databaseCatalogBlock: prewrite.databaseCatalogBlock,
+      databaseConnected: prewrite.databaseConnected,
+      mustAskForDatabase: prewrite.mustAskForDatabase,
+      logIntelligenceBlock: prewrite.logIntelligenceBlock,
+      logsConnected: prewrite.logsConnected,
+      entirePrd: generatedPrd ?? prd,
+    };
     const enrichedPrdSummary = this.buildEnrichedPrdSummary(enrichedPrdDocument);
     const context = buildEngineeringAgentContext(
       prd,
       unified.retrievedContext.length > 0
         ? unified.retrievedContext
         : await retriever.retrieveForEngineeringAgent(prd, ticket.jiraKey),
-      `${enrichedPrdSummary}\n\nUnified retrieval (tickets + codebase):\n${unified.fusedBlock}\n\n${codebaseIntelligence.snapshotText}`
+      [
+        `Selected Tech LLM: ${prewrite.selectedModelLabel}`,
+        enrichedPrdSummary,
+        "Unified retrieval (tickets + codebase):",
+        unified.fusedBlock,
+        codebaseIntelligence.snapshotText,
+        prewrite.databaseCatalogBlock,
+        prewrite.logIntelligenceBlock,
+        prewrite.mustAskForDatabase
+          ? "DATABASE REQUIRED BUT NOT CONNECTED — do not invent schema; add a blocker asking Settings → Integrations."
+          : "",
+      ]
+        .filter(Boolean)
+        .join("\n\n")
     );
     const input = {
       context,
       enrichedPrdDocument,
       codebaseIntelligence,
+      techPrewriteContext,
       prd,
       instruction:
         implementationMode === "content"
@@ -1137,6 +1232,7 @@ export class PipelineOrchestrator {
   ): Promise<{
     output: AgentOutput<ImplementationOutput>;
     implementationBranch: string;
+    qaHandoff: QaHandoff;
   }> {
     await auditRepo.log(pipelineId, "ENGINEERING_CODING_STARTED", {
       jiraKey: ticket.jiraKey,
@@ -1219,6 +1315,7 @@ export class PipelineOrchestrator {
 
     let codingResult: Awaited<ReturnType<typeof runEngineeringCodingAgentic>> | null = null;
     let implementationBranch: string | null = null;
+    let pushResult: { sha: string; pushedBranch: string } | null = null;
     let compileFailed = false;
     let compileSkipped = false;
 
@@ -1335,7 +1432,6 @@ export class PipelineOrchestrator {
       }
 
       // ── Commit + push via local git (required — QA reads this branch) ───
-      let pushResult: { sha: string; pushedBranch: string } | null = null;
       let openedPr: import("../integrations/gitProvider").GitPullRequest | null = null;
 
       if (workspace) {
@@ -1421,7 +1517,7 @@ export class PipelineOrchestrator {
         // Fallback: Git Data API push (legacy in-memory path)
         const finalStaged = getCodingArtifacts(pipelineId).stagedFiles;
         if (finalStaged.length > 0) {
-          const targetBranch = resolveFallbackApiPushBranch();
+          const targetBranch = resolveFallbackApiPushBranch(ticket.jiraKey);
           try {
             const pushFiles = normalizePushFiles(
               finalStaged.map((f) => ({ filePath: f.filePath, content: f.content }))
@@ -1562,11 +1658,37 @@ export class PipelineOrchestrator {
       },
     });
 
+    if (!implementationBranch || !pushResult) {
+      throw new Error(
+        `QA handoff failed for ${ticket.jiraKey}: code was not pushed to a GitHub branch`
+      );
+    }
+    const qaHandoff = buildReadyQaHandoff({
+      jiraKey: ticket.jiraKey,
+      implementationBranch,
+      commitSha: pushResult.sha,
+      filesChanged: codingResult.codeChanges.length,
+      codingSummary: codingResult.codingSummary,
+      compileFailed,
+    });
+    await auditRepo.log(pipelineId, "QA_HANDOFF", {
+      ...qaHandoff,
+    });
+    emitEngineeringCodingEvent({
+      type: "ready_for_qa",
+      pipelineId,
+      jiraKey: ticket.jiraKey,
+      timestamp: new Date().toISOString(),
+      status: 200,
+      implementationBranch: qaHandoff.implementationBranch,
+    });
+
     await auditRepo.log(pipelineId, "ENGINEERING_CODING_COMPLETED", {
       jiraKey: ticket.jiraKey,
       filesChanged: codingResult.codeChanges.length,
       toolCalls: codingResult.toolCallLog.length,
       implementationBranch,
+      qaHandoff,
     });
     emitEngineeringCodingEvent({
       type: "coding_completed",
@@ -1583,6 +1705,7 @@ export class PipelineOrchestrator {
         output: {
           ...merged,
           implementationBranch,
+          qaHandoff,
         } as unknown as Prisma.InputJsonValue,
         confidenceScore: merged.confidenceScore,
         tokenCount:
@@ -1596,7 +1719,7 @@ export class PipelineOrchestrator {
     }
 
     await stateManager.advance(pipelineId, "IMPLEMENTATION_VALIDATION");
-    return { output, implementationBranch };
+    return { output, implementationBranch, qaHandoff };
   }
 
   private buildEnrichedPrdSummary(enrichedPrdDocument: Record<string, unknown>): string {
@@ -1658,6 +1781,7 @@ export class PipelineOrchestrator {
         branchName: branch,
         topN: 10,
         fetchFreshContent: false,
+        forEngineering: true,
       });
 
       const semanticMatches = bundle.files.map((f) => ({
@@ -1785,15 +1909,26 @@ export class PipelineOrchestrator {
     jiraKey: string,
     prd: PrdOutput,
     implementation: ImplementationOutput,
-    implementationBranch?: string
+    implementationBranch?: string,
+    qaHandoff?: QaHandoff | null
   ) {
-    const branchName =
-      implementationBranch?.trim() ||
-      (await resolveImplementationBranchForQa(pipelineId, jiraKey));
+    const handoff = await this.resolveQaHandoff(
+      pipelineId,
+      jiraKey,
+      implementation,
+      implementationBranch,
+      qaHandoff
+    );
+    const branchName = handoff.implementationBranch;
 
     logger.info(
-      { pipelineId, jiraKey, implementationBranch: branchName },
-      "QA agent reading Ananta implementation branch"
+      {
+        pipelineId,
+        jiraKey,
+        implementationBranch: branchName,
+        qaHandoffStatus: handoff.status,
+      },
+      "QA agent received Ananta status 200 — generating test cases"
     );
 
     const retrieved = await retriever.retrieveForQAAgent(prd, jiraKey);
@@ -1802,8 +1937,9 @@ export class PipelineOrchestrator {
       implementation,
       retrievedContext: retrieved,
       implementationBranch: branchName,
+      qaHandoff: handoff,
       instruction:
-        "Four-phase QA: understand code, write tests, run tests, report findings.",
+        "Ananta passed status 200. Four-phase QA: understand code, write tests, run tests, report findings.",
     };
     const stageLog = await pipelineRepo.startStage({
       pipelineId,
@@ -1818,6 +1954,7 @@ export class PipelineOrchestrator {
       retrievedContext: retrieved,
       implementationMode: implementation.implementationMode,
       implementationBranch: branchName,
+      qaHandoff: handoff,
     });
     const output = result.agentOutput;
     await pipelineRepo.completeStage({
@@ -1845,6 +1982,44 @@ export class PipelineOrchestrator {
     });
     await stateManager.advance(pipelineId, "QA_VALIDATION");
     return result;
+  }
+
+  private async resolveQaHandoff(
+    pipelineId: string,
+    jiraKey: string,
+    implementation: ImplementationOutput,
+    implementationBranch?: string,
+    existing?: QaHandoff | null
+  ): Promise<QaHandoff> {
+    if (existing?.status === 200) {
+      return assertQaHandoffReady(existing);
+    }
+    const logs = await auditRepo.listForPipeline(pipelineId, 120);
+    const ready = logs.find((log) => log.event === "QA_HANDOFF");
+    const fromLog = ready?.metadata as QaHandoff | undefined;
+    if (fromLog?.status === 200) {
+      return assertQaHandoffReady(fromLog);
+    }
+    const pushLog = logs.find((log) => log.event === "ENGINEERING_PUSHED_TO_BRANCH");
+    const meta = pushLog?.metadata as { targetBranch?: string; commitSha?: string } | null;
+    const branch =
+      implementationBranch?.trim() ||
+      meta?.targetBranch?.trim() ||
+      (await resolveImplementationBranchForQa(pipelineId, jiraKey));
+    const sha = meta?.commitSha?.trim();
+    if (!sha) {
+      throw new Error(
+        `QA agent cannot start for ${jiraKey}: Ananta has not passed status 200 (no GitHub push yet).`
+      );
+    }
+    return buildReadyQaHandoff({
+      jiraKey,
+      implementationBranch: branch,
+      commitSha: sha,
+      filesChanged: implementation.codeChanges?.length ?? 0,
+      codingSummary: implementation.codingSummary || implementation.summary,
+      compileFailed: Boolean(implementation.compileFailed),
+    });
   }
 
   private async validateQaStage(

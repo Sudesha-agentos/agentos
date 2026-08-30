@@ -1,4 +1,5 @@
 import { runAgenticLoop } from "../agenticLoop/loop";
+import type { QaHandoff } from "../engineering/qaHandoff";
 import { parseDiscoveryJson } from "../llm/discoveryCompletion";
 import type { AgentOutput, ImplementationMode, ImplementationOutput, PrdOutput, QaOutput } from "../types/agents";
 import type { RetrievedContext } from "../types/pipeline";
@@ -29,6 +30,8 @@ export interface QaAgentRunInput {
   implementationMode?: ImplementationMode;
   /** Ananta push branch — when omitted, resolved from pipeline audit log. */
   implementationBranch?: string;
+  /** Status 200 handshake from Ananta after the GitHub branch is pushed. */
+  qaHandoff?: QaHandoff;
 }
 
 export interface QaAgentRunResult {
@@ -59,6 +62,7 @@ export async function runQaAgentic(
       initialUserMessage: buildQaInitialUserMessage({
         ...input,
         branchName,
+        qaHandoff: input.qaHandoff,
       }),
       pipelineId: input.pipelineId,
       jiraKey: input.jiraKey,

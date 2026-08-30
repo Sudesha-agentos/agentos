@@ -6,7 +6,7 @@ import { AgentChatAvatar } from "../agent-chat/AgentChatAvatar";
 import { getAgentChatConfig } from "../agent-chat/agentChatConfig";
 import DiscoveryQuestionCard from "../pm-analysis/DiscoveryQuestionCard";
 import ClaudeTurn from "./ClaudeTurn";
-import { CodeWorkCard, PrdDocumentCard, QaWorkCard } from "./DashboardArtifactCards";
+import { CodeWorkCard, PrdDocumentCard, QaWorkCard, RunSummaryCard } from "./DashboardArtifactCards";
 import {
   ConfirmCard,
   HandoffCard,
@@ -352,7 +352,33 @@ export default function DashboardStream({
                 pipelineId={msg.metadata.pipelineId}
                 prUrl={msg.metadata.prUrl}
                 prNumber={msg.metadata.prNumber}
+                implementationBranch={msg.metadata.implementationBranch}
                 live={isLiveTurn}
+              />
+            </ClaudeTurn>
+          );
+        }
+
+        if (kind === "run_summary") {
+          return (
+            <ClaudeTurn
+              key={row.id}
+              domain={agentDomain}
+              content={msg.content}
+              thinking={thinkingLines}
+              thinkingLive={isLiveTurn}
+              thinkingLabel={thinkingLabel}
+            >
+              <RunSummaryCard
+                jiraKey={msg.metadata.jiraKey}
+                branch={msg.metadata.branch}
+                prUrl={msg.metadata.prUrl}
+                prNumber={msg.metadata.prNumber}
+                files={msg.metadata.files}
+                whatWasDone={msg.metadata.whatWasDone}
+                coverage={msg.metadata.coverage}
+                testRun={msg.metadata.testRun}
+                recommendation={msg.metadata.recommendation}
               />
             </ClaudeTurn>
           );
