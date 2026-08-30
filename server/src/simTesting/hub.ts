@@ -1,6 +1,7 @@
 import { EventEmitter } from "node:events";
 import { randomUUID } from "node:crypto";
-import type { SimAgent, SimEvent, SimEventKind, SimRun, SimRunResult } from "./types";
+import { costUsdForTokens, formatUsd, tokenRatesForModel } from "../llm/tokenPricing";
+import type { SimAgent, SimEvent, SimEventKind, SimRun, SimRunResult, SimUsageLine } from "./types";
 
 const MAX_RUNS = 40;
 const MAX_EVENTS = 2_000;
@@ -17,6 +18,7 @@ export function createSimRun(organizationId: string, requirement: string): SimRu
     status: "queued",
     startedAt: Date.now(),
     events: [],
+    usage: { inputTokens: 0, outputTokens: 0, costUsd: 0, lines: [] },
   };
   runs.set(run.id, run);
   prune();
@@ -70,6 +72,43 @@ export function emitSimEvent(
   return event;
 }
 
+export function recordSimUsage(
+  runId: string,
+  input: {
+    agent: SimAgent;
+    stage: string;
+    model: string;
+    inputTokens: number;
+    outputTokens: number;
+  }
+): SimUsageLine | null {
+  const run = runs.get(runId);
+  if (!run) return null;
+  const rate = tokenRatesForModel(input.model);
+  const line: SimUsageLine = {
+    agent: input.agent,
+    stage: input.stage,
+    model: input.model,
+    inputTokens: Math.max(0, Math.round(input.inputTokens)),
+    outputTokens: Math.max(0, Math.round(input.outputTokens)),
+    costUsd: costUsdForTokens(input.model, input.inputTokens, input.outputTokens),
+    inputUsdPerMillion: rate.inputUsdPerMillion,
+    outputUsdPerMillion: rate.outputUsdPerMillion,
+  };
+  run.usage.lines.push(line);
+  run.usage.inputTokens += line.inputTokens;
+  run.usage.outputTokens += line.outputTokens;
+  run.usage.costUsd += line.costUsd;
+  emitSimEvent(runId, {
+    agent: input.agent,
+    kind: "usage",
+    label: `${input.stage} tokens`,
+    detail: `${line.model} · in ${line.inputTokens} · out ${line.outputTokens} · ${formatUsd(line.costUsd)} ($${rate.inputUsdPerMillion}/$${rate.outputUsdPerMillion} per 1M)`,
+    data: line as unknown as Record<string, unknown>,
+  });
+  return line;
+}
+
 export function markSimRunning(runId: string): void {
   const run = runs.get(runId);
   if (run) run.status = "running";
@@ -80,14 +119,14 @@ export function completeSimRun(runId: string, result: SimRunResult): void {
   if (!run) return;
   run.status = "completed";
   run.finishedAt = Date.now();
-  run.result = result;
+  run.result = { ...result, usage: run.usage };
   emitSimEvent(runId, {
     agent: "system",
     kind: "done",
     label: "COMPLETED",
-    detail: `${((run.finishedAt - run.startedAt) / 1000).toFixed(1)}s total`,
+    detail: `${((run.finishedAt - run.startedAt) / 1000).toFixed(1)}s · ${run.usage.inputTokens} in / ${run.usage.outputTokens} out · ${formatUsd(run.usage.costUsd)}`,
     durationMs: run.finishedAt - run.startedAt,
-    data: result as unknown as Record<string, unknown>,
+    data: { ...run.result } as unknown as Record<string, unknown>,
   });
 }
 
@@ -101,8 +140,9 @@ export function failSimRun(runId: string, error: string): void {
     agent: "system",
     kind: "error",
     label: "FAILED",
-    detail: error,
+    detail: `${error} · ${run.usage.inputTokens} in / ${run.usage.outputTokens} out · ${formatUsd(run.usage.costUsd)}`,
     durationMs: run.finishedAt - run.startedAt,
+    data: { usage: run.usage },
   });
 }
 

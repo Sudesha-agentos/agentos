@@ -8,6 +8,8 @@ import {
 } from "../../simTesting/hub";
 import { executeSimRun } from "../../simTesting/runner";
 import { getPublicGitCredentials } from "../../git-integration/gitCredentialsStore";
+import { getApiModelForRole } from "../../billing/consumeAgentCredits";
+import { tokenRatesForModel } from "../../llm/tokenPricing";
 
 const router = Router();
 
@@ -17,6 +19,11 @@ router.get("/status", async (req, res, next) => {
     if (!user?.organizationId) return;
     await withOrganizationContext(user.organizationId, async () => {
       const git = getPublicGitCredentials();
+      const models = {
+        virin: getApiModelForRole("product"),
+        ananta: getApiModelForRole("tech"),
+        neel: getApiModelForRole("qa"),
+      };
       res.json({
         git: {
           connected: git.configured,
@@ -25,6 +32,11 @@ router.get("/status", async (req, res, next) => {
           provider: git.provider,
         },
         openai: Boolean(process.env.OPENAI_API_KEY?.trim()),
+        models: {
+          virin: { model: models.virin, ...tokenRatesForModel(models.virin) },
+          ananta: { model: models.ananta, ...tokenRatesForModel(models.ananta) },
+          neel: { model: models.neel, ...tokenRatesForModel(models.neel) },
+        },
       });
     });
   } catch (err) {

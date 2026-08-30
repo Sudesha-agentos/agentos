@@ -12,6 +12,7 @@ import { buildReadyQaHandoff } from "../engineering/qaHandoff";
 import { runEngineeringCodingAgentic } from "../engineeringCodingAgent";
 import { getPublicGitCredentials } from "../git-integration/gitCredentialsStore";
 import { resolveRepoIndexBranch } from "../git-integration/resolveRepoBranch";
+import { getApiModelForRole, getModelIdForRole } from "../billing/consumeAgentCredits";
 import { chatCompletionText, parseDiscoveryJson } from "../llm/openaiCompletion";
 import { resolveRepoScope } from "../codebaseIntelligence/repoScope";
 import { buildEngineeringAgentContext } from "../pipeline/contextBuilder";
@@ -25,6 +26,7 @@ import {
   failSimRun,
   getSimRun,
   markSimRunning,
+  recordSimUsage,
 } from "./hub";
 
 async function timed<T>(
@@ -64,6 +66,7 @@ async function runVirin(runId: string, requirement: string): Promise<PrdOutput> 
   return timed(runId, "virin", "Virin PRD", async () => {
     const { text, usage, model } = await chatCompletionText({
       role: "product",
+      providerId: getModelIdForRole("product"),
       jsonMode: true,
       maxTokens: 3000,
       system: `You are Virin. Return ONLY JSON:
@@ -85,6 +88,13 @@ Write a real PRD. Include at least 6 testable acceptance criteria.`,
       user: requirement,
     });
     const prd = parseDiscoveryJson<PrdOutput>(text, "simVirin");
+    recordSimUsage(runId, {
+      agent: "virin",
+      stage: "Virin PRD",
+      model: model || getApiModelForRole("product"),
+      inputTokens: usage.inputTokens,
+      outputTokens: usage.outputTokens,
+    });
     emitSimEvent(runId, {
       agent: "virin",
       kind: "artifact",
@@ -120,6 +130,13 @@ async function runAnantaPlan(runId: string, prd: PrdOutput): Promise<Implementat
     );
     const plan = normalizeImplementationOutput(output.parsed, "code", []);
     plan.implementationMode = "code";
+    recordSimUsage(runId, {
+      agent: "ananta",
+      stage: "Ananta plan",
+      model: getApiModelForRole("tech"),
+      inputTokens: output.metadata.inputTokens,
+      outputTokens: output.metadata.outputTokens,
+    });
     emitSimEvent(runId, {
       agent: "ananta",
       kind: "artifact",
@@ -202,6 +219,13 @@ export async function executeSimRun(runId: string): Promise<void> {
         retainArtifacts: true,
       })
     );
+    recordSimUsage(runId, {
+      agent: "ananta",
+      stage: "Ananta coding",
+      model: getApiModelForRole("tech"),
+      inputTokens: coding.metadata.inputTokens,
+      outputTokens: coding.metadata.outputTokens,
+    });
     emitSimEvent(runId, {
       agent: "ananta",
       kind: "artifact",
@@ -260,6 +284,13 @@ export async function executeSimRun(runId: string): Promise<void> {
     );
 
     const testCases = qa.agentOutput.parsed.testCases ?? [];
+    recordSimUsage(runId, {
+      agent: "neel",
+      stage: "Neel QA",
+      model: getApiModelForRole("qa"),
+      inputTokens: qa.agentOutput.metadata.inputTokens,
+      outputTokens: qa.agentOutput.metadata.outputTokens,
+    });
     emitSimEvent(runId, {
       agent: "neel",
       kind: "artifact",

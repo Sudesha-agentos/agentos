@@ -17,6 +17,15 @@ function agentColor(agent) {
   return "text-zinc-400";
 }
 
+function formatUsd(amount) {
+  if (!Number.isFinite(amount) || amount <= 0) return "$0.00";
+  return `$${Number(amount).toFixed(4)}`;
+}
+
+function formatTokens(n) {
+  return Number(n || 0).toLocaleString();
+}
+
 export default function SimTestingLab() {
   useDocumentRobots("noindex, nofollow");
   const [requirement, setRequirement] = useState(
@@ -120,6 +129,24 @@ export default function SimTestingLab() {
     [events]
   );
   const tools = events.filter((item) => item.kind === "tool");
+  const usageLines = useMemo(
+    () => events.filter((item) => item.kind === "usage"),
+    [events]
+  );
+  const usageTotals = useMemo(() => {
+    const fromDone = done?.data?.usage;
+    if (fromDone && typeof fromDone.inputTokens === "number") {
+      return fromDone;
+    }
+    return usageLines.reduce(
+      (acc, item) => ({
+        inputTokens: acc.inputTokens + (item.data?.inputTokens ?? 0),
+        outputTokens: acc.outputTokens + (item.data?.outputTokens ?? 0),
+        costUsd: acc.costUsd + (item.data?.costUsd ?? 0),
+      }),
+      { inputTokens: 0, outputTokens: 0, costUsd: 0 }
+    );
+  }, [done, usageLines]);
   const qaCases = done?.data?.qaTestCases;
 
   return (
@@ -131,7 +158,7 @@ export default function SimTestingLab() {
         <h1 className="mt-1 text-[16px] text-zinc-100">sim-testing-for-testing</h1>
         <p className="mt-1 text-zinc-500">
           Types a requirement → Virin PRD → Ananta clones GitHub, writes code, pushes a branch,
-          status 200 → Neel QA tools + test cases. Times and tool calls stay on this page.
+          status 200 → Neel QA tools + test cases. Times, tokens, and model cost stay on this page.
         </p>
       </header>
 
@@ -159,10 +186,15 @@ export default function SimTestingLab() {
           </span>
           {run?.id ? <span className="text-zinc-500">{run.id}</span> : null}
         </div>
+        {status?.models ? (
+          <p className="mt-2 text-zinc-500">
+            Virin {status.models.virin.model} · Ananta {status.models.ananta.model} · Neel {status.models.neel.model}
+          </p>
+        ) : null}
         {error ? <p className="mt-2 text-rose-400">{error}</p> : null}
       </form>
 
-      <div className="grid flex-1 grid-cols-1 gap-0 lg:grid-cols-[1fr_18rem]">
+      <div className="grid flex-1 grid-cols-1 gap-0 lg:grid-cols-[1fr_22rem]">
         <div ref={logRef} className="min-h-0 overflow-auto px-4 py-3">
           {events.length === 0 ? (
             <p className="text-zinc-600">Logs appear here as Virin, Ananta, and Neel run.</p>
@@ -173,7 +205,13 @@ export default function SimTestingLab() {
                   <span className="w-14 shrink-0 text-zinc-600">{fmtMs(item.elapsedMs)}</span>
                   <span className={`w-16 shrink-0 ${agentColor(item.agent)}`}>{item.agent}</span>
                   <span className="text-zinc-300">
-                    {item.kind === "tool" ? "tool · " : item.kind === "error" ? "ERR · " : ""}
+                    {item.kind === "tool"
+                      ? "tool · "
+                      : item.kind === "usage"
+                        ? "tok · "
+                        : item.kind === "error"
+                          ? "ERR · "
+                          : ""}
                     {item.label}
                     {item.detail ? <span className="text-zinc-500"> — {item.detail}</span> : null}
                     {item.durationMs != null ? (
@@ -194,6 +232,27 @@ export default function SimTestingLab() {
             {timings.map((item) => (
               <li key={item.id}>
                 {item.label.replace(" finished", "")} · {fmtMs(item.durationMs)}
+              </li>
+            ))}
+          </ul>
+          <p className="mt-4 text-[11px] uppercase tracking-widest text-zinc-500">Tokens &amp; cost</p>
+          <p className="mt-2 text-zinc-300">
+            in {formatTokens(usageTotals.inputTokens)} · out {formatTokens(usageTotals.outputTokens)}
+          </p>
+          <p className="text-amber-200">{formatUsd(usageTotals.costUsd)}</p>
+          <ul className="mt-2 space-y-2 text-zinc-400">
+            {usageLines.map((item) => (
+              <li key={item.id}>
+                <div className="text-zinc-300">
+                  {item.data?.stage ?? item.label} · {item.data?.model ?? "model"}
+                </div>
+                <div>
+                  {formatTokens(item.data?.inputTokens)} in / {formatTokens(item.data?.outputTokens)} out ·{" "}
+                  {formatUsd(item.data?.costUsd)}
+                </div>
+                <div className="text-zinc-600">
+                  ${item.data?.inputUsdPerMillion ?? "—"} / ${item.data?.outputUsdPerMillion ?? "—"} per 1M
+                </div>
               </li>
             ))}
           </ul>
