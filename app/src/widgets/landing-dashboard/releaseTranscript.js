@@ -173,6 +173,7 @@ function buildAnantaMessages(key, engineeringRun, livePipeline) {
         currentAction: livePipeline?.currentAction || run?.currentStageLabel,
         prUrl: run?.prUrl || run?.pr?.url,
         prNumber: run?.prNumber,
+        implementationBranch: run?.implementationBranch || run?.branch,
         thinking: (run?.liveSteps ?? [])
           .filter((step) => step.status !== "pending")
           .map((step) => step.label),
@@ -555,20 +556,44 @@ export function buildReleaseMessages(analysis, livePipeline = null, extras = {})
   rows.push(...buildAnantaMessages(key, extras.engineeringRun, livePipeline));
   rows.push(...buildNeelMessages(key, extras.qaReport, livePipeline));
 
-  if (extras.engineeringRun?.status === "COMPLETED") {
-    const prUrl = extras.engineeringRun.prUrl || extras.engineeringRun.pr?.url;
+  const runDone =
+    extras.engineeringRun?.status === "COMPLETED" || livePipeline?.status === "COMPLETED";
+  if (runDone) {
+    const run = extras.engineeringRun;
+    const qa = extras.qaReport;
+    const prUrl = run?.prUrl || run?.pr?.url;
+    const branch = run?.implementationBranch || run?.branch || "";
+    const files = (run?.files ?? []).map((file) => file.path || file.filePath).filter(Boolean);
+    const whatWasDone = [
+      analysis?.generatedPrd?.title ? `Virin finished the PRD: ${analysis.generatedPrd.title}.` : null,
+      branch ? `Ananta wrote code on GitHub branch ${branch}.` : "Ananta wrote the implementation.",
+      files.length ? `Changed ${files.length} file${files.length === 1 ? "" : "s"}.` : null,
+      qa?.testSummary || qa?.coverageReport
+        ? `Neel ran QA${typeof qa?.coverageReport?.coveragePercent === "number" ? ` (${qa.coverageReport.coveragePercent}% coverage)` : ""}.`
+        : "Neel finished QA.",
+      "Ticket marked completed.",
+    ].filter(Boolean);
     rows.push({
       id: `release-writeback-${key}`,
       role: "assistant",
-      content: [
-        `Ticket **${key}** is updated in Jira.`,
-        prUrl ? `PR: [${extras.engineeringRun.prNumber ? `#${extras.engineeringRun.prNumber}` : "open"}](${prUrl})` : null,
-        "Virin, Ananta, and Neel have finished this release thread.",
-      ]
-        .filter(Boolean)
-        .join(" "),
-      createdAt: extras.engineeringRun.recentEvents?.[0]?.timestamp || analysis?.completedAt,
-      metadata: { kind: "release_complete", domain: "neel", jiraKey: key },
+      content: whatWasDone.join(" "),
+      createdAt: run?.recentEvents?.[0]?.timestamp || analysis?.completedAt || livePipeline?.startedAt,
+      metadata: {
+        kind: "run_summary",
+        domain: "neel",
+        jiraKey: key,
+        branch,
+        prUrl,
+        prNumber: run?.prNumber,
+        files,
+        codingSummary: run?.implementationPlan?.summary || "",
+        qaSummary: qa?.testSummary || "",
+        coverage: qa?.coverageReport,
+        testRun: qa?.testRun,
+        recommendation: qa?.recommendation,
+        whatWasDone,
+        markedCompleted: true,
+      },
     });
   }
 

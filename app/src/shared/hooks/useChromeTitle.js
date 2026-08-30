@@ -17,6 +17,7 @@ export function useChromeTitle() {
   if (pathMatches("projects")) return "All projects";
   if (pathMatches("integrations")) return "Integrations";
   if (pathMatches("logs")) return "Log Intelligence";
+  if (pathMatches("sim-testing-for-testing")) return "Sim testing";
   if (pathMatches("settings")) return "Settings";
   if (pathMatches("audit")) return "Audit Trail";
   return orgName;

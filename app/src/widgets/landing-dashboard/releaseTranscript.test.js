@@ -157,6 +157,38 @@ describe("release transcript", () => {
     );
   });
 
+  it("shows a completed-run summary after Ananta and Neel finish", () => {
+    const rows = buildReleaseMessages(
+      { ...analysis, status: "COMPLETED", generatedPrd: { title: "Audit export PRD" } },
+      {
+        pipelineId: "pl_1",
+        status: "COMPLETED",
+        currentStage: "OUTPUT",
+        currentStageLabel: "Done",
+        startedAt: "2026-08-26T00:20:00.000Z",
+      },
+      {
+        engineeringRun: {
+          pipelineId: "pl_1",
+          status: "COMPLETED",
+          implementationBranch: "agentos/plt-42",
+          files: [{ path: "src/export.ts", change: "created" }],
+        },
+        qaReport: {
+          pipelineId: "pl_1",
+          testSummary: "Covered export + reload",
+          coverageReport: { coveragePercent: 88 },
+          testRun: { passed: 10, failed: 0 },
+          recommendation: "ship",
+        },
+      }
+    );
+    const summary = rows.find((row) => row.metadata?.kind === "run_summary");
+    expect(summary?.metadata?.markedCompleted).toBe(true);
+    expect(summary?.metadata?.branch).toBe("agentos/plt-42");
+    expect(summary?.metadata?.whatWasDone?.some((line) => /marked completed/i.test(line))).toBe(true);
+  });
+
   it("keeps PRD, code, and QA artifacts even when their chat text is empty", () => {
     const merged = mergeReleaseMessages(
       [],

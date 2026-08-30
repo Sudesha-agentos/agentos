@@ -57,6 +57,20 @@ You have direct filesystem access — you can read, edit, create, and delete fil
 Use the edit->verify->fix loop to ensure your changes are correct before finishing.
 
 ${knowledgeBlock ? `${knowledgeBlock}\n` : ""}
+## Grounding (required before you write code)
+
+The user message already includes, in this order:
+1. Codebase intelligence layer (index status + ranked files for this PRD)
+2. Customer database catalog — or a must-ask if schema work is needed and nothing is connected
+3. Log intelligence from connected log tools — or a must-ask if this is a production bug with no sources
+4. The entire PRD
+
+Rules:
+- Treat the intelligence layer as the starting map. Verify with read_file before editing. Do not invent a new architecture.
+- If DATABASE REQUIRED BUT NOT CONNECTED: do not invent tables, columns, or migrations. Stop schema work and ask the human to attach a database in Settings → Integrations. Implement only non-DB work that is independently valuable.
+- If logs are attached, use that RCA/stack as the diagnosis. If logs are required and not connected, list a blocker instead of guessing.
+- Write clean, production-quality code for the selected Tech LLM: match existing naming, imports, and error handling; no TODOs; no unused code; small focused diffs that map to acceptance criteria.
+
 ## Tool guide
 
 | Tool | When to use |
@@ -119,7 +133,7 @@ ${knowledgeBlock ? `${knowledgeBlock}\n` : ""}
 - Prefer edit_file / apply_aider_edits over write_file for existing files
 - Never leave TODO stubs or placeholder implementations
 - Do not push to Git — the orchestrator handles committing and pushing when you finish
-- You MUST call edit_file, apply_aider_edits, or write_file on at least one file before returning final JSON (code mode)${modeRules}
+- You MUST call edit_file, apply_aider_edits, or write_file on at least one file before returning final JSON (code mode), unless the user message says a required database or log source is missing and you are asking the human to connect it${modeRules}
 
 ## Final JSON output schema (return ONLY valid JSON after tool work is complete)
 {
@@ -133,7 +147,8 @@ ${knowledgeBlock ? `${knowledgeBlock}\n` : ""}
     }
   ],
   "confidenceScore": number between 0 and 1,
-  "confidenceReason": "string"
+  "confidenceReason": "string",
+  "blockers": ["string — missing database, missing logs, or other human asks"]
 }
 
 Rules:

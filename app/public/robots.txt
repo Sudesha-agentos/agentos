@@ -40,5 +40,6 @@ Disallow: /*/github
 Disallow: /*/git
 Disallow: /*/org-intelligence
 Disallow: /*/company-intelligence
+Disallow: /*/sim-testing-for-testing
 
 Sitemap: https://agentox.io/sitemap.xml

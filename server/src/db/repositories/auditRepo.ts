@@ -11,7 +11,7 @@ export const auditRepo = {
     event: string,
     metadata: Record<string, unknown> = {}
   ): Promise<void> {
-    if (!pipelineId?.trim()) return;
+    if (!pipelineId?.trim() || pipelineId.startsWith("sim-")) return;
     await prisma.auditLog.create({
       data: {
         pipelineId,

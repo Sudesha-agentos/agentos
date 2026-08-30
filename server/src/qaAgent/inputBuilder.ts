@@ -9,6 +9,7 @@ import {
   resolveFallbackApiPushBranch,
 } from "../engineering/engineeringWorkspace";
 import { resolveCodingBranchName } from "../engineeringCodingAgent/inputBuilder";
+import { formatQaHandoffForPrompt, type QaHandoff } from "../engineering/qaHandoff";
 import { buildQaAgentContext } from "../pipeline/contextBuilder";
 
 export interface QaAgenticInput {
@@ -18,6 +19,7 @@ export interface QaAgenticInput {
   implementation: ImplementationOutput;
   retrievedContext: RetrievedContext[];
   branchName: string;
+  qaHandoff?: QaHandoff;
 }
 
 export function buildQaInitialUserMessage(input: QaAgenticInput): string {
@@ -31,6 +33,8 @@ export function buildQaInitialUserMessage(input: QaAgenticInput): string {
 Jira: ${input.jiraKey}
 Pipeline: ${input.pipelineId}
 Implementation branch: ${input.branchName}
+
+${input.qaHandoff ? formatQaHandoffForPrompt(input.qaHandoff) : "Ananta coding handoff: missing — do not invent a branch. Ask for status 200."}
 
 ${context}
 
@@ -69,7 +73,7 @@ export function resolveQaBranchName(
   const scope = resolveRepoScope();
   return (
     (jiraKey ? resolveEngineeringBranchName(jiraKey) : "") ||
-    resolveFallbackApiPushBranch() ||
+    resolveFallbackApiPushBranch(jiraKey) ||
     process.env.QA_DEFAULT_BRANCH?.trim() ||
     process.env.GITHUB_DEFAULT_BRANCH?.trim() ||
     scope?.defaultBranch ||

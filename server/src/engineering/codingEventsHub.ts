@@ -36,6 +36,14 @@ export type EngineeringCodingEvent =
       timestamp: string;
     }
   | {
+      type: "ready_for_qa";
+      pipelineId: string;
+      jiraKey?: string;
+      timestamp: string;
+      status: 200;
+      implementationBranch: string;
+    }
+  | {
       type: "canary_phase";
       pipelineId: string;
       phase: "reconnaissance" | "hypotheses" | "exploration" | "synthesis" | "completed" | "failed";

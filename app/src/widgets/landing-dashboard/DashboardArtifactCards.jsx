@@ -46,6 +46,7 @@ export function CodeWorkCard({
   pipelineId,
   prUrl,
   prNumber,
+  implementationBranch,
   live = false,
 }) {
   const orgPath = useOrgPathBuilder();
@@ -68,6 +69,9 @@ export function CodeWorkCard({
           </p>
           {currentAction ? (
             <p className="mt-0.5 text-[12px] text-app-ink-dim">{currentAction}</p>
+          ) : null}
+          {implementationBranch ? (
+            <p className="mt-0.5 font-mono text-[11px] text-app-ink-mute">{implementationBranch}</p>
           ) : null}
         </div>
         {jiraKey ? (
@@ -230,6 +234,72 @@ export function QaWorkCard({
       ) : live ? (
         <p className="border-t border-app-border px-4 py-3 text-[13px] text-app-ink-dim">
           Neel is writing and running tests. Cases appear here as they complete.
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+export function RunSummaryCard({
+  jiraKey,
+  branch,
+  prUrl,
+  prNumber,
+  files = [],
+  whatWasDone = [],
+  coverage,
+  testRun,
+  recommendation,
+}) {
+  return (
+    <div className="mt-2 w-full overflow-hidden rounded-2xl border border-app-border bg-app-surface">
+      <div className="flex items-center justify-between gap-3 border-b border-app-border px-4 py-2.5">
+        <p className="text-[11px] font-medium uppercase tracking-wide text-app-ink-mute">
+          Completed
+        </p>
+        {jiraKey ? (
+          <span className="font-mono text-[12px] text-app-ink-dim">{jiraKey}</span>
+        ) : null}
+      </div>
+      <ul className="space-y-1.5 px-4 py-3 text-[13px] leading-relaxed text-app-ink">
+        {whatWasDone.map((line) => (
+          <li key={line}>{line}</li>
+        ))}
+      </ul>
+      <div className="grid grid-cols-3 gap-2 border-t border-app-border px-4 py-3">
+        <Stat label="Branch" value={branch || "—"} />
+        <Stat
+          label="Coverage"
+          value={typeof coverage?.coveragePercent === "number" ? `${coverage.coveragePercent}%` : "—"}
+        />
+        <Stat
+          label="Tests"
+          value={
+            testRun?.passed != null || testRun?.failed != null
+              ? `${testRun?.passed ?? 0}/${(testRun?.passed ?? 0) + (testRun?.failed ?? 0)}`
+              : "—"
+          }
+        />
+      </div>
+      {files.length ? (
+        <p className="border-t border-app-border px-4 py-2.5 font-mono text-[12px] text-app-ink-dim">
+          {files.slice(0, 8).join(" · ")}
+          {files.length > 8 ? ` · +${files.length - 8}` : ""}
+        </p>
+      ) : null}
+      {prUrl ? (
+        <a
+          href={prUrl}
+          target="_blank"
+          rel="noreferrer"
+          className="block border-t border-app-border px-4 py-2.5 text-[12px] font-medium text-app-ink-dim hover:text-app-ink"
+        >
+          {prNumber ? `PR #${prNumber}` : "Open pull request"}
+        </a>
+      ) : null}
+      {recommendation ? (
+        <p className="border-t border-app-border px-4 py-2.5 text-[13px] text-app-ink">
+          QA: <span className="font-medium">{String(recommendation).replace(/_/g, " ")}</span>
         </p>
       ) : null}
     </div>

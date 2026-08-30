@@ -9,6 +9,7 @@ import {
 describe("orgPaths", () => {
   it("builds org-scoped paths", () => {
     expect(orgPath("acme", "pipelines")).toBe("/acme/pipelines");
+    expect(orgPath("acme", "sim-testing-for-testing")).toBe("/acme/sim-testing-for-testing");
     expect(orgPath("acme")).toBe("/acme");
   });
 
