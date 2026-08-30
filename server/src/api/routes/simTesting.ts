@@ -2,8 +2,10 @@ import { Router } from "express";
 import { requireOrganizationUser, withOrganizationContext } from "../orgRequestContext";
 import {
   createSimRun,
+  failSimRun,
   getSimRun,
   listSimRuns,
+  resolveSimPrompt,
   subscribeSimRun,
 } from "../../simTesting/hub";
 import { executeSimRun } from "../../simTesting/runner";
@@ -71,7 +73,9 @@ router.post("/runs", async (req, res, next) => {
       return;
     }
     const run = createSimRun(user.organizationId, requirement);
-    void withOrganizationContext(user.organizationId, () => executeSimRun(run.id)).catch(() => undefined);
+    void withOrganizationContext(user.organizationId, () => executeSimRun(run.id)).catch((err) => {
+      failSimRun(run.id, err instanceof Error ? err.message : String(err));
+    });
     res.status(202).json({ run });
   } catch (err) {
     next(err);
@@ -93,6 +97,31 @@ router.get("/runs/:id", async (req, res, next) => {
   }
 });
 
+router.post("/runs/:id/prompts/:promptId", async (req, res, next) => {
+  try {
+    const user = requireOrganizationUser(req, res);
+    if (!user?.organizationId) return;
+    const run = getSimRun(req.params.id);
+    if (!run || run.organizationId !== user.organizationId) {
+      res.status(404).json({ error: "not_found" });
+      return;
+    }
+    const body = (req.body ?? {}) as Record<string, unknown>;
+    const action = body.action === "approve" || body.action === "dismiss" ? body.action : "answer";
+    const prompt = resolveSimPrompt(run.id, req.params.promptId, {
+      action,
+      answer: body.answer != null ? String(body.answer) : undefined,
+    });
+    if (!prompt) {
+      res.status(404).json({ error: "not_found" });
+      return;
+    }
+    res.json({ prompt, run });
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.get("/runs/:id/events", async (req, res, next) => {
   try {
     const user = requireOrganizationUser(req, res);
@@ -104,26 +133,42 @@ router.get("/runs/:id/events", async (req, res, next) => {
     }
 
     res.setHeader("Content-Type", "text/event-stream");
-    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Cache-Control", "no-cache, no-transform");
     res.setHeader("Connection", "keep-alive");
+    res.setHeader("X-Accel-Buffering", "no");
+    req.socket.setTimeout(0);
     res.flushHeaders?.();
 
+    const writeEvent = (payload: unknown) => {
+      res.write(`data: ${JSON.stringify(payload)}\n\n`);
+      (res as typeof res & { flush?: () => void }).flush?.();
+    };
+
     for (const event of run.events) {
-      res.write(`data: ${JSON.stringify(event)}\n\n`);
+      writeEvent(event);
     }
     if (run.status === "completed" || run.status === "failed") {
-      res.write(`data: ${JSON.stringify({ kind: "snapshot", status: run.status })}\n\n`);
+      writeEvent({ kind: "snapshot", status: run.status });
     }
 
     const unsubscribe = subscribeSimRun(run.id, (event) => {
       try {
-        res.write(`data: ${JSON.stringify(event)}\n\n`);
+        writeEvent(event);
       } catch {
         unsubscribe();
       }
     });
 
+    const ping = setInterval(() => {
+      try {
+        res.write(": keepalive\n\n");
+      } catch {
+        clearInterval(ping);
+      }
+    }, 8000);
+
     req.on("close", () => {
+      clearInterval(ping);
       unsubscribe();
       res.end();
     });

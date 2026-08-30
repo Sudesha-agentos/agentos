@@ -1,6 +1,20 @@
 export type SimAgent = "system" | "virin" | "ananta" | "neel";
 
-export type SimEventKind = "stage" | "log" | "tool" | "artifact" | "usage" | "error" | "done";
+export type SimEventKind = "stage" | "log" | "tool" | "artifact" | "usage" | "prompt" | "error" | "done";
+
+export type SimPromptKind = "question" | "approval";
+export type SimPromptStatus = "open" | "answered" | "approved" | "dismissed";
+
+export type SimPrompt = {
+  id: string;
+  agent: SimAgent;
+  kind: SimPromptKind;
+  title: string;
+  body: string;
+  status: SimPromptStatus;
+  answer?: string;
+  createdAt: number;
+};
 
 export type SimUsageLine = {
   agent: SimAgent;
@@ -57,6 +71,7 @@ export type SimRun = {
   startedAt: number;
   finishedAt?: number;
   events: SimEvent[];
+  prompts: SimPrompt[];
   usage: SimUsageTotals;
   result?: SimRunResult;
   error?: string;

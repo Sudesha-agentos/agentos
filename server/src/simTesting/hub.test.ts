@@ -1,6 +1,14 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { createSimRun, emitSimEvent, completeSimRun, isSimPipelineId, recordSimUsage } from "./hub";
+import {
+  addSimPrompt,
+  createSimRun,
+  emitSimEvent,
+  completeSimRun,
+  isSimPipelineId,
+  recordSimUsage,
+  resolveSimPrompt,
+} from "./hub";
 
 describe("simTesting hub", () => {
   it("records timed events and completes a run", () => {
@@ -22,5 +30,20 @@ describe("simTesting hub", () => {
     assert.equal(run.usage.outputTokens, 800);
     assert.ok(run.usage.costUsd > 0);
     assert.ok(run.events[0].elapsedMs >= 0);
+  });
+
+  it("records questions and approvals without blocking the run", () => {
+    const run = createSimRun("org-1", "Add a calculator");
+    const prompt = addSimPrompt(run.id, {
+      agent: "virin",
+      kind: "question",
+      title: "Divide by zero",
+      body: "Should divide throw or return null?",
+    });
+    assert.ok(prompt);
+    assert.equal(run.prompts.length, 1);
+    resolveSimPrompt(run.id, prompt.id, { action: "answer", answer: "Throw an error" });
+    assert.equal(run.prompts[0].status, "answered");
+    assert.equal(run.prompts[0].answer, "Throw an error");
   });
 });
