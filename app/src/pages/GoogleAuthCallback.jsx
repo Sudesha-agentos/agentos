@@ -4,6 +4,7 @@ import { completeGoogleAuth } from "../entities/auth";
 import { identifyUser } from "../shared/analytics/mixpanel";
 import { useAuth } from "../shared/providers/useAuth";
 import { sessionHomePath, migrateAppPath } from "../shared/routing/orgPaths";
+import { useDocumentRobots } from "../shared/seo/useDocumentRobots";
 import Spinner from "../app/components/Spinner";
 import "../marketing/agent-team/agentTeam.css";
 
@@ -16,6 +17,7 @@ const ERROR_MESSAGES = {
 };
 
 export default function GoogleAuthCallback() {
+  useDocumentRobots("noindex, nofollow");
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { refresh } = useAuth();

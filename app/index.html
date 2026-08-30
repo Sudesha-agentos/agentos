@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)" />
     <meta name="theme-color" content="#F5F3F0" media="(prefers-color-scheme: light)" />
+    <meta name="robots" content="index, follow" />
     <meta
       name="description"
       content="AgentOX runs Product, Engineering and QA AI agents on your Jira tickets. Validate requirements, write code, run tests. Reduce sprint rework by 60%."
@@ -37,28 +38,68 @@
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
-        "@type": "SoftwareApplication",
-        "name": "AgentOX",
-        "applicationCategory": "DeveloperApplication",
-        "description": "AI-powered SDLC automation platform that orchestrates Product, Engineering, and QA agents through a validated pipeline from Jira ticket to production-ready pull request.",
-        "offers": [
+        "@graph": [
           {
-            "@type": "Offer",
-            "name": "Starter",
-            "price": "1999",
-            "priceCurrency": "USD",
-            "billingIncrement": "Month"
+            "@type": "Organization",
+            "@id": "https://agentox.io/#organization",
+            "name": "AgentOX",
+            "url": "https://agentox.io",
+            "logo": "https://agentox.io/marketing/agentox.png",
+            "email": "hello@agentox.io"
           },
           {
-            "@type": "Offer",
-            "name": "Growth",
-            "price": "4999",
-            "priceCurrency": "USD",
-            "billingIncrement": "Month"
+            "@type": "WebSite",
+            "@id": "https://agentox.io/#website",
+            "url": "https://agentox.io",
+            "name": "AgentOX",
+            "publisher": { "@id": "https://agentox.io/#organization" },
+            "inLanguage": "en"
+          },
+          {
+            "@type": ["SoftwareApplication", "WebApplication"],
+            "@id": "https://agentox.io/#app",
+            "name": "AgentOX",
+            "url": "https://agentox.io",
+            "image": "https://agentox.io/marketing/agentox.png",
+            "description": "AI-powered SDLC automation platform that orchestrates Product, Engineering, and QA agents through a validated pipeline from Jira ticket to production-ready pull request.",
+            "applicationCategory": "DeveloperApplication",
+            "operatingSystem": "Web",
+            "browserRequirements": "Requires JavaScript. Works in current Chrome, Firefox, Safari, and Edge.",
+            "publisher": { "@id": "https://agentox.io/#organization" },
+            "offers": [
+              {
+                "@type": "Offer",
+                "name": "Starter",
+                "price": 1999,
+                "priceCurrency": "USD",
+                "availability": "https://schema.org/InStock",
+                "url": "https://agentox.io/",
+                "priceSpecification": {
+                  "@type": "UnitPriceSpecification",
+                  "price": 1999,
+                  "priceCurrency": "USD",
+                  "unitText": "MONTH",
+                  "billingDuration": "P1M"
+                }
+              },
+              {
+                "@type": "Offer",
+                "name": "Growth",
+                "price": 4999,
+                "priceCurrency": "USD",
+                "availability": "https://schema.org/InStock",
+                "url": "https://agentox.io/",
+                "priceSpecification": {
+                  "@type": "UnitPriceSpecification",
+                  "price": 4999,
+                  "priceCurrency": "USD",
+                  "unitText": "MONTH",
+                  "billingDuration": "P1M"
+                }
+              }
+            ]
           }
-        ],
-        "operatingSystem": "Web",
-        "url": "https://agentox.io"
+        ]
       }
     </script>
 

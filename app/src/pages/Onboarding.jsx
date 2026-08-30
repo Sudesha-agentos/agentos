@@ -16,6 +16,7 @@ import { useAuth } from "../shared/providers/useAuth";
 import { setProductTourPending } from "../features/product-tour/productTourStorage";
 import BrandLogo from "../shared/ui/BrandLogo";
 import { sessionHomePath } from "../shared/routing/orgPaths";
+import { useDocumentRobots } from "../shared/seo/useDocumentRobots";
 import {
   createOrganization,
   fetchOrganizationsByDomain,
@@ -26,6 +27,7 @@ import "../marketing/agent-team/agentTeam.css";
 const STEPS = ["welcome", "stage", "team", "role", "company", "organization"];
 
 export default function Onboarding() {
+  useDocumentRobots("noindex, nofollow");
   const navigate = useNavigate();
   const { user, organization, refresh, logout } = useAuth();
   const [stepIndex, setStepIndex] = useState(0);

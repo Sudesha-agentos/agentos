@@ -7,9 +7,11 @@ import BrandLogo from "../shared/ui/BrandLogo";
 import { useAuth } from "../shared/providers/useAuth";
 import { DATA_MODE } from "../shared/config/app";
 import { sessionHomePath, migrateAppPath } from "../shared/routing/orgPaths";
+import { useDocumentRobots } from "../shared/seo/useDocumentRobots";
 import "../marketing/agent-team/agentTeam.css";
 
 export default function Login() {
+  useDocumentRobots("noindex, nofollow");
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
