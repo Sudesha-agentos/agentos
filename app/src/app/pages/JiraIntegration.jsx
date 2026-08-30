@@ -43,7 +43,7 @@ export default function JiraIntegration({ embedded = false }) {
     error: setupError,
     loading: setupLoading,
     refetch: refetchSetup,
-  } = usePipelineJiraSetup({ pollMs: 30000 });
+  } = usePipelineJiraSetup();
 
   if (setupLoading && !setup) {
     return (
@@ -86,11 +86,9 @@ function JiraIntegrationContent({ setup, refetchSetup, embedded = false }) {
     data: intakeData,
     loading: intakeLoading,
     refetch: refetchIntake,
-  } = usePipelineIntakeTickets(connected && intakeConfigured, { pollMs: 10000 });
+  } = usePipelineIntakeTickets(connected && intakeConfigured);
 
-  const { data: intakeStatus } = usePipelineIntakeStatus(connected && pipelineReady, {
-    pollMs: 15000,
-  });
+  const { data: intakeStatus } = usePipelineIntakeStatus(connected && pipelineReady);
 
   const [baseUrl, setBaseUrl] = useState(() => setup?.jira?.baseUrl || "");
   const [email, setEmail] = useState(() => setup?.jira?.email || "");

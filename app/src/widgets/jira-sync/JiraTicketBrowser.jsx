@@ -36,7 +36,6 @@ export default function JiraTicketBrowser({ connected }) {
   );
 
   const { data, loading } = useJiraSyncIssues(params, {
-    pollMs: connected ? 15000 : undefined,
     skip: !connected,
   });
 

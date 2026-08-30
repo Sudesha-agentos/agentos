@@ -59,12 +59,12 @@ function resolveDisplayStatus(integration, live) {
 /** Jira + Git only — use this to gate agent/pipeline pages without waiting on logs/DBs. */
 export function useCoreIntegrations() {
   const { data: git, loading: gitLoading, error: gitError } = useGitIntegrationSummary({
-    pollMs: 12000,
+    pollMs: 0,
   });
   const { data: jira, loading: jiraLoading, error: jiraError } = usePipelineJiraSetup({
-    pollMs: 12000,
+    pollMs: 0,
   });
-  const { data: boardStatus, loading: boardLoading } = useWorkBoardStatus({ pollMs: 12000 });
+  const { data: boardStatus, loading: boardLoading } = useWorkBoardStatus({ pollMs: 0 });
 
   const jiraConnected = Boolean(jira?.connected);
   const workBoardReady = Boolean(boardStatus?.ready);
@@ -108,9 +108,9 @@ export function useCoreIntegrations() {
 export function useIntegrationsStatus() {
   const org = useOrgOptional();
   const orgSlug = org?.orgSlug ?? "workspace";
-  const { data: git, loading: gitLoading } = useGitIntegrationSummary({ pollMs: 12000 });
-  const { data: jira, loading: jiraLoading } = usePipelineJiraSetup({ pollMs: 12000 });
-  const { data: boardStatus, loading: boardLoading } = useWorkBoardStatus({ pollMs: 12000 });
+  const { data: git, loading: gitLoading } = useGitIntegrationSummary({ pollMs: 0 });
+  const { data: jira, loading: jiraLoading } = usePipelineJiraSetup({ pollMs: 0 });
+  const { data: boardStatus, loading: boardLoading } = useWorkBoardStatus({ pollMs: 0 });
   const [logTypes, setLogTypes] = useState(() => new Set());
   const [logsLoading, setLogsLoading] = useState(true);
   const [databaseProviders, setDatabaseProviders] = useState(() => new Set());

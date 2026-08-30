@@ -9,7 +9,7 @@ import { AgentPageWithChat } from "../../widgets/agent-chat/AgentPageWithChat";
 import { AgentPageHeader } from "../../widgets/agent-chat/AgentPageHeader";
 
 export default function CodebaseIntelligence() {
-  const { data: setup } = useGitIntegrationSetup({ pollMs: 30000 });
+  const { data: setup } = useGitIntegrationSetup();
   const git = setup?.git;
   const gitBranch = git?.defaultBranch ?? "main";
   const { data: layerStatus } = useCodebaseLayerStatus({ branch: gitBranch, pollMs: 30000 });

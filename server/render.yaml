@@ -23,6 +23,9 @@ services:
         value: "22"
       - key: NODE_ENV
         value: production
+      # Leave headroom under Render 512MB RSS (native + Prisma + buffers)
+      - key: NODE_OPTIONS
+        value: "--max-old-space-size=384"
       - key: PORT
         value: "10000"
       - key: AUTH_JWT_SECRET
@@ -49,6 +52,11 @@ services:
       # One pipeline org at a time in the web process (avoids Render OOM)
       - key: PIPELINE_MAX_CONCURRENT_ORGS
         value: "1"
+      # Jira/Git sync is manual from the app top bar — do not background-poll
+      - key: JIRA_SYNC_INTERVAL_MS
+        value: "0"
+      - key: PIPELINE_INTAKE_POLL_MS
+        value: "0"
       # Graph analyze after index is RAM-heavy; turn on after a ≥2GB instance
       - key: CODEBASE_GITNEXUS_GRAPH
         value: "0"

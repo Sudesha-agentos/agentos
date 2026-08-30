@@ -6,7 +6,7 @@ import { CodebaseCommandPaletteContext } from "../codebase-search/useCodebaseCom
 
 export function CodebaseCommandPaletteProvider({ children }) {
   const [open, setOpen] = useState(false);
-  const { data: setup } = useGitIntegrationSetup({ pollMs: 60_000 });
+  const { data: setup } = useGitIntegrationSetup();
   const branch = setup?.git?.defaultBranch ?? "main";
 
   const openPalette = useCallback(() => setOpen(true), []);

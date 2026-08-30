@@ -3,6 +3,7 @@ import { apiPath } from "../../shared/config/apiBase";
 import { authHeaders } from "../../shared/lib/authHeaders";
 import { fetchJson } from "../../shared/lib/fetchJson";
 import { useResource } from "../../shared/lib/useResource";
+import { useIntegrationChangeTick } from "../../shared/hooks/useIntegrationChangeTick";
 import { mockApi } from "../../app/api/mock";
 
 const intake = (path) => apiPath("/git-integration", path);
@@ -56,6 +57,12 @@ const restGitIntegrationAdapter = {
       method: "POST",
       headers: requestHeaders(),
     }),
+  syncInstall: (installationId) =>
+    fetchJson(intake("/github/sync-install"), {
+      method: "POST",
+      headers: requestHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify(installationId ? { installationId } : {}),
+    }),
 };
 
 const mockGitIntegrationAdapter = {
@@ -95,6 +102,7 @@ const mockGitIntegrationAdapter = {
   completeInstall: (installationId) => mockApi.completeGithubInstall(installationId),
   selectRepo: (body) => mockApi.selectGithubRepository(body),
   disconnect: () => mockApi.disconnectGitIntegration(),
+  syncInstall: () => Promise.resolve({ synced: true }),
 };
 
 export const gitIntegrationAdapter =
@@ -177,14 +185,29 @@ export async function fetchGitIntegrationSummary() {
   };
 }
 
+export async function refreshGitConnection() {
+  const setup = await getGitIntegrationSetup();
+  const installationId = setup?.git?.installationId;
+  if (installationId && setup?.git?.provider !== "bitbucket") {
+    try {
+      await gitIntegrationAdapter.syncInstall?.(installationId);
+    } catch {
+      /* setup fetch already refreshed connection metadata */
+    }
+  }
+  return setup;
+}
+
 export function useGitIntegrationSummary(options = {}) {
-  return useResource(() => fetchGitIntegrationSummary(), [], {
-    pollMs: options.pollMs ?? 12000,
+  const refreshTick = useIntegrationChangeTick();
+  return useResource(() => fetchGitIntegrationSummary(), [refreshTick], {
+    pollMs: options.pollMs ?? 0,
   });
 }
 
 export function useGitIntegrationSetup(options = {}) {
-  return useResource(() => getGitIntegrationSetup(), [], {
-    pollMs: options.pollMs ?? 30000,
+  const refreshTick = useIntegrationChangeTick();
+  return useResource(() => getGitIntegrationSetup(), [refreshTick], {
+    pollMs: options.pollMs ?? 0,
   });
 }

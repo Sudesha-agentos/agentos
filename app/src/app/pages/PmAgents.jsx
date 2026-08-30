@@ -88,10 +88,10 @@ export default function PmAgents() {
   const { data: analysis, refetch: refetchAnalysis, isValidating } = usePmAnalysis(activeKey, {
     pollMs: activeKey ? 800 : 0,
   });
-  const { data: intake } = usePipelineIntakeTickets(intakeReady, { pollMs: 30000 });
+  const { data: intake } = usePipelineIntakeTickets(intakeReady);
   const { data: syncedIssues } = useJiraSyncIssues(
     { limit: 20 },
-    { skip: !jiraConnected, pollMs: jiraConnected ? 12000 : undefined }
+    { skip: !jiraConnected }
   );
   const { active: livePipeline } = usePipelineLive({
     jiraKey: activeKey,

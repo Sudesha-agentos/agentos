@@ -3,6 +3,7 @@ import { DATA_MODE } from "../../shared/config/app";
 import { authHeaders } from "../../shared/lib/authHeaders";
 import { fetchJson } from "../../shared/lib/fetchJson";
 import { useResource } from "../../shared/lib/useResource";
+import { useIntegrationChangeTick } from "../../shared/hooks/useIntegrationChangeTick";
 import { mockApi } from "../../app/api/mock";
 
 const sync = (path) => apiPath("/api", `/jira-sync${path}`);
@@ -76,16 +77,18 @@ export function embedJiraIssue(jiraKey) {
 }
 
 export function useJiraSyncStatus(options = {}) {
-  return useResource(() => getJiraSyncStatus(), [], {
-    pollMs: options.pollMs ?? 8000,
+  const refreshTick = useIntegrationChangeTick();
+  return useResource(() => getJiraSyncStatus(), [refreshTick], {
+    pollMs: options.pollMs ?? 0,
     skip: options.skip,
   });
 }
 
 export function useJiraSyncIssues(params, options = {}) {
+  const refreshTick = useIntegrationChangeTick();
   const key = JSON.stringify(params ?? {});
-  return useResource(() => listJiraSyncIssues(params), [key], {
-    pollMs: options.pollMs ?? 12000,
+  return useResource(() => listJiraSyncIssues(params), [key, refreshTick], {
+    pollMs: options.pollMs ?? 0,
     skip: options.skip,
   });
 }
