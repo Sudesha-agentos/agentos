@@ -10,7 +10,15 @@ import {
 } from "node:fs";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { promisify } from "node:util";
+import { getRepoContext } from "../git-integration/gitCredentialsStore";
 import { gitClient } from "../integrations/gitProvider";
+import {
+  addEngineeringWorktree,
+  ensureBareMirror,
+  isSharedRepoCacheEnabled,
+  removeEngineeringWorktreeSync,
+  repoCacheKey,
+} from "./repoCache";
 import { normalizeRepoPath } from "../integrations/git/normalizePushFiles";
 import { assertSafeGitRef, execFileAsync } from "../integrations/git/safeGitExec";
 import {
@@ -28,6 +36,8 @@ export interface WorkspaceHandle {
   branchName: string;
   /** The source/default branch the workspace was cloned from (e.g. main) */
   sourceBranch: string;
+  /** Bare mirror this worktree was created from, if shared cache is on. */
+  cacheBareDir?: string;
 }
 
 // Per-process registry — keyed by pipelineId
@@ -100,8 +110,8 @@ export function resetEngWorkspaceDir(pipelineId: string, workspaceDir: string): 
 }
 
 /**
- * Create a persistent workspace for an engineering run.
- * Clones the source branch, creates the per-ticket work branch, and installs deps.
+ * Create a workspace for an engineering run.
+ * Same-repo runs share one cached bare mirror; each run gets a fresh worktree.
  */
 export async function createEngWorkspace(
   pipelineId: string,
@@ -113,46 +123,65 @@ export async function createEngWorkspace(
   const workspaceDir = join(SANDBOX_BASE, runId);
 
   resetEngWorkspaceDir(pipelineId, workspaceDir);
-  mkdirSync(workspaceDir, { recursive: true });
 
-  // Clone source branch (shallow)
   const repoUrl = await gitClient.cloneUrl();
   const safeSourceBranch = assertSafeGitRef(sourceBranch);
+  const targetBranch = resolveEngineeringBranchName(jiraKey);
+  const safeTargetBranch = assertSafeGitRef(targetBranch);
+  let cacheBareDir: string | undefined;
+
   try {
-    await execFileAsync(
-      "git",
-      ["clone", "--depth", "1", "--branch", safeSourceBranch, repoUrl, "."],
-      { cwd: workspaceDir, timeout: 120_000 }
-    );
+    if (isSharedRepoCacheEnabled()) {
+      const ctx = getRepoContext();
+      const cacheKey = repoCacheKey(ctx.provider, ctx.workspace, ctx.repoSlug);
+      cacheBareDir = await ensureBareMirror({
+        cacheKey,
+        repoUrl,
+        sourceBranch: safeSourceBranch,
+      });
+      await addEngineeringWorktree({
+        bareDir: cacheBareDir,
+        workspaceDir,
+        sourceBranch: safeSourceBranch,
+        targetBranch: safeTargetBranch,
+      });
+      logger.info(
+        { pipelineId, cacheKey, workspaceDir },
+        "engineering worktree ready from cached repo"
+      );
+    } else {
+      mkdirSync(workspaceDir, { recursive: true });
+      await execFileAsync(
+        "git",
+        ["clone", "--depth", "1", "--branch", safeSourceBranch, repoUrl, "."],
+        { cwd: workspaceDir, timeout: 120_000 }
+      );
+      try {
+        await execFileAsync("git", ["fetch", "origin", safeTargetBranch, "--depth", "1"], {
+          cwd: workspaceDir,
+          timeout: 30_000,
+        });
+        await execFileAsync("git", ["checkout", "-b", safeTargetBranch, "FETCH_HEAD"], {
+          cwd: workspaceDir,
+          timeout: 10_000,
+        });
+        logger.info({ pipelineId, targetBranch: safeTargetBranch }, "resuming existing engineering branch");
+      } catch {
+        await execFileAsync("git", ["checkout", "-b", safeTargetBranch], {
+          cwd: workspaceDir,
+          timeout: 10_000,
+        });
+        logger.info({ pipelineId, targetBranch: safeTargetBranch }, "created new engineering branch");
+      }
+    }
   } catch (err) {
-    rmSync(workspaceDir, { recursive: true, force: true });
+    if (existsSync(workspaceDir)) {
+      rmSync(workspaceDir, { recursive: true, force: true });
+    }
     throw new Error(sanitizeGitShellError(err));
   }
 
   await configureGitUser(workspaceDir);
-
-  // Set up the per-ticket work branch
-  const targetBranch = resolveEngineeringBranchName(jiraKey);
-  const safeTargetBranch = assertSafeGitRef(targetBranch);
-  try {
-    // Try to fetch existing remote branch and resume from it
-    await execFileAsync("git", ["fetch", "origin", safeTargetBranch, "--depth", "1"], {
-      cwd: workspaceDir,
-      timeout: 30_000,
-    });
-    await execFileAsync("git", ["checkout", "-b", safeTargetBranch, "FETCH_HEAD"], {
-      cwd: workspaceDir,
-      timeout: 10_000,
-    });
-    logger.info({ pipelineId, targetBranch: safeTargetBranch }, "resuming existing engineering branch");
-  } catch {
-    // Branch doesn't exist remotely — create fresh from source HEAD
-    await execFileAsync("git", ["checkout", "-b", safeTargetBranch], {
-      cwd: workspaceDir,
-      timeout: 10_000,
-    });
-    logger.info({ pipelineId, targetBranch: safeTargetBranch }, "created new engineering branch");
-  }
 
   if (options.skipDependencyInstall) {
     logger.info(
@@ -169,6 +198,7 @@ export async function createEngWorkspace(
     workspaceDir,
     branchName: targetBranch,
     sourceBranch,
+    cacheBareDir,
   };
   activeWorkspaces.set(pipelineId, handle);
 
@@ -204,6 +234,9 @@ export function destroyEngWorkspace(pipelineId: string): void {
   const handle = activeWorkspaces.get(pipelineId);
   if (!handle) return;
   activeWorkspaces.delete(pipelineId);
+  if (handle.cacheBareDir) {
+    removeEngineeringWorktreeSync(handle.cacheBareDir, handle.workspaceDir);
+  }
   if (existsSync(handle.workspaceDir)) {
     rmSync(handle.workspaceDir, { recursive: true, force: true });
     logger.debug(
