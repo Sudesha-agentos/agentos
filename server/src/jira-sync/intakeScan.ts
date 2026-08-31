@@ -127,9 +127,13 @@ export async function scanIntakeFromSyncedIssues(
     return empty;
   }
 
-  await syncReferenceColumnTickets().catch((err) =>
-    logger.warn({ err }, "reference column sync before intake failed")
-  );
+  // Poll only checks the AI Worker column. Re-fetching every Done ticket
+  // (Jira + upsert + embed hash) every 2 minutes OOMs 512MB Render boxes.
+  if (source !== "poll") {
+    await syncReferenceColumnTickets().catch((err) =>
+      logger.warn({ err }, "reference column sync before intake failed")
+    );
+  }
 
   const intake = getPipelineIntakeMapping();
   const statuses = await getAiWorkerIntakeStatusesLive();

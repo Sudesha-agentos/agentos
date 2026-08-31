@@ -47,6 +47,7 @@ export interface QaExecutionReport {
   locatorHealProposals?: HealProposal[];
   /** True when any failure needs human override before approve */
   requiresHumanOverride?: boolean;
+  testConductReport?: import("./testConductReport").TestConductReport;
 }
 
 export function generateQaReport(input: {

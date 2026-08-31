@@ -175,6 +175,67 @@ function VerdictBanner({ recommendation, requiresHumanOverride }) {
   );
 }
 
+function ExecutedTestsSection({ report }) {
+  const executed = (
+    report.testConductReport?.executed ??
+    report.executedTests ??
+    report.testRun?.testResults ??
+    []
+  ).map((test) => ({
+    ...test,
+    name: test.name ?? test.testName ?? test.title ?? "unnamed test",
+  }));
+  const tools = report.testConductReport?.tools ?? [];
+  if (!executed.length && !tools.length && !report.testConductReport?.headline) {
+    return null;
+  }
+  return (
+    <div className="border-b border-app-border px-5 py-4">
+      <p className="type-kicker">Tests conducted</p>
+      {report.testConductReport?.headline ? (
+        <p className="mt-1 text-[13px] text-app-ink">{report.testConductReport.headline}</p>
+      ) : null}
+      {executed.length ? (
+        <ul className="mt-3 divide-y divide-app-border">
+          {executed.map((test, index) => (
+            <li key={`${test.name}-${index}`} className="flex items-start justify-between gap-3 py-2">
+              <div className="min-w-0">
+                <p className="truncate text-[13px] text-app-ink">{test.name}</p>
+                {test.error ? (
+                  <p className="mt-0.5 text-[11px] text-danger">{test.error}</p>
+                ) : null}
+              </div>
+              <span
+                className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase ${
+                  test.status === "pass"
+                    ? "border-success/30 bg-success/10 text-success"
+                    : test.status === "fail"
+                      ? "border-danger/30 bg-danger/10 text-danger"
+                      : "border-app-border bg-app-surface-muted/40 text-app-ink-dim"
+                }`}
+              >
+                {test.status}
+              </span>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="mt-2 text-[13px] text-app-ink-dim">No executable tests ran for this ticket.</p>
+      )}
+      {tools.length ? (
+        <ul className="mt-3 space-y-1 text-[12px] text-app-ink-dim">
+          {tools.map((tool) => (
+            <li key={tool.tool}>
+              {tool.tool} · {tool.status}
+              {tool.summary ? ` — ${tool.summary}` : ""}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </div>
+  );
+}
+
 function SummarySection({ report }) {
   const testRun = report.testRun;
   const coverage = report.coverageReport;
@@ -191,6 +252,11 @@ function SummarySection({ report }) {
 
   return (
     <div className="space-y-4 px-5 py-4">
+      {report.testConductReport?.headline ? (
+        <p className="rounded-app-sm border border-app-border bg-app-surface-muted/40 px-3 py-2 text-[13px] text-app-ink">
+          {report.testConductReport.headline}
+        </p>
+      ) : null}
       {report.inProgress || status === "running" || status === "pending" ? (
         <p className="rounded-app-sm border border-indigo/25 bg-indigo/5 px-3 py-2 text-[13px] text-app-ink-dim">
           {report.executionMessage ||
@@ -651,7 +717,10 @@ function ReportWorkspace({ report, pipelineId, orgPath, canaryPhase, canaryFindi
 
       {section === "summary" ? <SummarySection report={report} /> : null}
       {section === "tests" ? (
-        <TestCaseViewer testCases={report.testCases ?? []} />
+        <>
+          <ExecutedTestsSection report={report} />
+          <TestCaseViewer testCases={report.testCases ?? []} />
+        </>
       ) : null}
       {section === "security" ? (
         <SecuritySmokeSection

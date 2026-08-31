@@ -49,7 +49,18 @@ router.get("/", async (req, res) => {
       orderBy: { startedAt: "desc" },
       take: 50,
       include: {
-        ticket: true,
+        ticket: {
+          select: {
+            id: true,
+            organizationId: true,
+            jiraTicketId: true,
+            jiraKey: true,
+            normalizedData: true,
+            status: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+        },
         stages: {
           where: { status: "AWAITING_HUMAN" },
           orderBy: { completedAt: "desc" },

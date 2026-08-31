@@ -13,6 +13,7 @@ import GithubOAuthRedirect from "./GithubOAuthRedirect";
 import JiraOAuthRedirect from "./JiraOAuthRedirect";
 import MobileNav from "./MobileNav";
 import Sidebar from "./Sidebar";
+import IntegrationRefreshBar from "./IntegrationRefreshBar";
 import TopBar from "./TopBar";
 import WebsitePreview from "./WebsitePreview";
 import IntakeAssignmentListener from "../../shared/components/IntakeAssignmentListener";
@@ -48,7 +49,12 @@ function AppShellContent() {
         showPreview ? "h-svh overflow-hidden" : "min-h-screen"
       }`}
     >
-      {onSimLab ? null : <TopBar />}
+      {onSimLab ? null : (
+        <>
+          <TopBar />
+          <IntegrationRefreshBar />
+        </>
+      )}
       {showPreview ? (
         <WebsitePreview />
       ) : onSimLab ? (

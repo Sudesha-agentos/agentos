@@ -378,7 +378,7 @@ export function runCanaryInBackground(input: CanaryRunInput): {
 }
 
 export function startJiraSyncScheduler(): void {
-  const intervalMs = Number(process.env.JIRA_SYNC_INTERVAL_MS ?? 15 * 60 * 1000);
+  const intervalMs = Number(process.env.JIRA_SYNC_INTERVAL_MS ?? 0);
   if (intervalMs <= 0) return;
 
   setInterval(() => {
@@ -401,7 +401,7 @@ export function startJiraSyncScheduler(): void {
 }
 
 export function startIntakePollScheduler(): void {
-  const intervalMs = Number(process.env.PIPELINE_INTAKE_POLL_MS ?? 2 * 60 * 1000);
+  const intervalMs = Number(process.env.PIPELINE_INTAKE_POLL_MS ?? 0);
   if (intervalMs <= 0) return;
 
   setInterval(() => {

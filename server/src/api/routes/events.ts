@@ -53,7 +53,7 @@ router.get("/recent", async (req, res, next) => {
       where: { organizationId: user.organizationId },
       orderBy: { startedAt: "desc" },
       take: 20,
-      include: { ticket: true },
+      include: { ticket: { select: { jiraKey: true } } },
     });
 
     const events = pipelines.map((pipeline) => {

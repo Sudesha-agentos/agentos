@@ -8,7 +8,7 @@ import { Panel, PanelHeader } from "../../shared/ui/Panel";
 
 export default function GitHubIntegrationOverviewWidget({ embedded = false }) {
   const orgPath = useOrgPathBuilder();
-  const { data, error, loading } = useGitIntegrationSummary({ pollMs: 12000 });
+  const { data, error, loading } = useGitIntegrationSummary();
 
   const connected = Boolean(data?.connected);
   const needsRepoSelection = Boolean(data?.needsRepoSelection);

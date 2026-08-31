@@ -3,8 +3,15 @@ import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
+import { getRepoContext } from "../../git-integration/gitCredentialsStore";
 import { gitClient } from "../../integrations/gitProvider";
 import { assertSafeGitRef, execFileAsync } from "../../integrations/git/safeGitExec";
+import {
+  addEngineeringWorktree,
+  ensureBareMirror,
+  isSharedRepoCacheEnabled,
+  repoCacheKey,
+} from "../../engineering/repoCache";
 import { logger } from "../../utils/logger";
 
 const execAsync = promisify(exec);
@@ -27,6 +34,33 @@ export const sandboxManager = {
   async cloneBranch(sandboxDir: string, branchName: string): Promise<void> {
     const repoUrl = await gitClient.cloneUrl();
     const safeBranch = assertSafeGitRef(branchName);
+    if (isSharedRepoCacheEnabled()) {
+      try {
+        const ctx = getRepoContext();
+        const cacheKey = repoCacheKey(ctx.provider, ctx.workspace, ctx.repoSlug);
+        const bareDir = await ensureBareMirror({
+          cacheKey,
+          repoUrl,
+          sourceBranch: safeBranch,
+        });
+        if (existsSync(sandboxDir)) {
+          rmSync(sandboxDir, { recursive: true, force: true });
+        }
+        await addEngineeringWorktree({
+          bareDir,
+          workspaceDir: sandboxDir,
+          sourceBranch: safeBranch,
+          targetBranch: safeBranch,
+        });
+        return;
+      } catch (err) {
+        logger.warn(
+          { err: err instanceof Error ? err.message : String(err) },
+          "shared repo cache miss — cloning QA sandbox independently"
+        );
+        mkdirSync(sandboxDir, { recursive: true });
+      }
+    }
     await execFileAsync(
       "git",
       ["clone", "--depth", "1", "--branch", safeBranch, repoUrl, "."],

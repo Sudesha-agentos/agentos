@@ -165,4 +165,6 @@ export interface QaOutput {
     requiresHumanReview: boolean;
     rationale: string;
   }>;
+  /** Every test that actually ran, plus OSS tools used. */
+  testConductReport?: import("../qa/report/testConductReport").TestConductReport;
 }

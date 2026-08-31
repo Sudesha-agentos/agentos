@@ -5,8 +5,8 @@
  * QA_OSS_ADAPTERS=0 → free-tier light mode: Hypothesis only (skips heavy CLIs).
  */
 
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import { logger } from "../utils/logger";
 import { runSemgrepScan } from "./semgrep/runSemgrep";
 import { runHypothesisTests } from "./hypothesis/runHypothesis";
@@ -30,25 +30,6 @@ function guessTestPath(sourcePath: string): string {
     return `tests/test_${base}.py`;
   }
   return `${noExt}.test.ts`;
-}
-
-function ensureMinimalTestStub(cwd: string, testRel: string, sourceRel: string): void {
-  const abs = join(cwd, testRel);
-  if (existsSync(abs)) return;
-  mkdirSync(dirname(abs), { recursive: true });
-  if (testRel.endsWith(".py")) {
-    writeFileSync(
-      abs,
-      `"""Auto-stub for Cover-Agent — grow coverage for ${sourceRel}."""\n\ndef test_placeholder():\n    assert True\n`,
-      "utf8"
-    );
-  } else {
-    writeFileSync(
-      abs,
-      `/** Auto-stub for Cover-Agent — target: ${sourceRel} */\ndescribe(${JSON.stringify(sourceRel)}, () => {\n  it("placeholder", () => {\n    expect(true).toBe(true);\n  });\n});\n`,
-      "utf8"
-    );
-  }
 }
 
 export async function runQaOssAdapters(input: {
@@ -139,9 +120,12 @@ export async function runQaOssAdapters(input: {
       if (fallback) candidates.push(fallback);
     }
 
+    let coverRuns = 0;
     for (const source of candidates) {
       const testFile = guessTestPath(source);
-      ensureMinimalTestStub(input.cwd, testFile, source);
+      if (!existsSync(join(input.cwd, testFile))) {
+        continue;
+      }
       const testCommand = source.endsWith(".py")
         ? "pytest --cov=. --cov-report=xml --cov-report=term -q"
         : "npx vitest run --coverage --reporter=dot";
@@ -157,9 +141,10 @@ export async function runQaOssAdapters(input: {
           timeoutMs: 240_000,
         })
       );
+      coverRuns += 1;
     }
 
-    if (candidates.length === 0) {
+    if (coverRuns === 0) {
       const { saveToolArtifact } = await import("./toolArtifacts");
       const { randomUUID } = await import("node:crypto");
       const artifact: ToolArtifact = {
@@ -168,7 +153,7 @@ export async function runQaOssAdapters(input: {
         pipelineId: input.pipelineId,
         runId: `cover-none-${randomUUID().slice(0, 8)}`,
         status: "skipped",
-        summary: "Cover-Agent: no eligible source files in this ticket change set",
+        summary: "Cover-Agent skipped — no real source/test pair (placeholders are not written)",
         findings: [],
         createdAt: new Date().toISOString(),
       };

@@ -3,7 +3,12 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { promisify } from "node:util";
 import { logger } from "../../utils/logger";
-import { parseCoverageOutput, parseTestOutput, type ParsedTestResult } from "./testParser";
+import {
+  mergeParsedTestRuns,
+  parseCoverageOutput,
+  parseTestOutput,
+  type ParsedTestResult,
+} from "./testParser";
 import { sandboxManager } from "./sandboxManager";
 
 const execAsync = promisify(exec);
@@ -77,42 +82,43 @@ export const testRunner = {
         sandboxManager.writeTestFiles(sandboxDir, input.stagedTestFiles);
       }
 
-      const testCommand = buildTestCommand(
-        sandboxDir,
-        input.runType,
-        input.testFiles
-      );
-      const cwd = resolveTestCwd(sandboxDir);
-
+      const commands = buildTestCommands(sandboxDir, input.runType, input.testFiles);
       const startTime = Date.now();
       let rawOutput = "";
       let status: TestRunResult["status"] = "completed";
+      const parsedRuns = [];
 
-      try {
-        const { stdout, stderr } = await execAsync(testCommand, {
-          cwd,
-          timeout,
-          env: {
-            ...process.env,
-            NODE_ENV: "test",
-            CI: "true",
-          },
-        });
-        rawOutput = stdout + stderr;
-      } catch (execError: unknown) {
-        const err = execError as {
-          stdout?: string;
-          stderr?: string;
-          signal?: string;
-        };
-        rawOutput = (err.stdout ?? "") + (err.stderr ?? "");
-        if (err.signal === "SIGTERM") {
-          status = "timeout";
+      for (const command of commands) {
+        try {
+          const { stdout, stderr } = await execAsync(command.cmd, {
+            cwd: command.cwd,
+            timeout,
+            env: {
+              ...process.env,
+              NODE_ENV: "test",
+              CI: "true",
+            },
+          });
+          const chunk = stdout + stderr;
+          rawOutput += `\n--- ${command.label} ---\n${chunk}`;
+          parsedRuns.push(parseTestOutput(chunk));
+        } catch (execError: unknown) {
+          const err = execError as {
+            stdout?: string;
+            stderr?: string;
+            signal?: string;
+          };
+          const chunk = (err.stdout ?? "") + (err.stderr ?? "");
+          rawOutput += `\n--- ${command.label} ---\n${chunk}`;
+          parsedRuns.push(parseTestOutput(chunk));
+          if (err.signal === "SIGTERM") {
+            status = "timeout";
+          }
         }
       }
 
       const duration = Date.now() - startTime;
-      const parsed = parseTestOutput(rawOutput);
+      const parsed = mergeParsedTestRuns(parsedRuns);
       const coverage = parseCoverageOutput(rawOutput);
 
       const result: TestRunResult = {
@@ -174,41 +180,77 @@ function resolveTestCwd(sandboxDir: string): string {
   return sandboxDir;
 }
 
-function buildTestCommand(
+function buildTestCommands(
   sandboxDir: string,
   runType: string,
   testFiles?: string[]
-): string {
-  const cwd = resolveTestCwd(sandboxDir);
-  const relativePrefix =
-    cwd === sandboxDir ? "" : cwd.replace(sandboxDir, "").replace(/^[/\\]/, "");
+): Array<{ label: string; cmd: string; cwd: string }> {
+  const commands: Array<{ label: string; cmd: string; cwd: string }> = [];
+  const nodeRoots = uniqueDirs([
+    sandboxDir,
+    join(sandboxDir, "app"),
+    join(sandboxDir, "server"),
+  ]).filter((dir) => existsSync(join(dir, "package.json")));
 
-  if (existsSync(join(cwd, "node_modules", "vitest"))) {
-    const base = "npx vitest run --reporter=json";
-    if (runType === "new_tests_only" && testFiles?.length) {
-      const files = testFiles
-        .map((f) => `"${relativePrefix ? `${relativePrefix}/` : ""}${f}"`.replace(/\/+/g, "/"))
-        .join(" ");
-      return `${base} ${files}`;
+  for (const cwd of nodeRoots) {
+    const relativePrefix =
+      cwd === sandboxDir ? "" : cwd.replace(sandboxDir, "").replace(/^[/\\]/, "");
+    if (existsSync(join(cwd, "node_modules", "vitest"))) {
+      const coverage = existsSync(join(cwd, "node_modules", "@vitest/coverage-v8"))
+        ? " --coverage"
+        : "";
+      const base = `npx vitest run --reporter=json${coverage}`;
+      let cmd = base;
+      if (runType === "new_tests_only" && testFiles?.length) {
+        const files = testFiles
+          .map((f) => `"${relativePrefix ? `${relativePrefix}/` : ""}${f}"`.replace(/\/+/g, "/"))
+          .join(" ");
+        cmd = `${base} ${files}`;
+      } else if (runType === "regression_only") {
+        cmd = `${base} --exclude "**/qa-agent/**"`;
+      }
+      commands.push({ label: `vitest:${cwd === sandboxDir ? "." : relativePrefix}`, cmd, cwd });
+    } else if (existsSync(join(cwd, "node_modules", "jest"))) {
+      const flags =
+        "--json --coverage --forceExit --passWithNoTests --testTimeout=10000";
+      let cmd = `npx jest ${flags}`;
+      if (runType === "new_tests_only" && testFiles?.length) {
+        cmd = `${cmd} ${testFiles.map((f) => `"${f}"`).join(" ")}`;
+      } else if (runType === "regression_only") {
+        cmd = `${cmd} --testPathIgnorePatterns=qa-agent`;
+      }
+      commands.push({ label: `jest:${cwd === sandboxDir ? "." : relativePrefix}`, cmd, cwd });
     }
-    if (runType === "regression_only") {
-      return `${base} --exclude "**/qa-agent/**"`;
-    }
-    return base;
   }
 
-  if (existsSync(join(cwd, "node_modules", "jest"))) {
-    const flags =
-      "--json --coverage --forceExit --passWithNoTests --testTimeout=10000";
-    const base = `npx jest ${flags}`;
-    if (runType === "new_tests_only" && testFiles?.length) {
-      return `${base} ${testFiles.map((f) => `"${f}"`).join(" ")}`;
-    }
-    if (runType === "regression_only") {
-      return `${base} --testPathIgnorePatterns=qa-agent`;
-    }
-    return base;
+  if (hasPytestLayout(sandboxDir)) {
+    const files =
+      runType === "new_tests_only" && testFiles?.length
+        ? ` ${testFiles.map((f) => `"${f}"`).join(" ")}`
+        : "";
+    commands.push({
+      label: "pytest",
+      cmd: `python -m pytest -q --tb=line${files}`,
+      cwd: sandboxDir,
+    });
   }
 
-  return "npm test";
+  if (!commands.length) {
+    const cwd = resolveTestCwd(sandboxDir);
+    commands.push({ label: "npm-test", cmd: "npm test", cwd });
+  }
+  return commands;
+}
+
+function hasPytestLayout(sandboxDir: string): boolean {
+  return (
+    existsSync(join(sandboxDir, "pytest.ini")) ||
+    existsSync(join(sandboxDir, "conftest.py")) ||
+    existsSync(join(sandboxDir, "tests")) ||
+    existsSync(join(sandboxDir, "pyproject.toml"))
+  );
+}
+
+function uniqueDirs(dirs: string[]): string[] {
+  return [...new Set(dirs)];
 }

@@ -11,9 +11,9 @@ import { Panel, PanelHeader } from "../../shared/ui/Panel";
 
 export default function JiraIntakeOverviewWidget({ embedded = false }) {
   const orgPath = useOrgPathBuilder();
-  const { data: setup, error, loading } = usePipelineJiraSetup({ pollMs: 5000 });
+  const { data: setup, error, loading } = usePipelineJiraSetup();
   const intakeReady = Boolean(setup?.connected && setup?.intake?.aiWorkerColumnName);
-  const { data: intake } = usePipelineIntakeTickets(intakeReady, { pollMs: 12000 });
+  const { data: intake } = usePipelineIntakeTickets(intakeReady);
 
   const count = intake?.items?.length ?? 0;
   const column = setup?.intake?.aiWorkerColumnName;

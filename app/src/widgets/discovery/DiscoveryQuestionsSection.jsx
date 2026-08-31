@@ -25,7 +25,7 @@ export default function DiscoveryQuestionsSection({ questions = [] }) {
         ))}
       </ul>
       <p className="text-[12px] text-ink-mute">
-        Answer these in the override workspace, then resume the pipeline.
+        Answer these in the override workspace, then resume. Virin folds the answers into the PRD before engineering starts.
       </p>
     </div>
   );

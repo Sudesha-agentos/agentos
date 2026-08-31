@@ -178,6 +178,8 @@ export function loadGitCredentialsFromStore(): StoredGitCredentials | null {
 
 let runtimeCreds: StoredGitCredentials | null = null;
 const orgRuntimeCreds = new Map<string, StoredGitCredentials>();
+const orgWarmAt = new Map<string, number>();
+const WARM_TTL_MS = 60_000;
 
 function orgCredsToStored(creds: OrganizationGitCredentials): StoredGitCredentials {
   const token =
@@ -205,10 +207,20 @@ function orgCredsToStored(creds: OrganizationGitCredentials): StoredGitCredentia
 export async function warmOrganizationGitCredentials(
   organizationId: string
 ): Promise<void> {
+  const cached = orgRuntimeCreds.get(organizationId);
+  const warmedAt = orgWarmAt.get(organizationId) ?? 0;
+  if (cached && Date.now() - warmedAt < WARM_TTL_MS) {
+    if (getActiveOrganizationId() === organizationId) {
+      runtimeCreds = cached;
+      applyGitCredentialsToProcessEnv(cached);
+    }
+    return;
+  }
   const fromDb = await loadOrganizationGitConfig(organizationId);
   if (!fromDb) return;
   const stored = orgCredsToStored(fromDb);
   orgRuntimeCreds.set(organizationId, stored);
+  orgWarmAt.set(organizationId, Date.now());
   if (getActiveOrganizationId() === organizationId) {
     runtimeCreds = stored;
     applyGitCredentialsToProcessEnv(stored);
@@ -228,6 +240,7 @@ export function activateOrganizationGitContext(organizationId: string | null): v
 
 export function clearOrganizationGitRuntime(organizationId: string): void {
   orgRuntimeCreds.delete(organizationId);
+  orgWarmAt.delete(organizationId);
   if (getActiveOrganizationId() === organizationId) {
     runtimeCreds = null;
   }

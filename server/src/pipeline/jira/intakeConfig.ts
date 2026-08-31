@@ -52,6 +52,8 @@ function defaultReferenceStatuses(): string[] {
 }
 
 const orgIntakeCache = new Map<string, PipelineIntakeMapping>();
+const orgIntakeWarmAt = new Map<string, number>();
+const INTAKE_WARM_TTL_MS = 60_000;
 
 function parseStringListJson(raw: unknown): string[] {
   if (!raw) return [];
@@ -112,6 +114,10 @@ function buildMappingFromParts(input: {
 export async function warmOrganizationIntakeMapping(
   organizationId: string
 ): Promise<void> {
+  const warmedAt = orgIntakeWarmAt.get(organizationId) ?? 0;
+  if (orgIntakeCache.has(organizationId) && Date.now() - warmedAt < INTAKE_WARM_TTL_MS) {
+    return;
+  }
   const row = await prisma.organizationJiraConfig.findUnique({
     where: { organizationId },
     select: {
@@ -129,10 +135,12 @@ export async function warmOrganizationIntakeMapping(
   }
 
   orgIntakeCache.set(organizationId, buildMappingFromParts(row));
+  orgIntakeWarmAt.set(organizationId, Date.now());
 }
 
 export function clearOrganizationIntakeMapping(organizationId: string): void {
   orgIntakeCache.delete(organizationId);
+  orgIntakeWarmAt.delete(organizationId);
 }
 
 export function getPipelineIntakeMapping(): PipelineIntakeMapping {

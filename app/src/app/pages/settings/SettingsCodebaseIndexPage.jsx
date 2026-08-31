@@ -18,7 +18,7 @@ const VECTOR_CONFIG = [
 
 export default function SettingsCodebaseIndexPage() {
   const { orgPath } = useOrg();
-  const { data: setup } = useGitIntegrationSetup({ pollMs: 30000 });
+  const { data: setup } = useGitIntegrationSetup();
   const gitBranch = setup?.git?.defaultBranch ?? "main";
   const { data: layerStatus } = useCodebaseLayerStatus({ branch: gitBranch, pollMs: 12000 });
   const branch = layerStatus?.repo?.defaultBranch ?? gitBranch;

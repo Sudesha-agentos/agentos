@@ -2,6 +2,7 @@ import { apiPath } from "../../shared/config/apiBase";
 import { authHeaders } from "../../shared/lib/authHeaders";
 import { fetchJson } from "../../shared/lib/fetchJson";
 import { useResource } from "../../shared/lib/useResource";
+import { useIntegrationChangeTick } from "../../shared/hooks/useIntegrationChangeTick";
 
 const root = (path) => apiPath("/pipeline-jira", path);
 
@@ -90,23 +91,26 @@ export async function getPipelineIntakeStatus() {
 }
 
 export function usePipelineJiraSetup(options = {}) {
-  return useResource(() => getPipelineJiraSetup(), [], {
-    pollMs: options.pollMs ?? 30000,
+  const refreshTick = useIntegrationChangeTick();
+  return useResource(() => getPipelineJiraSetup(), [refreshTick], {
+    pollMs: options.pollMs ?? 0,
   });
 }
 
 export function usePipelineIntakeStatus(enabled, options = {}) {
+  const refreshTick = useIntegrationChangeTick();
   return useResource(
     () => (enabled ? getPipelineIntakeStatus() : Promise.resolve(null)),
-    [enabled],
-    { pollMs: enabled ? (options.pollMs ?? 15000) : undefined }
+    [enabled, refreshTick],
+    { pollMs: enabled ? (options.pollMs ?? 0) : undefined }
   );
 }
 
 export function usePipelineIntakeTickets(enabled, options = {}) {
+  const refreshTick = useIntegrationChangeTick();
   return useResource(
     () => (enabled ? listPipelineIntakeTickets() : Promise.resolve({ items: [] })),
-    [enabled],
-    { pollMs: enabled ? (options.pollMs ?? 10000) : undefined }
+    [enabled, refreshTick],
+    { pollMs: enabled ? (options.pollMs ?? 0) : undefined }
   );
 }

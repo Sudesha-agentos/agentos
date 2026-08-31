@@ -7,7 +7,6 @@ import { formatRelativeTime } from "../../shared/lib/format";
 
 export default function JiraSyncStatusPanel({ setupSync, connected = true }) {
   const { data: status, loading, refetch } = useJiraSyncStatus({
-    pollMs: connected ? 6000 : undefined,
     skip: !connected,
   });
   const [syncPending, setSyncPending] = useState(false);

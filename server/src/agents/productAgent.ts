@@ -90,7 +90,12 @@ Important working rules:
 - Every acceptance criterion must be testable and written in Given/When/Then form.
 - Every non-functional requirement must be measurable.
 - Keep scope realistic and explicit.
-- If ambiguity remains, capture it in openQuestions with a default assumption and owner.
+- If HUMAN_ANSWERS_JSON already decided a question, write that decision into the PRD
+  (user stories, acceptance criteria, assumptions, or out of scope). Do not repeat
+  that question in openQuestions.
+- openQuestions is only for remaining decisions the human has not answered.
+  If nothing remains, return an empty array. Discovery will pause on leftover
+  openQuestions, fold the answers into a new PRD, then hand off to engineering.
 - Return ONLY valid JSON in your final answer. No markdown, no prose, no code fences.
 
 Final JSON schema:
@@ -233,12 +238,13 @@ Instructions:
    or testing/implementation patterns.
 2. Use fetch_related_jira_tickets if epic or dependency context would help scope.
 3. Draft the PRD in the final JSON schema.
-4. Before finalising, run analyse_requirement_completeness on your drafted
+4. Fold every human answer into the PRD. Do not list answered questions in openQuestions.
+5. Before finalising, run analyse_requirement_completeness on your drafted
    userStories and acceptanceCriteria.
-5. Before finalising, run score_prd_readiness using your full PRD draft and the
+6. Before finalising, run score_prd_readiness using your full PRD draft and the
    exact gap analysis object above.
-6. If the readiness score is below 0.70, improve the draft and re-check if useful.
-7. Return ONLY the final PRD JSON.
+7. If the readiness score is below 0.70, improve the draft and re-check if useful.
+8. Return ONLY the final PRD JSON.
   `.trim();
 }
 

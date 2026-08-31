@@ -41,13 +41,24 @@ export interface PipelineJiraCredentialsPublic {
 
 let runtimeCreds: PipelineJiraCredentials | null = null;
 const orgRuntimeCreds = new Map<string, PipelineJiraCredentials>();
+const orgWarmAt = new Map<string, number>();
+const WARM_TTL_MS = 60_000;
 
 export async function warmOrganizationJiraCredentials(
   organizationId: string
 ): Promise<void> {
+  const cached = orgRuntimeCreds.get(organizationId);
+  const warmedAt = orgWarmAt.get(organizationId) ?? 0;
+  if (cached && Date.now() - warmedAt < WARM_TTL_MS) {
+    if (getActiveOrganizationId() === organizationId) {
+      runtimeCreds = cached;
+    }
+    return;
+  }
   const fromDb = await loadOrganizationJiraConfig(organizationId);
   if (!fromDb) return;
   orgRuntimeCreds.set(organizationId, fromDb);
+  orgWarmAt.set(organizationId, Date.now());
   if (getActiveOrganizationId() === organizationId) {
     runtimeCreds = fromDb;
   }
@@ -65,6 +76,7 @@ export function activateOrganizationJiraContext(organizationId: string | null): 
 
 export function clearOrganizationJiraRuntime(organizationId: string): void {
   orgRuntimeCreds.delete(organizationId);
+  orgWarmAt.delete(organizationId);
   if (getActiveOrganizationId() === organizationId) {
     runtimeCreds = null;
   }

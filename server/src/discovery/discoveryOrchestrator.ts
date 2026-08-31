@@ -25,6 +25,8 @@ import {
 import {
   buildPersistedRetrievalContext,
   answersCoverAllQuestions,
+  buildGapQuestions,
+  buildPrdOpenQuestions,
   formatHumanAnswersJson,
   type DiscoveryPauseSnapshot,
   type DiscoveryQuestion,
@@ -135,7 +137,6 @@ export async function runDiscovery(
   ticket: NormalizedTicket,
   pipelineId: string,
   options?: {
-    skipHumanPause?: boolean;
     resume?: DiscoveryPauseSnapshot;
     humanAnswers?: HumanDiscoveryAnswer[];
   }
@@ -151,6 +152,7 @@ export async function runDiscovery(
   let ticketAnalysis = options?.resume?.ticketAnalysis;
   let historicalIntelligence = options?.resume?.historicalIntelligence;
   let gapAnalysis = options?.resume?.gapAnalysis;
+  let complexityAssessment = options?.resume?.complexityAssessment;
   let retrievalContext = options?.resume?.retrievalContext ?? [];
   let historicalContext: RetrievedContext[] = [];
   let fusedBlock: string | undefined;
@@ -190,21 +192,37 @@ export async function runDiscovery(
   const answersReady = answersCoverAllQuestions(discoveryQuestions, humanAnswers);
 
   if (ticketAnalysis && options?.resume && answersReady && humanAnswers.length) {
-    await emitDiscoveryLog(
-      pipelineId,
-      "Resuming — sending answers JSON into codebase analysis",
-      formatHumanAnswersJson(humanAnswers)
-    );
-    await auditRepo.log(pipelineId, "DISCOVERY_STEP_STARTED", {
-      step: "context_retrieval",
-      label: "Re-retrieving codebase context with human answers",
-    });
-    const retrieved = await retrieveDiscoveryContext(ticket, humanAnswers);
-    historicalContext = retrieved.historicalContext;
-    fusedBlock = retrieved.fusedBlock;
-    retrievalContext = retrieved.retrievalContext;
-    historicalIntelligence = undefined;
-    gapAnalysis = undefined;
+    const reason = options.resume.pauseReason;
+    if (reason === "ambiguities") {
+      await emitDiscoveryLog(
+        pipelineId,
+        "Resuming — sending answers JSON into codebase analysis",
+        formatHumanAnswersJson(humanAnswers)
+      );
+      await auditRepo.log(pipelineId, "DISCOVERY_STEP_STARTED", {
+        step: "context_retrieval",
+        label: "Re-retrieving codebase context with human answers",
+      });
+      const retrieved = await retrieveDiscoveryContext(ticket, humanAnswers);
+      historicalContext = retrieved.historicalContext;
+      fusedBlock = retrieved.fusedBlock;
+      retrievalContext = retrieved.retrievalContext;
+      historicalIntelligence = undefined;
+      gapAnalysis = undefined;
+    } else if (reason === "prd_open_questions") {
+      await emitDiscoveryLog(
+        pipelineId,
+        "Resuming — folding answers into the PRD",
+        formatHumanAnswersJson(humanAnswers)
+      );
+    } else {
+      await emitDiscoveryLog(
+        pipelineId,
+        "Resuming — folding answers into gap analysis and the PRD",
+        formatHumanAnswersJson(humanAnswers)
+      );
+      gapAnalysis = undefined;
+    }
   } else if (ticketAnalysis && options?.resume && !answersReady) {
     await emitDiscoveryLog(pipelineId, "Waiting — not all questions are answered yet");
   }
@@ -270,27 +288,30 @@ export async function runDiscovery(
     });
   }
 
-  if (
-    !options?.skipHumanPause &&
-    gapAnalysis.readinessForPRD === "needs-clarification" &&
-    gapAnalysis.blockingGaps > 0
-  ) {
+  const gapQuestions = buildGapQuestions(gapAnalysis);
+  const gapAnswersReady = answersCoverAllQuestions(gapQuestions, humanAnswers);
+  if (PAUSE_ON_AMBIGUITIES && gapQuestions.length > 0 && !gapAnswersReady) {
+    const reason =
+      gapAnalysis.readinessForPRD === "needs-clarification" || gapAnalysis.blockingGaps > 0
+        ? "needs_clarification"
+        : "blocking_gaps";
     await pauseDiscovery(
       pipelineId,
-      `PRD needs clarification (${gapAnalysis.blockingGaps} blocking gap${gapAnalysis.blockingGaps === 1 ? "" : "s"}).`,
-      gapAnalysis.blockingGaps,
+      `PRD needs clarification (${gapQuestions.length} question${gapQuestions.length === 1 ? "" : "s"}).`,
+      gapQuestions.length,
       {
         ticketAnalysis,
         historicalIntelligence,
         gapAnalysis,
         retrievalContext,
-        pauseReason: "needs_clarification",
+        discoveryQuestions: gapQuestions,
+        pauseReason: reason,
       },
       usages
     );
   }
 
-  if (!options?.skipHumanPause && gapAnalysis.blockingGaps > BLOCKING_GAP_THRESHOLD) {
+  if (PAUSE_ON_AMBIGUITIES && gapAnalysis.blockingGaps > BLOCKING_GAP_THRESHOLD && !gapAnswersReady) {
     await pauseDiscovery(
       pipelineId,
       `Too many blocking gaps (${gapAnalysis.blockingGaps}). Human clarification required.`,
@@ -300,6 +321,7 @@ export async function runDiscovery(
         historicalIntelligence,
         gapAnalysis,
         retrievalContext,
+        discoveryQuestions: gapQuestions,
         pauseReason: "blocking_gaps",
       },
       usages
@@ -310,24 +332,27 @@ export async function runDiscovery(
     throw new Error("Discovery is missing ticket analysis, history, or gaps");
   }
 
-  await auditRepo.log(pipelineId, "DISCOVERY_STEP_STARTED", {
-    step: "complexity_scoring",
-    label: "Scoring implementation complexity",
-  });
-  await emitDiscoveryLog(pipelineId, "Scoring complexity");
-  const { assessment: complexityAssessment, usage: u4 } = await scoreComplexity(
-    ticketAnalysis,
-    historicalIntelligence,
-    gapAnalysis,
-    pipelineId,
-    humanAnswers
-  );
-  usages.push(u4);
-  await auditRepo.log(pipelineId, "COMPLEXITY_SCORED", {
-    score: complexityAssessment.overallScore,
-    realisticHours: complexityAssessment.effortEstimate.realistic,
-    priority: complexityAssessment.priorityAssessment.recommendedPriority,
-  });
+  if (!complexityAssessment) {
+    await auditRepo.log(pipelineId, "DISCOVERY_STEP_STARTED", {
+      step: "complexity_scoring",
+      label: "Scoring implementation complexity",
+    });
+    await emitDiscoveryLog(pipelineId, "Scoring complexity");
+    const { assessment, usage: u4 } = await scoreComplexity(
+      ticketAnalysis,
+      historicalIntelligence,
+      gapAnalysis,
+      pipelineId,
+      humanAnswers
+    );
+    complexityAssessment = assessment;
+    usages.push(u4);
+    await auditRepo.log(pipelineId, "COMPLEXITY_SCORED", {
+      score: complexityAssessment.overallScore,
+      realisticHours: complexityAssessment.effortEstimate.realistic,
+      priority: complexityAssessment.priorityAssessment.recommendedPriority,
+    });
+  }
 
   await auditRepo.log(pipelineId, "DISCOVERY_STEP_STARTED", {
     step: "prd_generation",
@@ -376,6 +401,30 @@ export async function runDiscovery(
     recommendation: scores.recommendation,
     gateFailureReasons: scores.gateFailureReasons,
   });
+
+  const prdQuestions = buildPrdOpenQuestions(prd.openQuestions);
+  if (PAUSE_ON_AMBIGUITIES && prdQuestions.length > 0 && !answersCoverAllQuestions(prdQuestions, humanAnswers)) {
+    await emitDiscoveryLog(
+      pipelineId,
+      "PRD has questions that must be answered before engineering",
+      `${prdQuestions.length} question${prdQuestions.length === 1 ? "" : "s"}`
+    );
+    await pauseDiscovery(
+      pipelineId,
+      `PRD has ${prdQuestions.length} question${prdQuestions.length === 1 ? "" : "s"} that must be answered before engineering.`,
+      prdQuestions.length,
+      {
+        ticketAnalysis,
+        historicalIntelligence,
+        gapAnalysis,
+        complexityAssessment,
+        retrievalContext,
+        discoveryQuestions: prdQuestions,
+        pauseReason: "prd_open_questions",
+      },
+      usages
+    );
+  }
 
   try {
     await attachPRDToJira(ticket.jiraKey, prd);
